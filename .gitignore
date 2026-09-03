@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+supabase/.temp/
+supabase/.branches/
+.DS_Store
+# Raw hook recordings can contain prompt text; commit only curated fixtures.
+fixtures/raw/**/*.jsonl
+!fixtures/raw/**/.gitkeep
+.glasshouse/

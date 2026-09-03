@@ -1,0 +1,85 @@
+# Glasshouse
+
+A watch-only control room for AI coding agents. It shows, in plain English, what every agent
+is doing right now, which part of the user's app it is touching, and why, across Claude Code,
+Codex, Cursor and anything that saves to GitHub. It keeps one continuous story of the project
+when the user switches tools.
+
+Brief: `control-room-product-report.md`. Phased plan: `glasshouse-phased-plan.md`. Research: `docs/`.
+
+## Reporting to Christopher (every finished task)
+
+Christopher is non-technical. When a task is finished and it is time for him to read what happened,
+the reply must start with this exact line on its own:
+
+```
+-- FINISHED TASK --
+```
+
+Then explain what was done in plain, non-technical language, leaving nothing out. Rules:
+
+- Include every detail of what was built, changed, found, or left undone. Completeness matters more than brevity.
+- Never assume a term is understood. Words like "tests", "typecheck", "lint", "migration", "schema", "hook",
+  "API", "daemon" or "repo" must be explained in everyday terms the first time they appear, or replaced with
+  a plain description. Example: "tests" are small automatic checks that prove a piece of the product still
+  behaves the way it should; "typecheck" and "lint" are spell-check-style scans of the code for mistakes.
+- Say what each thing means for the product, not just what it is.
+- Say plainly what needs Christopher's decision or action, and what was skipped or blocked and why.
+- Mid-task progress updates do not use the marker; only the final report does.
+
+## Non-negotiables (apply to every change)
+
+1. **Stages, never percentages.** An agent can say it is testing. It cannot say it is 68% done.
+2. **Every reassuring statement is backed by a checkable fact.** "Not touched: Payments" is computed
+   from the changed-files list. Never generated, never guessed.
+3. **Every plain-English line links to the real action underneath.** Keep `raw` and `sourceEvent`
+   on every event. The technical-detail toggle must always be able to show the truth.
+4. **Watch-only.** No pause, approve, send, or control actions. Hooks and connectors never block or
+   alter the agent: always exit 0, never print to stdout in a hook, swallow your own errors.
+5. **Owner language.** Every word in the UI, digest and report is for someone who will never open
+   the code. No file paths, tool names or jargon in the default view. Say "Looking at how logged-in
+   users are identified", not "Reading auth/session.py". Code and paths live behind the toggle.
+
+## Design rules for the Room
+
+- Readable from two metres. Glanced at, not leaned into.
+- Two speeds: the headline changes only when the *meaning* changes; the ticker carries every action.
+- Tile order is fixed: header, headline, location, stage, risk badge, ticker.
+- "Stuck" is detected (same error three times, nothing for minutes), never declared.
+- "Waiting for you" is the one badge allowed to light up.
+
+## Stack
+
+- pnpm monorepo, TypeScript everywhere. Node 20+.
+- `apps/web`: Next.js (App Router). The Room, reports, digest, inbox, settings, ingest API.
+- `packages/connector`: the `glasshouse` CLI. Registers hooks, spools events to disk, uploads. No daemon.
+- `packages/schema`: the one normalised event model (Zod). Every agent maps into it.
+- `packages/translate`: pure functions only, no I/O. Templates, stage machine, stuck detection.
+- `fixtures/`: recorded real hook payloads. Tests replay them.
+- **Supabase for all backend needs**: Postgres, Auth, Realtime, Storage. Migrations in `supabase/migrations`.
+  Do not introduce other databases, auth providers or realtime layers.
+- Store layer in `apps/web/src/lib/store`: `MemoryStore` (local file) or `SupabaseStore`, chosen by env. Same behaviour; task/stage derivation lives in `derive.ts` and is shared.
+- The connector has no daemon: each hook spools one event file and flushes the spool. See `docs/phase-1-findings.md`.
+- Claude API for the expensive calls only: headline on meaning change, why, report card, digest, area map.
+  Log every call to `ai_calls`.
+
+## Commands
+
+```
+pnpm install
+pnpm test          # vitest across packages
+pnpm typecheck
+pnpm lint
+pnpm dev           # web app, development
+pnpm room          # web app, production build + start (or double-click start-room.cmd)
+pnpm connector:build                          # bundle the connector to packages/connector/dist/cli.js
+node packages/connector/dist/cli.js connect   # link the current folder and register Claude Code hooks
+node packages/connector/dist/cli.js status
+```
+
+## Cost and privacy
+
+- Template translation costs nothing. AI calls are per task, not per action.
+- Always sent: event kind, paths, commands, tool names, timestamps, prompt text.
+- Sent only for the report card: the diff of files changed in that task.
+- Never sent: other file contents, secrets. The connector redacts before upload.

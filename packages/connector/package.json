@@ -1,0 +1,21 @@
+{
+  "name": "glasshouse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Glasshouse connector: listens to your AI coding agents and sends what they are doing to your control room.",
+  "type": "module",
+  "bin": {
+    "glasshouse": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@glasshouse/schema": "workspace:*",
+    "@glasshouse/translate": "workspace:*"
+  },
+  "files": [
+    "dist"
+  ]
+}
