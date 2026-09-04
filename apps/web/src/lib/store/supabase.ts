@@ -30,7 +30,8 @@ import {
   viewTask,
   type TaskState,
 } from "./derive";
-import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, IngestResult, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView } from "./types";
+import { newLinkCode, normaliseCode } from "./memory";
+import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
 
 interface TaskRow {
   id: string;
@@ -87,6 +88,7 @@ interface ReportRow {
   updated_at: string | null;
 }
 
+const PROJECT_COLUMNS = "id,name,repo_root_hint,created_at,owner_id";
 const TASK_COLUMNS = "id,project_id,session_id,tool,external_key,started_at,state";
 const EVENT_COLUMNS = "id,kind,tool,ts,received_at,summary,paths,command,text,tests,source_event,source_tool,agent_id,success,raw,task_id";
 const REPORT_COLUMNS = "task_id,project_id,headline,before_after,touched_reasons,risk_reason,needs_you,needs_you_detail,source,event_count,resolved_at,created_at,updated_at";
@@ -100,11 +102,11 @@ export class SupabaseStore implements Store {
     this.db = createClient(url, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
   }
 
-  async createProject(input: { name: string; rootHint?: string }) {
+  async createProject(input: { name: string; rootHint?: string; ownerId?: string | null }) {
     const { data, error } = await this.db
       .from("projects")
-      .insert({ name: input.name, repo_root_hint: input.rootHint ?? null })
-      .select("id,name,repo_root_hint,created_at")
+      .insert({ name: input.name, repo_root_hint: input.rootHint ?? null, owner_id: input.ownerId ?? null })
+      .select(PROJECT_COLUMNS)
       .single();
     if (error) throw error;
     const token = newToken();
@@ -116,7 +118,7 @@ export class SupabaseStore implements Store {
   async resolveToken(token: string) {
     const { data } = await this.db
       .from("project_tokens")
-      .select("project_id, projects(id,name,repo_root_hint,created_at)")
+      .select(`project_id, projects(${PROJECT_COLUMNS})`)
       .eq("token_hash", hashToken(token))
       .maybeSingle();
     if (!data) return null;
@@ -125,14 +127,16 @@ export class SupabaseStore implements Store {
     return project ? toProject(project as ProjectRowLike) : null;
   }
 
-  async listProjects() {
-    const { data, error } = await this.db.from("projects").select("id,name,repo_root_hint,created_at").order("created_at", { ascending: false });
+  async listProjects(ownerId?: string) {
+    let q = this.db.from("projects").select(PROJECT_COLUMNS).order("created_at", { ascending: false });
+    if (ownerId !== undefined) q = q.eq("owner_id", ownerId);
+    const { data, error } = await q;
     if (error) throw error;
     return data.map(toProject);
   }
 
   async getProject(id: string) {
-    const { data } = await this.db.from("projects").select("id,name,repo_root_hint,created_at").eq("id", id).maybeSingle();
+    const { data } = await this.db.from("projects").select(PROJECT_COLUMNS).eq("id", id).maybeSingle();
     return data ? toProject(data) : null;
   }
 
@@ -554,10 +558,11 @@ export class SupabaseStore implements Store {
     if (error) throw error;
   }
 
-  async addFeedback(input: { eventId: string; note?: string }): Promise<FeedbackRecord | null> {
+  async addFeedback(input: { eventId: string; projectId?: string; note?: string }): Promise<FeedbackRecord | null> {
     const { data: e } = await this.db.from("events").select(`${EVENT_COLUMNS},project_id`).eq("id", input.eventId).maybeSingle();
     if (!e) return null;
     const row = e as EventRow & { project_id: string };
+    if (input.projectId && row.project_id !== input.projectId) return null;
     const [map, described] = await Promise.all([this.getAreaMap(row.project_id), this.getFileDescriptions(row.project_id)]);
     const plain = viewEvent(toEventRow(row), translateContext(map, described)).plain;
     const { data, error } = await this.db
@@ -578,6 +583,137 @@ export class SupabaseStore implements Store {
       const event = raw ? viewEvent(toEventRow(raw as unknown as EventRow), ctx) : undefined;
       return { id: f.id, eventId: f.event_id, projectId, taskId: f.task_id ?? undefined, plain: f.plain ?? "", summary: f.summary ?? "", kind: f.kind ?? "unknown", note: f.note ?? undefined, createdAt: f.created_at, event, plainNow: event?.plain };
     });
+  }
+
+  // -- Phase 4: people, plans, onboarding, testers ---------------------------------------------
+
+  async getProfile(userId: string): Promise<Profile | null> {
+    const { data } = await this.db.from("profiles").select(PROFILE_COLUMNS).eq("user_id", userId).maybeSingle();
+    return data ? toProfile(data as ProfileRow) : null;
+  }
+
+  async upsertProfile(profile: Partial<Profile> & { userId: string }): Promise<Profile> {
+    const row: Record<string, unknown> = { user_id: profile.userId };
+    if (profile.email !== undefined) row.email = profile.email;
+    if (profile.plan !== undefined) row.plan = profile.plan;
+    if (profile.stripeCustomerId !== undefined) row.stripe_customer_id = profile.stripeCustomerId;
+    if (profile.stripeSubscriptionId !== undefined) row.stripe_subscription_id = profile.stripeSubscriptionId;
+    if (profile.subscriptionStatus !== undefined) row.subscription_status = profile.subscriptionStatus;
+    if (profile.planUpdatedAt !== undefined) row.plan_updated_at = profile.planUpdatedAt;
+    if (profile.lastSeenAt !== undefined) row.last_seen_at = profile.lastSeenAt;
+    const { data, error } = await this.db.from("profiles").upsert(row, { onConflict: "user_id" }).select(PROFILE_COLUMNS).single();
+    if (error) throw error;
+    return toProfile(data as ProfileRow);
+  }
+
+  async findProfileByCustomer(stripeCustomerId: string): Promise<Profile | null> {
+    const { data } = await this.db.from("profiles").select(PROFILE_COLUMNS).eq("stripe_customer_id", stripeCustomerId).maybeSingle();
+    return data ? toProfile(data as ProfileRow) : null;
+  }
+
+  async listProfiles(): Promise<Profile[]> {
+    const { data } = await this.db.from("profiles").select(PROFILE_COLUMNS).order("created_at", { ascending: false }).limit(500);
+    return (data ?? []).map((r) => toProfile(r as ProfileRow));
+  }
+
+  async createLinkCode(ownerId: string, now = new Date().toISOString()): Promise<LinkCode> {
+    const code = newLinkCode();
+    const expires_at = new Date(new Date(now).getTime() + 15 * 60 * 1000).toISOString();
+    const { data, error } = await this.db.from("link_codes").insert({ code, owner_id: ownerId, created_at: now, expires_at }).select("code,owner_id,created_at,expires_at,used_at,project_id").single();
+    if (error) throw error;
+    return toLinkCode(data as LinkCodeRow);
+  }
+
+  async consumeLinkCode(code: string, now = new Date().toISOString()): Promise<LinkCode | null> {
+    // One atomic update: only an unused, unexpired code flips to used.
+    const { data } = await this.db
+      .from("link_codes")
+      .update({ used_at: now })
+      .eq("code", normaliseCode(code))
+      .is("used_at", null)
+      .gt("expires_at", now)
+      .select("code,owner_id,created_at,expires_at,used_at,project_id")
+      .maybeSingle();
+    return data ? toLinkCode(data as LinkCodeRow) : null;
+  }
+
+  async getLinkCode(code: string): Promise<LinkCode | null> {
+    const { data } = await this.db.from("link_codes").select("code,owner_id,created_at,expires_at,used_at,project_id").eq("code", normaliseCode(code)).maybeSingle();
+    return data ? toLinkCode(data as LinkCodeRow) : null;
+  }
+
+  async attachLinkCode(code: string, projectId: string) {
+    await this.db.from("link_codes").update({ project_id: projectId }).eq("code", normaliseCode(code));
+  }
+
+  async addInvite(email: string, note?: string): Promise<Invite> {
+    const key = email.trim().toLowerCase();
+    const { data, error } = await this.db.from("invites").upsert({ email: key, note: note ?? null }, { onConflict: "email" }).select("email,note,created_at,accepted_at").single();
+    if (error) throw error;
+    return { email: data.email, note: data.note ?? undefined, createdAt: data.created_at, acceptedAt: data.accepted_at ?? undefined };
+  }
+
+  async removeInvite(email: string) {
+    await this.db.from("invites").delete().eq("email", email.trim().toLowerCase());
+  }
+
+  async isInvited(email: string) {
+    const { data } = await this.db.from("invites").select("email").eq("email", email.trim().toLowerCase()).maybeSingle();
+    return Boolean(data);
+  }
+
+  async markInviteAccepted(email: string, at: string) {
+    await this.db.from("invites").update({ accepted_at: at }).eq("email", email.trim().toLowerCase()).is("accepted_at", null);
+  }
+
+  async listInvites(): Promise<Invite[]> {
+    const { data } = await this.db.from("invites").select("email,note,created_at,accepted_at").order("created_at", { ascending: false });
+    return (data ?? []).map((r) => ({ email: r.email, note: r.note ?? undefined, createdAt: r.created_at, acceptedAt: r.accepted_at ?? undefined }));
+  }
+
+  async addTesterNote(note: Omit<TesterNote, "id" | "createdAt">): Promise<TesterNote> {
+    const { data, error } = await this.db
+      .from("tester_notes")
+      .insert({ user_id: note.userId ?? null, email: note.email ?? null, project_id: note.projectId ?? null, page: note.page, note: note.note, user_agent: note.userAgent ?? null })
+      .select("id,created_at")
+      .single();
+    if (error) throw error;
+    return { ...note, id: data.id, createdAt: data.created_at };
+  }
+
+  async listTesterNotes(limit = 200): Promise<TesterNote[]> {
+    const { data } = await this.db.from("tester_notes").select("id,user_id,email,project_id,page,note,user_agent,created_at").order("created_at", { ascending: false }).limit(limit);
+    return (data ?? []).map((r) => ({ id: r.id, userId: r.user_id ?? undefined, email: r.email ?? undefined, projectId: r.project_id ?? undefined, page: r.page, note: r.note, userAgent: r.user_agent ?? undefined, createdAt: r.created_at }));
+  }
+
+  async recordMetric(event: MetricEvent, visitorId: string, at = new Date().toISOString()) {
+    await this.db.from("metrics").insert({ event, visitor_id: visitorId, at });
+  }
+
+  async metricCounts(days: number, now = new Date().toISOString()): Promise<MetricCounts> {
+    const since = new Date(new Date(now).getTime() - days * 24 * 3600 * 1000).toISOString();
+    const { data } = await this.db.from("metrics").select("event,visitor_id").gte("at", since).limit(100000);
+    const byEvent: MetricCounts["byEvent"] = { landing_view: 0, signup_started: 0, signup_completed: 0, project_connected: 0, first_session: 0, upgrade_clicked: 0 };
+    const seen = new Set<string>();
+    for (const m of data ?? []) {
+      const key = `${m.event}|${m.visitor_id}`;
+      if (seen.has(key) || !(m.event in byEvent)) continue;
+      seen.add(key);
+      byEvent[m.event as MetricEvent]++;
+    }
+    return { byEvent, days, signupRatePct: byEvent.landing_view > 0 ? Math.round((byEvent.signup_completed / byEvent.landing_view) * 1000) / 10 : null };
+  }
+
+  async ownerActivity(ownerId: string) {
+    const projects = await this.listProjects(ownerId);
+    const ids = projects.map((p) => p.id);
+    if (ids.length === 0) return { projects: 0, sessions: 0, tasks: 0 };
+    const [{ count: sessions }, { count: tasks }, { data: last }] = await Promise.all([
+      this.db.from("agent_sessions").select("id", { count: "exact", head: true }).in("project_id", ids),
+      this.db.from("tasks").select("id", { count: "exact", head: true }).in("project_id", ids),
+      this.db.from("events").select("ts").in("project_id", ids).order("ts", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    return { projects: ids.length, sessions: sessions ?? 0, tasks: tasks ?? 0, lastEventAt: (last?.ts as string | undefined) ?? undefined };
   }
 }
 
@@ -604,10 +740,52 @@ interface ProjectRowLike {
   name: string;
   repo_root_hint: string | null;
   created_at: string;
+  owner_id?: string | null;
 }
 
 function toProject(r: ProjectRowLike): ProjectSummary {
-  return { id: r.id, name: r.name, rootHint: r.repo_root_hint ?? undefined, createdAt: r.created_at };
+  return { id: r.id, name: r.name, rootHint: r.repo_root_hint ?? undefined, createdAt: r.created_at, ownerId: r.owner_id ?? null };
+}
+
+interface ProfileRow {
+  user_id: string;
+  email: string | null;
+  plan: Profile["plan"];
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  subscription_status: string | null;
+  plan_updated_at: string | null;
+  created_at: string;
+  last_seen_at: string | null;
+}
+
+const PROFILE_COLUMNS = "user_id,email,plan,stripe_customer_id,stripe_subscription_id,subscription_status,plan_updated_at,created_at,last_seen_at";
+
+function toProfile(r: ProfileRow): Profile {
+  return {
+    userId: r.user_id,
+    email: r.email ?? undefined,
+    plan: r.plan ?? "free",
+    stripeCustomerId: r.stripe_customer_id ?? undefined,
+    stripeSubscriptionId: r.stripe_subscription_id ?? undefined,
+    subscriptionStatus: r.subscription_status ?? undefined,
+    planUpdatedAt: r.plan_updated_at ?? undefined,
+    createdAt: r.created_at,
+    lastSeenAt: r.last_seen_at ?? undefined,
+  };
+}
+
+interface LinkCodeRow {
+  code: string;
+  owner_id: string;
+  created_at: string;
+  expires_at: string;
+  used_at: string | null;
+  project_id: string | null;
+}
+
+function toLinkCode(r: LinkCodeRow): LinkCode {
+  return { code: r.code, ownerId: r.owner_id, createdAt: r.created_at, expiresAt: r.expires_at, usedAt: r.used_at ?? undefined, projectId: r.project_id ?? undefined };
 }
 
 function toEventRow(e: EventRow): Omit<EventView, "plain" | "areaId" | "areaName"> {

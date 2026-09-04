@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { UPGRADE_REASONS, type GatedRoom } from "@/lib/plan";
 import type { RoomState, SessionView } from "@/lib/store/types";
+import { ReportProblem } from "./ReportProblem";
 import { Tile } from "./Tile";
+import { Walkthrough } from "./Walkthrough";
 
 const ACTIVE_WINDOW_MS = 30 * 60 * 1000;
 const POLL_MS = 10000;
@@ -13,17 +16,18 @@ function isActive(s: SessionView, now: number): boolean {
   return now - last < ACTIVE_WINDOW_MS;
 }
 
-export function Room({ initial, mode }: { initial: RoomState; mode: "local" | "supabase" }) {
-  const [state, setState] = useState<RoomState>(initial);
+export function Room({ initial, mode, productName, welcome = false, viewer }: { initial: GatedRoom; mode: "local" | "supabase"; productName: string; welcome?: boolean; viewer: { email?: string; admin: boolean; local: boolean } }) {
+  const [gated, setGated] = useState<GatedRoom>(initial);
+  const state: RoomState = gated.room;
   const [now, setNow] = useState(() => Date.now());
   const [live, setLive] = useState<"connecting" | "live" | "polling">("connecting");
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const projectId = initial.project.id;
+  const projectId = initial.room.project.id;
 
   const refresh = useCallback(async () => {
     try {
       const res = await fetch(`/api/room/${projectId}`, { cache: "no-store" });
-      if (res.ok) setState((await res.json()) as RoomState);
+      if (res.ok) setGated((await res.json()) as GatedRoom);
     } catch {
       /* next poll will retry */
     }
@@ -66,21 +70,44 @@ export function Room({ initial, mode }: { initial: RoomState; mode: "local" | "s
     <main className="room">
       <div className="room-header">
         <div>
-          <strong>{state.project.name}</strong> · Glasshouse
+          <a href="/" className="muted">
+            {productName}
+          </a>{" "}
+          · <strong>{state.project.name}</strong>
         </div>
         <div className="room-links">
           <a href={`/room/${projectId}/digest`} title={state.lastCheckedAt ? `Last checked ${new Date(state.lastCheckedAt).toLocaleString()}` : "Not checked yet"}>
-            Since you last checked{state.sinceChecked.done > 0 ? ` (${state.sinceChecked.done} done${state.sinceChecked.needsYou > 0 ? `, ${state.sinceChecked.needsYou} need you` : ""})` : ""}
+            Since you last checked{state.sinceChecked.done > 0 ? ` (${state.sinceChecked.done} done${state.sinceChecked.needsYou > 0 ? `, ${state.sinceChecked.needsYou} need you` : ""})` : gated.plan === "free" ? " · Pro" : ""}
           </a>
           <a href={`/room/${projectId}/inbox`} className={state.inboxOpen > 0 ? "inbox-link lit" : "inbox-link"}>
-            Needs you{state.inboxOpen > 0 ? ` (${state.inboxOpen})` : ""}
+            Needs you{state.inboxOpen > 0 ? ` (${state.inboxOpen})` : gated.plan === "free" ? " · Pro" : ""}
           </a>
           <a href={`/room/${projectId}/areas`}>Parts of your app{state.areas.length > 0 ? ` (${state.areas.length})` : ""}</a>
+          {!viewer.local && <a href="/account">{gated.plan === "pro" ? "Pro" : "Free"}</a>}
+          {viewer.admin && !viewer.local && <a href="/admin">Testers</a>}
           <span>
-            {live === "live" ? "Live" : live === "polling" ? "Refreshing every 10s" : "Connecting"} · {mode === "local" ? "on this computer" : "Supabase"}
+            {live === "live" ? "Live" : live === "polling" ? "Refreshing every 10s" : "Connecting"} · {mode === "local" ? "on this computer" : "hosted"}
           </span>
         </div>
       </div>
+
+      <Walkthrough state={state} welcome={welcome} />
+
+      {gated.locked.reasons.length > 0 && (
+        <div className="notice locked">
+          {gated.locked.agents > 0 && (
+            <span>
+              {gated.locked.agents} more agent{gated.locked.agents === 1 ? " is" : "s are"} running. {UPGRADE_REASONS.more_agents}{" "}
+            </span>
+          )}
+          {gated.locked.history > 0 && (
+            <span>
+              {gated.locked.history} older session{gated.locked.history === 1 ? "" : "s"} hidden. {UPGRADE_REASONS.history}{" "}
+            </span>
+          )}
+          <a href="/account">See plans</a>
+        </div>
+      )}
 
       {state.areas.length === 0 && (
         <div className="notice">
@@ -124,6 +151,7 @@ export function Room({ initial, mode }: { initial: RoomState; mode: "local" | "s
           {state.sessions.length} session{state.sessions.length === 1 ? "" : "s"} today
         </span>
         {state.areaMapSource && <span>Parts of your app named {state.areaMapSource === "ai" ? "by AI" : "from folder names"}</span>}
+        <ReportProblem projectId={projectId} />
       </div>
     </main>
   );

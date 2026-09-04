@@ -39,6 +39,25 @@ Edit the generated file in `supabase/migrations`, then `db push` (hosted) or `db
 |---|---|
 | `20260903000000_init.sql` | Phase 0: projects, tokens, areas, sessions, tasks, events, reports, digests, ai_calls, feedback, RLS |
 | `20260904000000_phase2.sql` | Phase 2: file tree on projects, area keys, `file_descriptions`, task `state`, event `tool`/`text`/`tests` |
+| `20260905000000_phase3.sql` | Phase 3: report card words on `reports`, digest cache, feedback as shown, `last_checked_at` |
+| `20260906000000_phase4.sql` | Phase 4: `profiles` (plan, Stripe ids, created by trigger on sign-up), `link_codes`, `invites`, `tester_notes`, `metrics`, `projects.owner_id` index |
+
+## Sign-in (Phase 4)
+
+1. Authentication -> Providers: turn **Email** on, with magic links (OTP) allowed. Passwords are not used.
+2. Authentication -> URL configuration: set the site URL to the public address and add
+   `https://<your address>/auth/callback` (and `http://localhost:3000/auth/callback` for development) to the redirect list.
+3. Optional but recommended before testers: Authentication -> Email templates, and a custom SMTP sender, so sign-in emails
+   come from your domain and do not land in spam.
+4. The web app needs `NEXT_PUBLIC_SUPABASE_ANON_KEY` as well as the service-role key: the anon key is what the browser
+   session uses for identity; the service-role key is what the server uses for data.
+
+## Stripe (Phase 4, optional until launch)
+
+Create a product "Pro" with a recurring £15/month price and a webhook to `https://<your address>/api/billing/webhook`
+for `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated` and
+`customer.subscription.deleted`. Set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID_PRO` and `STRIPE_WEBHOOK_SECRET`. Until then,
+`/admin` switches a person to Pro by hand.
 
 ## Rules
 

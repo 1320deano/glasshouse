@@ -6,6 +6,65 @@ export interface ProjectSummary {
   name: string;
   rootHint?: string;
   createdAt: string;
+  /** The signed-in person who connected it. "local" in local mode. Null for projects made before sign-in existed. */
+  ownerId?: string | null;
+}
+
+// -- Phase 4: people, plans, onboarding, testers ------------------------------------------------
+
+export type PlanName = "free" | "pro";
+
+export interface Profile {
+  userId: string;
+  email?: string;
+  plan: PlanName;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  subscriptionStatus?: string;
+  planUpdatedAt?: string;
+  createdAt: string;
+  /** When the person last opened a Room page. */
+  lastSeenAt?: string;
+}
+
+/** A one-time code the owner pastes into `glasshouse connect` so the project lands in their account. */
+export interface LinkCode {
+  code: string;
+  ownerId: string;
+  createdAt: string;
+  expiresAt: string;
+  usedAt?: string;
+  projectId?: string;
+}
+
+export interface Invite {
+  email: string;
+  note?: string;
+  createdAt: string;
+  /** Set when the invited person first signs in. */
+  acceptedAt?: string;
+}
+
+/** "Something's wrong" from a tester, with where they were. */
+export interface TesterNote {
+  id: string;
+  userId?: string;
+  email?: string;
+  projectId?: string;
+  page: string;
+  note: string;
+  userAgent?: string;
+  createdAt: string;
+}
+
+export type MetricEvent = "landing_view" | "signup_started" | "signup_completed" | "project_connected" | "first_session" | "upgrade_clicked";
+
+export interface MetricCounts {
+  /** Distinct visitors per event over the window. */
+  byEvent: Record<MetricEvent, number>;
+  days: number;
+  /** signup_completed / landing_view, as a percentage, or null when there were no visitors. */
+  signupRatePct: number | null;
 }
 
 /** One action, as the Room shows it. `plain` is computed from the current area map, never stored. */
@@ -232,9 +291,10 @@ export interface AiCallLog {
 
 export interface Store {
   readonly mode: "local" | "supabase";
-  createProject(input: { name: string; rootHint?: string }): Promise<{ project: ProjectSummary; token: string }>;
+  createProject(input: { name: string; rootHint?: string; ownerId?: string | null }): Promise<{ project: ProjectSummary; token: string }>;
   resolveToken(token: string): Promise<ProjectSummary | null>;
-  listProjects(): Promise<ProjectSummary[]>;
+  /** All projects, or only one person's. */
+  listProjects(ownerId?: string): Promise<ProjectSummary[]>;
   getProject(id: string): Promise<ProjectSummary | null>;
   ingest(projectId: string, events: NormalisedEvent[]): Promise<IngestResult>;
   getRoom(projectId: string): Promise<RoomState | null>;
@@ -263,6 +323,32 @@ export interface Store {
   markChecked(projectId: string, at: string): Promise<void>;
   getDigestCache(projectId: string, kind: DigestWindowKind): Promise<DigestCache | null>;
   saveDigestCache(cache: DigestCache): Promise<void>;
-  addFeedback(input: { eventId: string; note?: string }): Promise<FeedbackRecord | null>;
+  /** Null when the event is unknown, or when `projectId` is given and the event is not in that project. */
+  addFeedback(input: { eventId: string; projectId?: string; note?: string }): Promise<FeedbackRecord | null>;
   listFeedback(projectId: string): Promise<FeedbackView[]>;
+
+  // -- Phase 4: people, plans, onboarding, testers ---------------------------------------------
+  getProfile(userId: string): Promise<Profile | null>;
+  /** Create or update. `plan` and billing fields are only ever written by billing code. */
+  upsertProfile(profile: Partial<Profile> & { userId: string }): Promise<Profile>;
+  findProfileByCustomer(stripeCustomerId: string): Promise<Profile | null>;
+  listProfiles(): Promise<Profile[]>;
+  createLinkCode(ownerId: string, now?: string): Promise<LinkCode>;
+  /** Marks the code used. Null when unknown, expired or already used. */
+  consumeLinkCode(code: string, now?: string): Promise<LinkCode | null>;
+  /** The code's outcome, for the connect page to poll. */
+  getLinkCode(code: string): Promise<LinkCode | null>;
+  /** Record which project a used code produced. */
+  attachLinkCode(code: string, projectId: string): Promise<void>;
+  addInvite(email: string, note?: string): Promise<Invite>;
+  removeInvite(email: string): Promise<void>;
+  isInvited(email: string): Promise<boolean>;
+  markInviteAccepted(email: string, at: string): Promise<void>;
+  listInvites(): Promise<Invite[]>;
+  addTesterNote(note: Omit<TesterNote, "id" | "createdAt">): Promise<TesterNote>;
+  listTesterNotes(limit?: number): Promise<TesterNote[]>;
+  recordMetric(event: MetricEvent, visitorId: string, at?: string): Promise<void>;
+  metricCounts(days: number, now?: string): Promise<MetricCounts>;
+  /** Per-person activity for the tester dashboard: projects, sessions, last event. */
+  ownerActivity(ownerId: string): Promise<{ projects: number; sessions: number; tasks: number; lastEventAt?: string }>;
 }

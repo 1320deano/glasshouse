@@ -1,12 +1,12 @@
-import { readAllowed } from "@/lib/auth";
+import { canReadProject } from "@/lib/auth";
 import { subscribe } from "@/lib/bus";
 
 export const dynamic = "force-dynamic";
 
 /** Server-sent events: one message per ingest batch for the project. The Room refetches on each. */
 export async function GET(req: Request) {
-  if (!readAllowed(req)) return new Response("not allowed", { status: 401 });
   const projectId = new URL(req.url).searchParams.get("projectId");
+  if (!projectId || !(await canReadProject(req, projectId))) return new Response("not allowed", { status: 401 });
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({

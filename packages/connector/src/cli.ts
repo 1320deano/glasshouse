@@ -1,7 +1,7 @@
 /**
  * `glasshouse` CLI.
  *
- *   glasshouse connect [--server URL] [--name NAME] [--project] [--tools a,b]   link this folder and register hooks
+ *   glasshouse connect [--code XXXX-XXXX] [--server URL] [--name NAME] [--project] [--tools a,b]   link this folder and register hooks
  *   glasshouse hook <tool> <event>                                              called by the agent (stdin JSON)
  *   glasshouse map                                                              resend the file tree so the Room can refresh the area map
  *   glasshouse watch [--no-folders]                                             watch folders, commits and Codex logs (long-running)
@@ -97,16 +97,16 @@ async function connect() {
   const root = process.cwd();
   const server = (flag("server") ?? process.env.GLASSHOUSE_SERVER ?? "http://localhost:3000").replace(/\/+$/, "");
   const name = flag("name") ?? (await projectName(root));
+  // The one-time code from the Room's "New project" page ties this folder to your account (hosted only).
+  const code = flag("code") ?? process.env.GLASSHOUSE_LINK_CODE;
 
-  let linked: { projectId: string; token: string; name: string; mode: string };
+  let res: Response;
   try {
-    const res = await fetch(`${server}/api/projects/link`, {
+    res = await fetch(`${server}/api/projects/link`, {
       method: "POST",
       headers: { "content-type": "application/json", ...(process.env.GLASSHOUSE_SETUP_SECRET ? { "x-glasshouse-setup": process.env.GLASSHOUSE_SETUP_SECRET } : {}) },
-      body: JSON.stringify({ name, rootHint: root }),
+      body: JSON.stringify({ name, rootHint: root, code }),
     });
-    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-    linked = (await res.json()) as typeof linked;
   } catch (err) {
     console.error(`Could not reach the Room at ${server}.`);
     console.error(`Start it first (pnpm room, or pnpm dev while developing), then run this again.`);
@@ -114,6 +114,15 @@ async function connect() {
     process.exitCode = 1;
     return;
   }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string; upgrade?: string };
+    console.error(body.error ?? `The Room said no (${res.status}).`);
+    if (res.status === 401 && !code) console.error(`Open ${server}/connect in your browser, click New project, and run the command it shows (it carries a --code).`);
+    if (body.upgrade) console.error(`Open ${server}/account to see plans.`);
+    process.exitCode = 1;
+    return;
+  }
+  const linked = (await res.json()) as { projectId: string; token: string; name: string; mode: string };
 
   const projects = (await readProjects()).filter((p) => p.root.toLowerCase() !== root.toLowerCase());
   const entry: LinkedProject = { projectId: linked.projectId, name: linked.name, root, server, token: linked.token, linkedAt: new Date().toISOString() };
@@ -251,7 +260,7 @@ async function main() {
       console.log(CONNECTOR_VERSION);
       return;
     default:
-      console.log("usage: glasshouse <connect [--server URL] [--name NAME] [--project] [--tools claude-code,codex,cursor] | map | watch [--no-folders] | status | disconnect | hook <tool> <event> | record <tool> <event>>");
+      console.log("usage: glasshouse <connect [--code XXXX-XXXX] [--server URL] [--name NAME] [--project] [--tools claude-code,codex,cursor] | map | watch [--no-folders] | status | disconnect | hook <tool> <event> | record <tool> <event>>");
   }
 }
 
