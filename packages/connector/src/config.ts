@@ -2,7 +2,7 @@ import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-export const CONNECTOR_VERSION = "0.1.0";
+export const CONNECTOR_VERSION = "0.2.0";
 
 /** A folder on this machine that has been linked to a project in the Room. */
 export interface LinkedProject {
@@ -14,12 +14,19 @@ export interface LinkedProject {
   server: string;
   token: string;
   linkedAt: string;
+  /** When the file tree was last sent for the area map, and its fingerprint. */
+  treeSentAt?: string;
+  treeHash?: string;
 }
 
 export const homeDir = () => process.env.GLASSHOUSE_HOME ?? join(homedir(), ".glasshouse");
 export const projectsPath = () => join(homeDir(), "projects.json");
 export const spoolDir = () => join(homeDir(), "spool");
 export const logPath = () => join(homeDir(), "connector.log");
+/** Where `glasshouse watch` keeps its place: last commit seen per project, byte offsets per Codex log. */
+export const watchStatePath = () => join(homeDir(), "watch-state.json");
+export const codexHome = () => process.env.CODEX_HOME ?? join(homedir(), ".codex");
+export const cursorHome = () => process.env.CURSOR_HOME ?? join(homedir(), ".cursor");
 
 export const normPath = (p: string) => p.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
 

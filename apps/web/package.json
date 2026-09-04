@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
     "@glasshouse/schema": "workspace:*",
     "@glasshouse/translate": "workspace:*",
     "@supabase/ssr": "^0.6.0",

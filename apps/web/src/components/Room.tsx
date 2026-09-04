@@ -59,7 +59,8 @@ export function Room({ initial, mode }: { initial: RoomState; mode: "local" | "s
   }, [projectId, refresh, scheduleRefresh]);
 
   const active = state.sessions.filter((s) => isActive(s, now));
-  const quiet = state.sessions.filter((s) => !isActive(s, now)).slice(0, 3);
+  const quiet = state.sessions.filter((s) => !isActive(s, now)).slice(0, 4);
+  const needsYou = active.filter((s) => s.task?.stage === "waiting");
 
   return (
     <main className="room">
@@ -67,15 +68,30 @@ export function Room({ initial, mode }: { initial: RoomState; mode: "local" | "s
         <div>
           <strong>{state.project.name}</strong> · Glasshouse
         </div>
-        <div>
-          {live === "live" ? "Live" : live === "polling" ? "Refreshing every 10s" : "Connecting"} · {mode === "local" ? "local" : "Supabase"}
+        <div className="room-links">
+          <a href={`/room/${projectId}/areas`}>Parts of your app{state.areas.length > 0 ? ` (${state.areas.length})` : ""}</a>
+          <span>
+            {live === "live" ? "Live" : live === "polling" ? "Refreshing every 10s" : "Connecting"} · {mode === "local" ? "on this computer" : "Supabase"}
+          </span>
         </div>
       </div>
+
+      {state.areas.length === 0 && (
+        <div className="notice">
+          This project has no map of its parts yet, so tiles use folder names. Run <code>glasshouse map</code> in the project folder to build one.
+        </div>
+      )}
+
+      {needsYou.length > 0 && (
+        <div className="notice waiting">
+          {needsYou.length === 1 ? "One agent is waiting for you." : `${needsYou.length} agents are waiting for you.`}
+        </div>
+      )}
 
       {active.length === 0 ? (
         <div className="empty">
           <h2>No agents running.</h2>
-          <p>Start Claude Code in this project and its tile appears here within a second or two.</p>
+          <p>Start Claude Code, Codex or Cursor in this project and its tile appears here within a second or two.</p>
         </div>
       ) : (
         <div className="tiles">
@@ -98,7 +114,10 @@ export function Room({ initial, mode }: { initial: RoomState; mode: "local" | "s
 
       <div className="footer">
         <span>Updated {new Date(state.generatedAt).toLocaleTimeString()}</span>
-        <span>{state.sessions.length} session{state.sessions.length === 1 ? "" : "s"} today</span>
+        <span>
+          {state.sessions.length} session{state.sessions.length === 1 ? "" : "s"} today
+        </span>
+        {state.areaMapSource && <span>Parts of your app named {state.areaMapSource === "ai" ? "by AI" : "from folder names"}</span>}
       </div>
     </main>
   );

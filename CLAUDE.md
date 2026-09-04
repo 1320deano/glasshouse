@@ -59,9 +59,15 @@ Then explain what was done in plain, non-technical language, leaving nothing out
 - **Supabase for all backend needs**: Postgres, Auth, Realtime, Storage. Migrations in `supabase/migrations`.
   Do not introduce other databases, auth providers or realtime layers.
 - Store layer in `apps/web/src/lib/store`: `MemoryStore` (local file) or `SupabaseStore`, chosen by env. Same behaviour; task/stage derivation lives in `derive.ts` and is shared.
-- The connector has no daemon: each hook spools one event file and flushes the spool. See `docs/phase-1-findings.md`.
-- Claude API for the expensive calls only: headline on meaning change, why, report card, digest, area map.
-  Log every call to `ai_calls`.
+- The connector has no daemon for hooks: each hook spools one event file and flushes the spool. See `docs/phase-1-findings.md`.
+  `glasshouse watch` is the one long-running process, only for sources without hooks (folder saves, git, Codex logs).
+- Plain-English lines, location, risk and "not touched" are computed at read time from the current area map
+  (`derive.ts`), never stored, so a renamed area is right everywhere at once. Task facts live in one `state` object.
+- Claude API for the expensive calls only: headline on meaning change, area map, file descriptions, and later why,
+  report card, digest. All through `apps/web/src/lib/ai/client.ts`, which logs every call to `ai_calls`.
+  Without `ANTHROPIC_API_KEY` everything must still work from templates and folder names.
+- Codex and Cursor normalisers were written from documented shapes; their fixtures are `-synthetic`. Replace them
+  with real recordings before trusting a field name. See `docs/phase-2-findings.md`.
 
 ## Commands
 
@@ -73,7 +79,9 @@ pnpm lint
 pnpm dev           # web app, development
 pnpm room          # web app, production build + start (or double-click start-room.cmd)
 pnpm connector:build                          # bundle the connector to packages/connector/dist/cli.js
-node packages/connector/dist/cli.js connect   # link the current folder and register Claude Code hooks
+node packages/connector/dist/cli.js connect   # link the current folder, register hooks (Claude Code, Codex, Cursor), send the file map
+node packages/connector/dist/cli.js map       # resend the file map
+node packages/connector/dist/cli.js watch     # follow saves, commits and Codex logs (long-running)
 node packages/connector/dist/cli.js status
 ```
 

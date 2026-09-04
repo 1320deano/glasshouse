@@ -33,6 +33,13 @@ pnpm supabase migration new <name>
 ```
 Edit the generated file in `supabase/migrations`, then `db push` (hosted) or `db reset` (local).
 
+## Migrations so far
+
+| File | Adds |
+|---|---|
+| `20260903000000_init.sql` | Phase 0: projects, tokens, areas, sessions, tasks, events, reports, digests, ai_calls, feedback, RLS |
+| `20260904000000_phase2.sql` | Phase 2: file tree on projects, area keys, `file_descriptions`, task `state`, event `tool`/`text`/`tests` |
+
 ## Rules
 
 - All writes to `agent_sessions`, `tasks` and `events` go through the ingest API route using the service-role key.

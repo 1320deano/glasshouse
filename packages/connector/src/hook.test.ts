@@ -80,3 +80,27 @@ describe("runHook", () => {
     expect(await runHook("claude-code", "Stop", "not json", { projects: [project] })).toMatchObject({ status: "skipped" });
   });
 });
+
+describe("runHook for other tools", () => {
+  const storyboard: LinkedProject = { ...project, root: "/home/chris/apps/storyboard" };
+
+  it("routes Codex and Cursor payloads through their own normalisers", async () => {
+    const { batches, fetchImpl } = fakeServer(true);
+    const codex = readFileSync(join(__dirname, "../../../fixtures/sessions/codex-hooks-synthetic.jsonl"), "utf8").trim().split("\n").map((l) => RecordedHook.parse(JSON.parse(l)));
+    const cursor = readFileSync(join(__dirname, "../../../fixtures/sessions/cursor-synthetic.jsonl"), "utf8").trim().split("\n").map((l) => RecordedHook.parse(JSON.parse(l)));
+    for (const r of codex) await runHook("codex", r.hookEvent, JSON.stringify(r.payload), { projects: [storyboard], fetchImpl });
+    for (const r of cursor) await runHook("cursor", r.hookEvent, JSON.stringify(r.payload), { projects: [storyboard], fetchImpl });
+    const sent = batches.flatMap((b) => b.events);
+    expect(sent.filter((e) => e.tool === "codex").map((e) => e.kind)).toEqual(["session_start", "prompt", "command", "read", "edit", "test_run", "stop", "session_end"]);
+    expect(sent.filter((e) => e.tool === "cursor").map((e) => e.kind)).toEqual(["session_start", "prompt", "reasoning", "read", "edit", "edit", "test_run", "error", "edit", "test_run", "stop", "stop"]);
+    expect(await waiting()).toBe(0);
+  });
+
+  it("finds the project from Cursor's workspace_roots", async () => {
+    expect(await runHook("cursor", "stop", JSON.stringify({ conversation_id: "c1", generation_id: "g1", workspace_roots: ["/home/chris/elsewhere"], status: "completed" }), { projects: [storyboard] })).toEqual({ status: "skipped", reason: "folder not linked" });
+  });
+
+  it("says no to tools it does not know", async () => {
+    expect(await runHook("windsurf", "Stop", JSON.stringify({ cwd: storyboard.root }), { projects: [storyboard] })).toEqual({ status: "skipped", reason: "windsurf is not supported yet" });
+  });
+});

@@ -33,3 +33,18 @@ describe("NormalisedEvent", () => {
     expect(() => EventBatch.parse({ connectorVersion: "0.0.0", events: [] })).toThrow();
   });
 });
+
+describe("Phase 2 shapes", () => {
+  it("area maps default the optional flags", async () => {
+    const { AreaMap, ProjectTree } = await import("./index");
+    const map = AreaMap.parse({ areas: [{ id: "a1", name: "Login", prefixes: ["auth"] }] });
+    expect(map.areas[0]).toMatchObject({ userCorrected: false, source: "heuristic", sensitive: false, description: "" });
+    const tree = ProjectTree.parse({ paths: ["package.json"], scannedAt: "2026-09-04T00:00:00.000Z" });
+    expect(tree).toMatchObject({ truncated: false, manifests: [] });
+  });
+
+  it("events may carry parsed test counts and short text, never long text", () => {
+    expect(NormalisedEvent.parse({ ...base, kind: "test_run", tests: { passed: 3, failed: 1 } }).tests).toEqual({ passed: 3, failed: 1 });
+    expect(() => NormalisedEvent.parse({ ...base, text: "x".repeat(5000) })).toThrow();
+  });
+});
