@@ -1,4 +1,5 @@
 import type { AgentTool, RiskLevel, Stage } from "@glasshouse/schema";
+import type { NeedsYou } from "@glasshouse/translate";
 import type { ViewDepth } from "@/lib/store/types";
 
 export const TOOL_NAMES: Record<AgentTool, string> = {
@@ -32,6 +33,13 @@ export const STAGE_TEXT: Record<Stage, string> = {
 };
 
 export const RISK_TEXT: Record<RiskLevel, string> = { low: "Low risk", medium: "Medium risk", high: "High risk" };
+
+export const NEEDS_YOU_TEXT: Record<NeedsYou, string> = {
+  nothing: "Needs you: nothing",
+  review: "Review recommended",
+  decision: "Decision needed",
+  blocked: "Blocked",
+};
 
 export function ago(iso: string | undefined, now: number): string {
   if (!iso) return "";

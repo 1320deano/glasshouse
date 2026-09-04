@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { AskAnswer } from "@/lib/ai/ask";
 import type { EventView, SessionView, TaskDetail } from "@/lib/store/types";
 import { RISK_TEXT, TOOL_NAMES, ago, latencyOf } from "./labels";
+import { ReportCard } from "./ReportCard";
 
 /**
  * The expanded tile (brief 4.2): the live stream, Why, Where, What it's changed so far, and the
@@ -27,6 +29,90 @@ function Raw({ e }: { e: EventView }) {
       </button>
       {show && <pre className="raw-json">{JSON.stringify(e.raw ?? {}, null, 2)}</pre>}
     </div>
+  );
+}
+
+/** Thumbs-down on a plain-English line (Phase 3): stored with the raw event so the worst translations can be reviewed. */
+export function Dislike({ eventId }: { eventId: string }) {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  if (state === "sent") return <span className="dislike muted small">Noted, thanks</span>;
+  return (
+    <button
+      className="dislike"
+      title="This line is wrong or unclear"
+      disabled={state === "sending"}
+      onClick={async () => {
+        setState("sending");
+        try {
+          const res = await fetch("/api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventId }) });
+          setState(res.ok ? "sent" : "failed");
+        } catch {
+          setState("failed");
+        }
+      }}
+    >
+      {state === "failed" ? "Could not send" : "👎"}
+    </button>
+  );
+}
+
+/** The Ask box (brief 5.1): a question about this task, answered from its record, with the actions it rests on. */
+export function AskBox({ taskId, technical }: { taskId: string; technical: boolean }) {
+  const [question, setQuestion] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [history, setHistory] = useState<Array<{ question: string; answer: AskAnswer }>>([]);
+
+  async function ask() {
+    const q = question.trim();
+    if (q.length < 2 || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId, question: q }) });
+      const data = (await res.json()) as AskAnswer & { error?: string };
+      const answer: AskAnswer = res.ok ? data : { answer: null, basedOn: [], unsure: true, reason: data.error ?? "Could not ask right now." };
+      setHistory((h) => [{ question: q, answer }, ...h]);
+      setQuestion("");
+    } catch {
+      setHistory((h) => [{ question: q, answer: { answer: null, basedOn: [], unsure: true, reason: "Could not reach the Room." } }, ...h]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="ask">
+      <div className="panel-title">Ask about this task</div>
+      <form
+        className="ask-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void ask();
+        }}
+      >
+        <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Did it change how people log in?" maxLength={600} disabled={busy} />
+        <button className="button" type="submit" disabled={busy || question.trim().length < 2}>
+          {busy ? "Asking…" : "Ask"}
+        </button>
+      </form>
+      <ul className="ask-history">
+        {history.map((h, i) => (
+          <li key={i}>
+            <div className="ask-q">You asked: {h.question}</div>
+            {h.answer.answer ? (
+              <div className={`ask-a${h.answer.unsure ? " unsure" : ""}`}>{h.answer.answer}</div>
+            ) : (
+              <div className="ask-a muted">{h.answer.reason ?? "No answer."}</div>
+            )}
+            {h.answer.basedOn.length > 0 && (
+              <div className="ask-basis muted small">
+                Based on: {h.answer.basedOn.map((e) => e.plain).join(" · ")}
+                {technical && <div className="mono">{h.answer.basedOn.map((e) => `${e.summary}${e.paths.length ? ` (${e.paths.join(", ")})` : ""}`).join(" · ")}</div>}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -90,6 +176,14 @@ export function TaskPanel({ session, now }: { session: SessionView; now: number 
           {detail.headlineSource === "ai" ? " · headline written by AI" : ""}
         </span>
       </div>
+
+      {detail.report && (
+        <section>
+          <div className="panel-title">Report card</div>
+          <div className="report-headline">{detail.report.headline}</div>
+          <ReportCard task={detail} technical={technical} />
+        </section>
+      )}
 
       <div className="panel-grid">
         <section>
@@ -175,11 +269,14 @@ export function TaskPanel({ session, now }: { session: SessionView; now: number 
                 {e.plain}
               </span>
               <span className="when">{ago(e.ts, now)}</span>
+              <Dislike eventId={e.id} />
               {technical && <Raw e={e} />}
             </li>
           ))}
         </ul>
       </section>
+
+      <AskBox taskId={taskId} technical={technical} />
     </div>
   );
 }

@@ -69,6 +69,12 @@ export function Room({ initial, mode }: { initial: RoomState; mode: "local" | "s
           <strong>{state.project.name}</strong> · Glasshouse
         </div>
         <div className="room-links">
+          <a href={`/room/${projectId}/digest`} title={state.lastCheckedAt ? `Last checked ${new Date(state.lastCheckedAt).toLocaleString()}` : "Not checked yet"}>
+            Since you last checked{state.sinceChecked.done > 0 ? ` (${state.sinceChecked.done} done${state.sinceChecked.needsYou > 0 ? `, ${state.sinceChecked.needsYou} need you` : ""})` : ""}
+          </a>
+          <a href={`/room/${projectId}/inbox`} className={state.inboxOpen > 0 ? "inbox-link lit" : "inbox-link"}>
+            Needs you{state.inboxOpen > 0 ? ` (${state.inboxOpen})` : ""}
+          </a>
           <a href={`/room/${projectId}/areas`}>Parts of your app{state.areas.length > 0 ? ` (${state.areas.length})` : ""}</a>
           <span>
             {live === "live" ? "Live" : live === "polling" ? "Refreshing every 10s" : "Connecting"} · {mode === "local" ? "on this computer" : "Supabase"}

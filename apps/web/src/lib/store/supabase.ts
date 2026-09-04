@@ -7,7 +7,7 @@
  * as soon as the hosted project exists (docs/supabase-setup.md).
  */
 import type { AgentTool, Area, AreaMap, NormalisedEvent, ProjectTree } from "@glasshouse/schema";
-import type { EndedTask } from "@glasshouse/translate";
+import { reportCard, type DigestWindowKind, type EndedTask } from "@glasshouse/translate";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
   CONTINUITY_MAX_CHECKS,
@@ -17,17 +17,20 @@ import {
   areaIdsOf,
   changeLines,
   continuationFor,
+  fullState,
   hashToken,
+  inboxItemFrom,
   latencyStats,
-  newTaskState,
   newToken,
+  reportFactsFor,
   riskFor,
+  templateReportFor,
   translateContext,
   viewEvent,
   viewTask,
   type TaskState,
 } from "./derive";
-import type { AiCallLog, EventView, IngestResult, ProjectSummary, RoomState, SessionView, Stats, Store, TaskDetail } from "./types";
+import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, IngestResult, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView } from "./types";
 
 interface TaskRow {
   id: string;
@@ -68,11 +71,26 @@ interface AreaRow {
   sensitive: boolean;
 }
 
+interface ReportRow {
+  task_id: string;
+  project_id: string;
+  headline: string;
+  before_after: string | null;
+  touched_reasons: Record<string, string> | null;
+  risk_reason: string | null;
+  needs_you: ReportRecord["needsYou"];
+  needs_you_detail: string | null;
+  source: ReportRecord["source"] | null;
+  event_count: number | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 const TASK_COLUMNS = "id,project_id,session_id,tool,external_key,started_at,state";
 const EVENT_COLUMNS = "id,kind,tool,ts,received_at,summary,paths,command,text,tests,source_event,source_tool,agent_id,success,raw,task_id";
+const REPORT_COLUMNS = "task_id,project_id,headline,before_after,touched_reasons,risk_reason,needs_you,needs_you_detail,source,event_count,resolved_at,created_at,updated_at";
 const CONTINUITY_WINDOW_MS = 6 * 60 * 60 * 1000;
-
-const fullState = (partial: Partial<TaskState> | null | undefined): TaskState => ({ ...newTaskState(), ...(partial ?? {}) });
 
 export class SupabaseStore implements Store {
   readonly mode = "supabase" as const;
@@ -121,7 +139,7 @@ export class SupabaseStore implements Store {
   // -- ingest -------------------------------------------------------------------------------
 
   async ingest(projectId: string, events: NormalisedEvent[]): Promise<IngestResult> {
-    const result: IngestResult = { inserted: 0, duplicates: 0, headlineRequests: [], undescribedPaths: [] };
+    const result: IngestResult = { inserted: 0, duplicates: 0, headlineRequests: [], undescribedPaths: [], finishedTasks: [] };
     const [map, described] = await Promise.all([this.getAreaMap(projectId), this.getFileDescriptions(projectId)]);
     const ctx = translateContext(map, described);
     const sorted = [...events].sort((a, b) => a.ts.localeCompare(b.ts));
@@ -161,12 +179,16 @@ export class SupabaseStore implements Store {
           task = { ...(data as TaskRow), dirty: false };
           tasks.set(tKey, task);
         }
-        const { state, trigger } = applyEvent(fullState(task.state), e, ctx);
+        const { state, trigger, finished } = applyEvent(fullState(task.state), e, ctx);
         task.state = state;
         task.dirty = true;
         if (trigger) result.headlineRequests.push({ taskId: task.id, trigger });
         const link = await this.maybeLinkContinuation(projectId, task, ctx.areas);
         if (link) continuedBy.set(link, task.id);
+        if (finished) {
+          await this.writeReport({ ...templateReportFor(state, task.tool ?? e.tool, ctx), taskId: task.id, projectId, eventCount: state.eventCount }, true, state);
+          if (!result.finishedTasks.includes(task.id)) result.finishedTasks.push(task.id);
+        }
       }
       for (const p of e.paths) if ((e.kind === "edit" || e.kind === "read") && !described[p] && !result.undescribedPaths.includes(p)) result.undescribedPaths.push(p);
       rows.push({
@@ -278,6 +300,7 @@ export class SupabaseStore implements Store {
     const ctx = translateContext({ areas: [...areas] }, described);
     const from = state.continuedFrom ? await this.taskRow(state.continuedFrom) : undefined;
     const by = state.continuedBy ? await this.taskRow(state.continuedBy) : undefined;
+    const report = state.endedAt ? await this.getReport(t.id) : null;
     return viewTask(
       {
         id: t.id,
@@ -290,6 +313,7 @@ export class SupabaseStore implements Store {
         nowIso,
         continuedFrom: from ? { taskId: from.id, tool: from.tool ?? "claude-code", headline: fullState(from.state).headline, prompt: fullState(from.state).prompt } : undefined,
         continuedByTool: by?.tool ?? undefined,
+        report,
       },
       ctx,
     );
@@ -334,7 +358,21 @@ export class SupabaseStore implements Store {
       });
     }
     views.sort((a, b) => (b.lastEventAt ?? b.startedAt).localeCompare(a.lastEventAt ?? a.startedAt));
-    return { project, sessions: views, areas: map?.areas ?? [], areaMapSource: map?.source, generatedAt: nowIso };
+    const lastCheckedAt = await this.getLastChecked(projectId);
+    const recent = await this.listTasks(projectId, { since: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString() });
+    const open = recent.map(inboxItemFrom).filter((i) => i && !i.resolvedAt);
+    const sinceIso = lastCheckedAt ?? new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const doneSince = recent.filter((t) => t.tool !== "watcher" && t.endedAt && t.endedAt >= sinceIso);
+    return {
+      project,
+      sessions: views,
+      areas: map?.areas ?? [],
+      areaMapSource: map?.source,
+      generatedAt: nowIso,
+      inboxOpen: open.length,
+      lastCheckedAt,
+      sinceChecked: { done: doneSince.length, needsYou: doneSince.filter((t) => t.report && t.report.needsYou !== "nothing" && !t.report.resolvedAt).length },
+    };
   }
 
   async getTask(taskId: string): Promise<TaskDetail | null> {
@@ -346,7 +384,7 @@ export class SupabaseStore implements Store {
     const { data: events } = await this.db.from("events").select(EVENT_COLUMNS).eq("task_id", t.id).order("ts", { ascending: false }).limit(500);
     const viewed = (events ?? []).map((e) => viewEvent(toEventRow(e as EventRow), ctx));
     const view = await this.viewFor(t, Boolean(session?.ended_at), new Date().toISOString(), ctx.areas, described);
-    return { ...view, events: viewed, changes: changeLines(viewed, ctx), projectId: t.project_id };
+    return { ...view, events: viewed, changes: changeLines(viewed, ctx), projectId: t.project_id, facts: reportFactsFor(fullState(t.state), t.tool ?? "claude-code", ctx.areas) };
   }
 
   async setHeadline(taskId: string, headline: string, source: "ai" | "template") {
@@ -420,6 +458,145 @@ export class SupabaseStore implements Store {
   async logAiCall(call: AiCallLog) {
     await this.db.from("ai_calls").insert({ project_id: call.projectId, task_id: call.taskId ?? null, purpose: call.purpose, model: call.model, input_tokens: call.inputTokens, output_tokens: call.outputTokens, cost_gbp: call.costGbp });
   }
+
+  // -- Phase 3: reports, digest, inbox, feedback --------------------------------------------
+
+  async listTasks(projectId: string, opts: { since: string; limit?: number }): Promise<TaskView[]> {
+    const [map, described] = await Promise.all([this.getAreaMap(projectId), this.getFileDescriptions(projectId)]);
+    const ctx = translateContext(map, described);
+    const { data, error } = await this.db
+      .from("tasks")
+      .select(`${TASK_COLUMNS},agent_sessions(ended_at)`)
+      .eq("project_id", projectId)
+      .or(`last_event_at.gte.${opts.since},ended_at.gte.${opts.since},started_at.gte.${opts.since}`)
+      .order("last_event_at", { ascending: false, nullsFirst: false })
+      .limit(opts.limit ?? 200);
+    if (error) throw error;
+    const nowIso = new Date().toISOString();
+    const views: TaskView[] = [];
+    for (const row of data ?? []) {
+      const r = row as unknown as TaskRow & { agent_sessions: { ended_at: string | null } | { ended_at: string | null }[] | null };
+      const session = Array.isArray(r.agent_sessions) ? r.agent_sessions[0] : r.agent_sessions;
+      views.push(await this.viewFor(r, Boolean(session?.ended_at), nowIso, ctx.areas, described));
+    }
+    return views;
+  }
+
+  async getReport(taskId: string): Promise<ReportRecord | null> {
+    const { data } = await this.db.from("reports").select(REPORT_COLUMNS).eq("task_id", taskId).maybeSingle();
+    return data ? toReport(data as ReportRow) : null;
+  }
+
+  async saveReport(record: Omit<ReportRecord, "createdAt" | "updatedAt"> & { resolvedAt?: string }) {
+    await this.writeReport(record, false);
+  }
+
+  /**
+   * Upsert the words of a card. The facts columns (touched, not_touched, evidence, risk) are
+   * readable snapshots computed now; the Room recomputes them against the current map when read.
+   */
+  private async writeReport(record: Omit<ReportRecord, "createdAt" | "updatedAt"> & { resolvedAt?: string }, fresh: boolean, currentState?: TaskState) {
+    const task = await this.taskRow(record.taskId);
+    if (!task) return;
+    const existing = fresh ? null : await this.getReport(record.taskId);
+    const [map, described] = await Promise.all([this.getAreaMap(task.project_id), this.getFileDescriptions(task.project_id)]);
+    const ctx = translateContext(map, described);
+    // During ingest the row is not yet written, so the caller hands over the state it is about to save.
+    const card = reportCard(record, reportFactsFor(currentState ?? fullState(task.state), task.tool ?? "claude-code", ctx.areas), ctx);
+    const now = new Date().toISOString();
+    const { error } = await this.db.from("reports").upsert(
+      {
+        task_id: record.taskId,
+        project_id: task.project_id,
+        headline: record.headline,
+        before_after: record.beforeAfter ?? null,
+        touched: card.touched.map((t) => ({ area: t.name, reason: t.reason, files: t.files })),
+        not_touched: card.notTouched,
+        evidence: card.evidence,
+        risk: card.risk.level,
+        risk_reason: card.riskReason ?? null,
+        needs_you: record.needsYou,
+        needs_you_detail: record.needsYouDetail ?? null,
+        touched_reasons: record.touchedReasons,
+        source: record.source,
+        event_count: record.eventCount,
+        resolved_at: fresh ? (record.resolvedAt ?? null) : (record.resolvedAt ?? existing?.resolvedAt ?? null),
+        updated_at: now,
+      },
+      { onConflict: "task_id" },
+    );
+    if (error) throw error;
+  }
+
+  async setReportResolved(taskId: string, resolved: boolean) {
+    const now = new Date().toISOString();
+    await this.db.from("reports").update({ resolved_at: resolved ? now : null, updated_at: now }).eq("task_id", taskId);
+  }
+
+  async getLastChecked(projectId: string) {
+    const { data } = await this.db.from("projects").select("last_checked_at").eq("id", projectId).maybeSingle();
+    return (data?.last_checked_at as string | null) ?? undefined;
+  }
+
+  async markChecked(projectId: string, at: string) {
+    await this.db.from("projects").update({ last_checked_at: at }).eq("id", projectId);
+  }
+
+  async getDigestCache(projectId: string, kind: DigestWindowKind): Promise<DigestCache | null> {
+    const { data } = await this.db.from("digests").select("project_id,kind,window_start,window_end,fingerprint,body,created_at").eq("project_id", projectId).eq("kind", kind).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (!data) return null;
+    return { projectId: data.project_id, kind: data.kind, windowStart: data.window_start, windowEnd: data.window_end, fingerprint: data.fingerprint, body: data.body as DigestCache["body"], createdAt: data.created_at };
+  }
+
+  async saveDigestCache(cache: DigestCache) {
+    await this.db.from("digests").delete().eq("project_id", cache.projectId).eq("kind", cache.kind);
+    const { error } = await this.db.from("digests").insert({ project_id: cache.projectId, kind: cache.kind, window_start: cache.windowStart, window_end: cache.windowEnd, fingerprint: cache.fingerprint, body: cache.body });
+    if (error) throw error;
+  }
+
+  async addFeedback(input: { eventId: string; note?: string }): Promise<FeedbackRecord | null> {
+    const { data: e } = await this.db.from("events").select(`${EVENT_COLUMNS},project_id`).eq("id", input.eventId).maybeSingle();
+    if (!e) return null;
+    const row = e as EventRow & { project_id: string };
+    const [map, described] = await Promise.all([this.getAreaMap(row.project_id), this.getFileDescriptions(row.project_id)]);
+    const plain = viewEvent(toEventRow(row), translateContext(map, described)).plain;
+    const { data, error } = await this.db
+      .from("translation_feedback")
+      .insert({ event_id: row.id, project_id: row.project_id, task_id: row.task_id ?? null, plain, summary: row.summary, kind: row.kind, note: input.note?.slice(0, 500) ?? null })
+      .select("id,created_at")
+      .single();
+    if (error) throw error;
+    return { id: data.id, eventId: row.id, projectId: row.project_id, taskId: row.task_id ?? undefined, plain, summary: row.summary, kind: row.kind, note: input.note?.slice(0, 500), createdAt: data.created_at };
+  }
+
+  async listFeedback(projectId: string): Promise<FeedbackView[]> {
+    const [map, described] = await Promise.all([this.getAreaMap(projectId), this.getFileDescriptions(projectId)]);
+    const ctx = translateContext(map, described);
+    const { data } = await this.db.from("translation_feedback").select(`id,event_id,task_id,plain,summary,kind,note,created_at,events(${EVENT_COLUMNS})`).eq("project_id", projectId).order("created_at", { ascending: false }).limit(500);
+    return (data ?? []).map((f) => {
+      const raw = Array.isArray(f.events) ? f.events[0] : f.events;
+      const event = raw ? viewEvent(toEventRow(raw as unknown as EventRow), ctx) : undefined;
+      return { id: f.id, eventId: f.event_id, projectId, taskId: f.task_id ?? undefined, plain: f.plain ?? "", summary: f.summary ?? "", kind: f.kind ?? "unknown", note: f.note ?? undefined, createdAt: f.created_at, event, plainNow: event?.plain };
+    });
+  }
+}
+
+function toReport(r: ReportRow): ReportRecord {
+  return {
+    taskId: r.task_id,
+    projectId: r.project_id,
+    headline: r.headline,
+    beforeAfter: r.before_after ?? undefined,
+    touchedReasons: r.touched_reasons ?? {},
+    riskReason: r.risk_reason ?? undefined,
+    needsYou: r.needs_you,
+    needsYouDetail: r.needs_you_detail ?? undefined,
+    source: r.source ?? "template",
+    eventCount: r.event_count ?? 0,
+    resolvedAt: r.resolved_at ?? undefined,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at ?? r.created_at,
+  };
 }
 
 interface ProjectRowLike {

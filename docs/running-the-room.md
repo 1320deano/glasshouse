@@ -52,6 +52,17 @@ Other commands:
   worked out from the list of files it changed), what it has changed so far, and every action newest first.
   "Show technical detail" reveals the real file names, commands and the original payload behind any line.
 - Sessions with no activity for 30 minutes move to "Earlier".
+- **When a task finishes, its tile turns into a report card**: what changed and why, **Not touched** (worked out from the
+  list of files it changed), the evidence (checks run, new tools added, settings or secrets touched), the risk, and
+  **Needs you** (nothing, review recommended, decision needed, or blocked, with the specific question). "Open the report"
+  shows the full card, the stream and an **Ask** box for questions about that task; every answer says which actions it is
+  based on. Without an AI key the card is written from the record alone and Ask says so.
+- **Since you last checked** (top of the Room) opens the digest: what finished, what is still going, what needs you, what
+  is new in your app, and which tools did what, since you last opened that page (or today, or this week).
+- **Needs you** (top of the Room, lights up amber) is the inbox: every finished task flagged for review, a decision or
+  blocked, in one list. Clear each one once you have dealt with it.
+- A 👎 next to any line in an expanded tile records that the description was wrong or unclear. `/room/<id>/feedback`
+  lists them with the real action behind each, for the weekly review.
 
 ## If the Room is not running
 
@@ -74,13 +85,16 @@ sends them all the next time the Room is up. Nothing is lost and nothing slows d
 ## Turning on AI naming (optional)
 
 Without a key, everything works from templates and folder names. With a key, the Room also writes better headlines,
-names the parts of your app properly, and describes files in plain English ("how logged-in users are identified").
+names the parts of your app properly, describes files in plain English ("how logged-in users are identified"), writes
+the words on each report card (including a before/after line), opens the digest with a short summary, and answers
+questions in the Ask box. The facts on a card (touched, not touched, evidence, risk) never come from the AI.
 
 Put `ANTHROPIC_API_KEY=...` in `apps/web/.env.local` and restart the Room. What is sent: file names, commands, the
 kinds of actions, your prompt text, and the first lines of the README. Never file contents. Every call and its cost
-in pounds is recorded; `http://localhost:3000/api/stats/<project id>` shows the running total.
+in pounds is recorded; `http://localhost:3000/api/stats/<project id>` shows the running total. For a report card the
+diff of the files that task changed is also sent, once, and only for that card and for Ask; never for other files.
 
 ## Moving to Supabase later
 
-When the hosted Supabase project exists (`docs/supabase-setup.md`), apply both migrations, fill in `apps/web/.env.local`
+When the hosted Supabase project exists (`docs/supabase-setup.md`), apply all three migrations, fill in `apps/web/.env.local`
 and restart. The Room then stores everything in Supabase instead of the local file; nothing else changes.

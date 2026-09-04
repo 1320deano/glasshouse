@@ -73,7 +73,8 @@ const COMMAND_WORDS: Array<[RegExp, string]> = [
   [/\b(open|start|xdg-open)\b/, "Opening something"],
 ];
 
-function packagesFrom(command: string): string[] {
+/** Package names named in an install command, e.g. "pnpm add zod stripe@^14" -> ["zod", "stripe"]. */
+export function packagesFromCommand(command: string): string[] {
   const m = command.match(/\b(?:add|install|i|get|require)\b\s+(.+)$/);
   if (!m) return [];
   return m[1]!
@@ -164,7 +165,7 @@ export function translateEvent(e: NormalisedEvent, ctx: TranslateContext): Trans
       case "test_run":
         return testsLine(e);
       case "install": {
-        const pkgs = packagesFrom(e.command ?? "");
+        const pkgs = packagesFromCommand(e.command ?? "");
         return pkgs.length > 0 ? `Adding ${pkgs.join(", ")} to the project's tools` : "Installing the project's tools";
       }
       case "commit": {

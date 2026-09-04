@@ -10,11 +10,14 @@ import { buildAreaMapWithAI } from "./area-map";
 import { aiEnabled } from "./client";
 import { describeFiles } from "./file-descriptions";
 import { requestHeadline } from "./headline";
+import { writeReportWithAI } from "./report";
 
 export function afterIngest(projectId: string, result: IngestResult): void {
   if (!aiEnabled()) return;
   for (const r of result.headlineRequests) void requestHeadline(r.taskId, r.trigger).catch((err) => console.error("[glasshouse] headline worker:", err));
   if (result.undescribedPaths.length > 0) void describeFiles(projectId, result.undescribedPaths).catch((err) => console.error("[glasshouse] description worker:", err));
+  // The template card is already saved; one strong call per finished task improves its words.
+  for (const taskId of result.finishedTasks) void writeReportWithAI(taskId).catch((err) => console.error("[glasshouse] report worker:", err));
 }
 
 const refreshing = new Set<string>();
