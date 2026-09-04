@@ -33,7 +33,7 @@ function Raw({ e }: { e: EventView }) {
 }
 
 /** Thumbs-down on a plain-English line (Phase 3): stored with the raw event so the worst translations can be reviewed. */
-export function Dislike({ eventId }: { eventId: string }) {
+export function Dislike({ eventId, projectId }: { eventId: string; projectId: string }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   if (state === "sent") return <span className="dislike muted small">Noted, thanks</span>;
   return (
@@ -44,7 +44,7 @@ export function Dislike({ eventId }: { eventId: string }) {
       onClick={async () => {
         setState("sending");
         try {
-          const res = await fetch("/api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventId }) });
+          const res = await fetch("/api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventId, projectId }) });
           setState(res.ok ? "sent" : "failed");
         } catch {
           setState("failed");
@@ -269,7 +269,7 @@ export function TaskPanel({ session, now }: { session: SessionView; now: number 
                 {e.plain}
               </span>
               <span className="when">{ago(e.ts, now)}</span>
-              <Dislike eventId={e.id} />
+              <Dislike eventId={e.id} projectId={detail.projectId} />
               {technical && <Raw e={e} />}
             </li>
           ))}

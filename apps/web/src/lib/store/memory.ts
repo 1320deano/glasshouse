@@ -26,7 +26,7 @@ import {
   viewTask,
   type TaskState,
 } from "./derive";
-import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, IngestResult, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView } from "./types";
+import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
 
 type ProjectRow = ProjectSummary;
 interface SessionRow {
@@ -71,9 +71,46 @@ interface Db {
   feedback: FeedbackRecord[];
   digests: DigestCache[];
   lastChecked: Record<string, string>; // project id -> when the digest was last opened
+  // Phase 4
+  profiles: Record<string, Profile>;
+  linkCodes: Record<string, LinkCode>;
+  invites: Record<string, Invite>; // lower-case email
+  testerNotes: TesterNote[];
+  metrics: Array<{ event: MetricEvent; visitorId: string; at: string }>;
 }
 
-const emptyDb = (): Db => ({ projects: {}, tokens: {}, sessions: {}, tasks: {}, events: [], areaMaps: {}, trees: {}, fileDescriptions: {}, aiCalls: [], reports: {}, feedback: [], digests: [], lastChecked: {} });
+const emptyDb = (): Db => ({
+  projects: {},
+  tokens: {},
+  sessions: {},
+  tasks: {},
+  events: [],
+  areaMaps: {},
+  trees: {},
+  fileDescriptions: {},
+  aiCalls: [],
+  reports: {},
+  feedback: [],
+  digests: [],
+  lastChecked: {},
+  profiles: {},
+  linkCodes: {},
+  invites: {},
+  testerNotes: [],
+  metrics: [],
+});
+
+/** In local mode there is one person: whoever owns the machine. */
+export const LOCAL_OWNER = "local";
+const LINK_CODE_TTL_MS = 15 * 60 * 1000;
+
+export function newLinkCode(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O or 1/I
+  const pick = () => alphabet[Math.floor(Math.random() * alphabet.length)]!;
+  return `${pick()}${pick()}${pick()}${pick()}-${pick()}${pick()}${pick()}${pick()}`;
+}
+
+export const normaliseCode = (code: string) => code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^(.{4})(.{4})$/, "$1-$2");
 
 const MAX_EVENTS = 20000;
 const ROOM_SESSIONS = 12;
@@ -130,8 +167,8 @@ export class MemoryStore implements Store {
     }, 300);
   }
 
-  async createProject(input: { name: string; rootHint?: string }) {
-    const project: ProjectRow = { id: crypto.randomUUID(), name: input.name, rootHint: input.rootHint, createdAt: this.now() };
+  async createProject(input: { name: string; rootHint?: string; ownerId?: string | null }) {
+    const project: ProjectRow = { id: crypto.randomUUID(), name: input.name, rootHint: input.rootHint, createdAt: this.now(), ownerId: input.ownerId === undefined ? LOCAL_OWNER : input.ownerId };
     const token = newToken();
     this.db.projects[project.id] = project;
     this.db.tokens[hashToken(token)] = project.id;
@@ -144,8 +181,10 @@ export class MemoryStore implements Store {
     return id ? (this.db.projects[id] ?? null) : null;
   }
 
-  async listProjects() {
-    return Object.values(this.db.projects).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  async listProjects(ownerId?: string) {
+    return Object.values(this.db.projects)
+      .filter((p) => ownerId === undefined || p.ownerId === ownerId || (ownerId === LOCAL_OWNER && !p.ownerId))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async getProject(id: string) {
@@ -479,9 +518,9 @@ export class MemoryStore implements Store {
     this.scheduleSave();
   }
 
-  async addFeedback(input: { eventId: string; note?: string }): Promise<FeedbackRecord | null> {
+  async addFeedback(input: { eventId: string; projectId?: string; note?: string }): Promise<FeedbackRecord | null> {
     const row = this.db.events.find((e) => e.id === input.eventId);
-    if (!row) return null;
+    if (!row || (input.projectId && row.projectId !== input.projectId)) return null;
     const plain = viewEvent(stripRow(row), this.ctx(row.projectId)).plain;
     const record: FeedbackRecord = { id: crypto.randomUUID(), eventId: row.id, projectId: row.projectId, taskId: row.taskId, plain, summary: row.summary, kind: row.kind, note: input.note?.slice(0, 500), createdAt: this.now() };
     this.db.feedback.push(record);
@@ -500,6 +539,130 @@ export class MemoryStore implements Store {
         const event = row ? viewEvent(stripRow(row), ctx) : undefined;
         return { ...f, event, plainNow: event?.plain };
       });
+  }
+
+  // -- Phase 4: people, plans, onboarding, testers ---------------------------------------------
+
+  async getProfile(userId: string) {
+    return this.db.profiles[userId] ?? null;
+  }
+
+  async upsertProfile(profile: Partial<Profile> & { userId: string }): Promise<Profile> {
+    const existing = this.db.profiles[profile.userId];
+    const next: Profile = { plan: "free", createdAt: this.now(), ...existing, ...profile };
+    this.db.profiles[profile.userId] = next;
+    this.scheduleSave();
+    return next;
+  }
+
+  async findProfileByCustomer(stripeCustomerId: string) {
+    return Object.values(this.db.profiles).find((p) => p.stripeCustomerId === stripeCustomerId) ?? null;
+  }
+
+  async listProfiles() {
+    return Object.values(this.db.profiles).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async createLinkCode(ownerId: string, now = this.now()): Promise<LinkCode> {
+    let code = newLinkCode();
+    while (this.db.linkCodes[code]) code = newLinkCode();
+    const row: LinkCode = { code, ownerId, createdAt: now, expiresAt: new Date(new Date(now).getTime() + LINK_CODE_TTL_MS).toISOString() };
+    this.db.linkCodes[code] = row;
+    // Keep the table small: drop codes older than a day.
+    const cutoff = new Date(new Date(now).getTime() - 24 * 3600 * 1000).toISOString();
+    for (const [k, v] of Object.entries(this.db.linkCodes)) if (v.createdAt < cutoff) delete this.db.linkCodes[k];
+    this.scheduleSave();
+    return row;
+  }
+
+  async consumeLinkCode(code: string, now = this.now()): Promise<LinkCode | null> {
+    const row = this.db.linkCodes[normaliseCode(code)];
+    if (!row || row.usedAt || row.expiresAt < now) return null;
+    row.usedAt = now;
+    this.scheduleSave();
+    return row;
+  }
+
+  async getLinkCode(code: string) {
+    return this.db.linkCodes[normaliseCode(code)] ?? null;
+  }
+
+  /** Called by createProject's caller once the project exists, so the connect page can find it. */
+  async attachLinkCode(code: string, projectId: string) {
+    const row = this.db.linkCodes[normaliseCode(code)];
+    if (row) row.projectId = projectId;
+    this.scheduleSave();
+  }
+
+  async addInvite(email: string, note?: string): Promise<Invite> {
+    const key = email.trim().toLowerCase();
+    const row: Invite = this.db.invites[key] ?? { email: key, note, createdAt: this.now() };
+    if (note) row.note = note;
+    this.db.invites[key] = row;
+    this.scheduleSave();
+    return row;
+  }
+
+  async removeInvite(email: string) {
+    delete this.db.invites[email.trim().toLowerCase()];
+    this.scheduleSave();
+  }
+
+  async isInvited(email: string) {
+    return Boolean(this.db.invites[email.trim().toLowerCase()]);
+  }
+
+  async markInviteAccepted(email: string, at: string) {
+    const row = this.db.invites[email.trim().toLowerCase()];
+    if (row && !row.acceptedAt) {
+      row.acceptedAt = at;
+      this.scheduleSave();
+    }
+  }
+
+  async listInvites() {
+    return Object.values(this.db.invites).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async addTesterNote(note: Omit<TesterNote, "id" | "createdAt">): Promise<TesterNote> {
+    const row: TesterNote = { ...note, id: crypto.randomUUID(), createdAt: this.now() };
+    this.db.testerNotes.push(row);
+    if (this.db.testerNotes.length > 2000) this.db.testerNotes.splice(0, 200);
+    this.scheduleSave();
+    return row;
+  }
+
+  async listTesterNotes(limit = 200) {
+    return [...this.db.testerNotes].reverse().slice(0, limit);
+  }
+
+  async recordMetric(event: MetricEvent, visitorId: string, at = this.now()) {
+    this.db.metrics.push({ event, visitorId, at });
+    if (this.db.metrics.length > 50000) this.db.metrics.splice(0, 5000);
+    this.scheduleSave();
+  }
+
+  async metricCounts(days: number, now = this.now()): Promise<MetricCounts> {
+    const since = new Date(new Date(now).getTime() - days * 24 * 3600 * 1000).toISOString();
+    const byEvent: MetricCounts["byEvent"] = { landing_view: 0, signup_started: 0, signup_completed: 0, project_connected: 0, first_session: 0, upgrade_clicked: 0 };
+    const seen = new Set<string>();
+    for (const m of this.db.metrics) {
+      if (m.at < since) continue;
+      const key = `${m.event}|${m.visitorId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      byEvent[m.event]++;
+    }
+    return { byEvent, days, signupRatePct: byEvent.landing_view > 0 ? Math.round((byEvent.signup_completed / byEvent.landing_view) * 1000) / 10 : null };
+  }
+
+  async ownerActivity(ownerId: string) {
+    const projects = await this.listProjects(ownerId);
+    const ids = new Set(projects.map((p) => p.id));
+    const sessions = Object.values(this.db.sessions).filter((s) => ids.has(s.projectId));
+    const tasks = Object.values(this.db.tasks).filter((t) => ids.has(t.projectId));
+    const lastEventAt = sessions.map((s) => s.lastEventAt ?? s.startedAt).sort().pop();
+    return { projects: projects.length, sessions: sessions.length, tasks: tasks.length, lastEventAt };
   }
 }
 

@@ -94,7 +94,20 @@ kinds of actions, your prompt text, and the first lines of the README. Never fil
 in pounds is recorded; `http://localhost:3000/api/stats/<project id>` shows the running total. For a report card the
 diff of the files that task changed is also sent, once, and only for that card and for Ask; never for other files.
 
+## Previewing the free tier
+
+Start the Room with `GLASSHOUSE_PLAN=free` (for example `GLASSHOUSE_PLAN=free pnpm room`) to see what a free user
+sees: one project, one agent at a time, the last 24 hours, and the digest, inbox and Ask replaced by a plain
+explanation of what Pro adds. Nothing is deleted; switch back and it is all there.
+
+## The landing page
+
+`http://localhost:3000/landing` shows the public page with the live tile replaying the recorded sessions. In hosted
+mode it is what signed-out visitors see at the front door.
+
 ## Moving to Supabase later
 
-When the hosted Supabase project exists (`docs/supabase-setup.md`), apply all three migrations, fill in `apps/web/.env.local`
-and restart. The Room then stores everything in Supabase instead of the local file; nothing else changes.
+When the hosted Supabase project exists (`docs/supabase-setup.md`), apply all four migrations, fill in `apps/web/.env.local`
+and restart. The Room then stores everything in Supabase instead of the local file, and sign-in switches on: each person
+sees their own projects, "New project" gives a one-time code for `glasshouse connect --code …`, and plans apply
+(`/account`). `GLASSHOUSE_ADMIN_EMAILS` names who may open `/admin` (testers, invites, what broke).

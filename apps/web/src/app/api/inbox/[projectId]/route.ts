@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { readAllowed } from "@/lib/auth";
+import { canReadProject } from "@/lib/auth";
+import { UPGRADE_REASONS, featureAllowed } from "@/lib/plan";
 import { publish } from "@/lib/bus";
 import { getStore } from "@/lib/store";
 import { inboxItemFrom } from "@/lib/store/derive";
@@ -11,8 +12,10 @@ const INBOX_DAYS = 30;
 
 /** Everything flagged Review recommended, Decision needed or Blocked, in one list, until the owner clears it. */
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
-  if (!readAllowed(req)) return Response.json({ error: "not allowed" }, { status: 401 });
   const { projectId } = await params;
+  const viewer = await canReadProject(req, projectId);
+  if (!viewer) return Response.json({ error: "not allowed" }, { status: 401 });
+  if (!featureAllowed(viewer.plan, "inbox")) return Response.json({ error: UPGRADE_REASONS.inbox, upgrade: "inbox" }, { status: 402 });
   const store = getStore();
   if (!(await store.getProject(projectId))) return Response.json({ error: "no such project" }, { status: 404 });
   const since = new Date(Date.now() - INBOX_DAYS * 24 * 3600 * 1000).toISOString();
@@ -27,8 +30,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
 const Action = z.object({ taskId: z.string().min(1), action: z.enum(["clear", "reopen"]) });
 
 export async function POST(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
-  if (!readAllowed(req)) return Response.json({ error: "not allowed" }, { status: 401 });
   const { projectId } = await params;
+  const viewer = await canReadProject(req, projectId);
+  if (!viewer) return Response.json({ error: "not allowed" }, { status: 401 });
+  if (!featureAllowed(viewer.plan, "inbox")) return Response.json({ error: UPGRADE_REASONS.inbox, upgrade: "inbox" }, { status: 402 });
   const parsed = Action.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "invalid action" }, { status: 400 });
   const store = getStore();

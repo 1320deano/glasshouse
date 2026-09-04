@@ -6,7 +6,8 @@ Codex, Cursor and anything that saves to GitHub. It keeps one continuous story o
 when the user switches tools.
 
 Brief: `control-room-product-report.md`. Phased plan: `glasshouse-phased-plan.md`. Research: `docs/`.
-Phases 0 to 3 are built; findings per phase in `docs/phase-N-findings.md`.
+Phases 0 to 4 are built; findings per phase in `docs/phase-N-findings.md`. What only Christopher can do is listed in
+`docs/what-christopher-needs-to-do.md`.
 
 ## Reporting to Christopher (every finished task)
 
@@ -74,6 +75,10 @@ Then explain what was done in plain, non-technical language, leaving nothing out
   Without `ANTHROPIC_API_KEY` everything must still work from templates and folder names.
 - Codex and Cursor normalisers were written from documented shapes; their fixtures are `-synthetic`. Replace them
   with real recordings before trusting a field name. See `docs/phase-2-findings.md`.
+- People and plans (Phase 4): local mode has one implicit person ("local") and no sign-in. Hosted mode uses Supabase
+  Auth; `apps/web/src/lib/auth.ts` decides who may read what, `lib/plan.ts` is the one Free/Pro rule (applied on the
+  server, never in the browser), and only the Stripe webhook or the admin switch may change a plan. The product name
+  lives in `lib/brand.ts`.
 
 ## Commands
 

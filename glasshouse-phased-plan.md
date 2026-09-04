@@ -172,6 +172,19 @@ Build:
 
 Exit test: 7 of 10 testers still have the tab open on day five; 3 or more say "I'd pay".
 
+**Phase 4 outcome (4 September 2026): built, not yet hosted.** Sign-in with magic links, projects per person, the
+one-command onboarding with a link code, the first-session walkthrough that names the first change the owner would
+have missed, Free and Pro gating as one pure rule, Stripe checkout and webhook, the landing page with a live tile
+replayed from the recordings, sign-up rate metrics, and the tester dashboard (invites, day-five count, "what broke",
+manual Pro, AI cost per person). 162 tests. Findings in `docs/phase-4-findings.md`; the name decision in
+`docs/name-decision.md`; the demo in `docs/demo-script.md`; the test protocol in `docs/tester-cohort.md`.
+Three things Phase 4 changed:
+- Local mode is untouched: sign-in, plans and billing only exist when Supabase keys are present.
+- The Stripe webhook (and the admin switch) are the only code that can change a plan.
+- The landing page's demo is the real store replaying the real recordings, so it can never drift from the product.
+Still needed from Christopher: everything in `docs/what-christopher-needs-to-do.md` (hosted Supabase, a deployment,
+the name, Stripe, npm, ten testers). The exit test runs once those exist.
+
 ---
 
 ## Phase 5 — Launch and hardening

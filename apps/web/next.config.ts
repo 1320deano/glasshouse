@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   transpilePackages: ["@glasshouse/schema", "@glasshouse/translate"],
   eslint: { ignoreDuringBuilds: true },
+  // The landing page's mock tile replays the recorded fixtures; keep them in the deployable output.
+  outputFileTracingIncludes: { "/": ["../../fixtures/sessions/*.jsonl"], "/landing": ["../../fixtures/sessions/*.jsonl"] },
   // The workspace packages import each other with ".js" suffixes (the Node ESM convention the
   // connector needs). Webpack must be told those may resolve to TypeScript sources.
   webpack: (config) => {

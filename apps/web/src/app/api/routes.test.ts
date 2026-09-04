@@ -142,11 +142,105 @@ describe("Phase 3 routes", () => {
 
     const detail = await store.getTask(task.id);
     const edit = detail!.events.find((e) => e.kind === "edit")!;
-    expect((await postFeedback(json({ eventId: "nope" }))).status).toBe(404);
-    expect((await postFeedback(json({ eventId: edit.id, note: "wrong part" }))).status).toBe(200);
+    expect((await postFeedback(json({ eventId: "nope", projectId }))).status).toBe(404);
+    expect((await postFeedback(json({ eventId: edit.id, projectId, note: "wrong part" }))).status).toBe(200);
     const list = (await (await getFeedback(new Request("http://x/"), params({ projectId }))).json()) as { items: Array<{ plain: string; note?: string }>; events: number; rate: number };
     expect(list.items).toEqual([expect.objectContaining({ plain: "Changing the session part of Login", note: "wrong part" })]);
     expect(list.events).toBe(3);
     expect(list.rate).toBeGreaterThan(0);
+  });
+});
+
+describe("Phase 4 routes (local mode)", () => {
+  it("links a project to the local owner, lists it, and hands out codes only when the plan has room", async () => {
+    const { GET: mine } = await import("./projects/mine/route");
+    const { POST: linkCode } = await import("./projects/link-code/route");
+    const { GET: codeStatus } = await import("./projects/link-code/[code]/route");
+    const { POST: link } = await import("./projects/link/route");
+
+    let list = (await (await mine()).json()) as { projects: Array<{ name: string; ownerId?: string }>; plan: string; local: boolean };
+    expect(list).toMatchObject({ plan: "pro", local: true });
+    expect(list.projects.map((p) => p.ownerId)).toEqual(["local"]);
+
+    const issued = (await (await linkCode()).json()) as { code: string };
+    expect(issued.code).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+    const status = (await (await codeStatus(new Request("http://x/"), params({ code: issued.code }))).json()) as { used: boolean; project: unknown };
+    expect(status).toMatchObject({ used: false, project: null });
+
+    // Local mode needs no code, but if one is given it is consumed and attached.
+    const linked = (await (await link(json({ name: "second", rootHint: "/tmp/second", code: issued.code }))).json()) as { projectId: string };
+    expect(linked.projectId).toBeDefined();
+    const after = (await (await codeStatus(new Request("http://x/"), params({ code: issued.code }))).json()) as { used: boolean; project: { name: string } | null };
+    expect(after.used).toBe(true);
+    expect(after.project?.name).toBe("second");
+    list = (await (await mine()).json()) as typeof list;
+    expect(list.projects.map((p) => p.name).sort()).toEqual(["second", "storyboard"]);
+
+    // Preview the free tier: one project only.
+    process.env.GLASSHOUSE_PLAN = "free";
+    try {
+      expect((await linkCode()).status).toBe(402);
+    } finally {
+      delete process.env.GLASSHOUSE_PLAN;
+    }
+  });
+
+  it("gates the room, digest, inbox and Ask on the free tier and lets Pro through", async () => {
+    const { GET: getRoom } = await import("./room/[projectId]/route");
+    const { GET: getDigest } = await import("./digest/[projectId]/route");
+    const { GET: getInbox } = await import("./inbox/[projectId]/route");
+    const { POST: postAsk } = await import("./ask/route");
+    await postTree(json(TREE, token));
+    const events = [
+      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a71", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "prompt", ts: "2026-09-04T09:00:00.000Z", paths: [], prompt: "fix login", summary: "fix login", sourceEvent: "UserPromptSubmit", raw: {} },
+      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a72", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "stop", ts: "2026-09-04T09:00:09.000Z", paths: [], summary: "Done", sourceEvent: "Stop", raw: {} },
+    ];
+    await ingest(json({ connectorVersion: "0.2.0", events }, token));
+    const pro = (await (await getRoom(new Request("http://x/"), params({ projectId }))).json()) as { plan: string; locked: { reasons: string[] }; room: { sessions: unknown[] } };
+    expect(pro.plan).toBe("pro");
+    expect(pro.locked.reasons).toEqual([]);
+    expect((await getDigest(new Request("http://x/?window=week"), params({ projectId }))).status).toBe(200);
+
+    process.env.GLASSHOUSE_PLAN = "free";
+    try {
+      const free = (await (await getRoom(new Request("http://x/"), params({ projectId }))).json()) as { plan: string; room: { inboxOpen: number } };
+      expect(free.plan).toBe("free");
+      expect(free.room.inboxOpen).toBe(0);
+      expect((await getDigest(new Request("http://x/?window=week"), params({ projectId }))).status).toBe(402);
+      expect((await getInbox(new Request("http://x/"), params({ projectId }))).status).toBe(402);
+      const task = (await store.getRoom(projectId))!.sessions[0]!.task!;
+      const ask = await postAsk(json({ taskId: task.id, question: "Did it change login?" }));
+      expect(ask.status).toBe(402);
+      expect(((await ask.json()) as { upgrade: string }).upgrade).toBe("ask");
+    } finally {
+      delete process.env.GLASSHOUSE_PLAN;
+    }
+  });
+
+  it("records metrics and tester notes, and the admin dashboard adds up", async () => {
+    const { POST: metric } = await import("./metrics/route");
+    const { POST: note } = await import("./notes/route");
+    const { GET: admin, POST: adminAct } = await import("./admin/route");
+    expect((await metric(json({ event: "landing_view", visitorId: "visitor-1" }))).status).toBe(200);
+    expect((await metric(json({ event: "nope", visitorId: "visitor-1" }))).status).toBe(400);
+    expect((await note(json({ note: "The Codex tile is blank", page: "/room/x", projectId }))).status).toBe(200);
+    await adminAct(json({ action: "invite", email: "tester@example.com", note: "friend" }));
+    const data = (await (await admin(new Request("http://x/?days=7"))).json()) as { metrics: { byEvent: { landing_view: number } }; notes: Array<{ note: string }>; invites: Array<{ email: string }>; summary: { testers: number } };
+    expect(data.metrics.byEvent.landing_view).toBe(1);
+    expect(data.notes[0]?.note).toBe("The Codex tile is blank");
+    expect(data.invites.map((i) => i.email)).toEqual(["tester@example.com"]);
+    await adminAct(json({ action: "uninvite", email: "tester@example.com" }));
+    expect(((await (await admin(new Request("http://x/"))).json()) as { invites: unknown[] }).invites).toEqual([]);
+  });
+
+  it("sign-in, checkout and portal say plainly why they do nothing in local mode", async () => {
+    const { POST: signin } = await import("./auth/signin/route");
+    const { POST: checkout } = await import("./billing/checkout/route");
+    const { POST: webhook } = await import("./billing/webhook/route");
+    expect((await signin(json({ email: "chris@example.com" }))).status).toBe(400);
+    const res = await checkout(new Request("http://x/", { method: "POST" }));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("your own computer");
+    expect((await webhook(new Request("http://x/", { method: "POST", body: "{}" }))).status).toBe(503);
   });
 });
