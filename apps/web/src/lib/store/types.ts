@@ -1,5 +1,5 @@
 import type { AgentTool, Area, AreaMap, EventKind, NormalisedEvent, ProjectTree, Risk, Stage } from "@glasshouse/schema";
-import type { HeadlineTrigger } from "@glasshouse/translate";
+import type { Digest, DigestWindowKind, HeadlineTrigger, NeedsYou, ReportCard, ReportFacts, ReportText } from "@glasshouse/translate";
 
 export interface ProjectSummary {
   id: string;
@@ -85,6 +85,11 @@ export interface TaskView {
   closingMessage?: string;
   continuedFrom?: ContinuationView;
   continuedBy?: { taskId: string; tool: AgentTool };
+  /** The report card, once the task has finished. Facts are recomputed against the current area map. */
+  report?: ReportCard & { resolvedAt?: string; createdAt: string };
+  /** Facts the digest needs that the tile does not show. */
+  createdPaths: string[];
+  installed: string[];
 }
 
 /** One changed file, behaviour-first, for the "What it's changed so far" panel. */
@@ -101,6 +106,8 @@ export interface TaskDetail extends TaskView {
   events: EventView[];
   changes: ChangeLine[];
   projectId: string;
+  /** The recorded facts the report card is computed from. */
+  facts: ReportFacts;
 }
 
 /** How much of the picture the tool gives us (brief section 6.2). */
@@ -125,6 +132,65 @@ export interface RoomState {
   areas: Area[];
   areaMapSource?: "ai" | "heuristic";
   generatedAt: string;
+  /** Open items in the needs-you inbox. */
+  inboxOpen: number;
+  lastCheckedAt?: string;
+  /** Tasks finished, and flagged, since the owner last opened the digest. */
+  sinceChecked: { done: number; needsYou: number };
+}
+
+/** The stored words of a report card. The facts are computed when read (derive.ts). */
+export interface ReportRecord extends ReportText {
+  taskId: string;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Set when the owner clears it from the inbox. */
+  resolvedAt?: string;
+  /** How many events the task had when these words were written. */
+  eventCount: number;
+}
+
+export interface InboxItem {
+  taskId: string;
+  tool: AgentTool;
+  status: NeedsYou;
+  detail?: string;
+  headline: string;
+  endedAt?: string;
+  risk: Risk;
+  resolvedAt?: string;
+}
+
+export interface FeedbackRecord {
+  id: string;
+  eventId: string;
+  projectId: string;
+  taskId?: string;
+  /** The plain-English line exactly as it was shown when the owner disliked it. */
+  plain: string;
+  /** The raw one-liner it was translated from. */
+  summary: string;
+  kind: EventKind;
+  note?: string;
+  createdAt: string;
+}
+
+/** A disliked line with the event behind it, for the weekly review. */
+export interface FeedbackView extends FeedbackRecord {
+  event?: EventView;
+  /** What the line reads today (the map may have changed since). */
+  plainNow?: string;
+}
+
+export interface DigestCache {
+  projectId: string;
+  kind: DigestWindowKind;
+  windowStart: string;
+  windowEnd: string;
+  fingerprint: string;
+  body: Digest;
+  createdAt: string;
 }
 
 export interface Stats {
@@ -150,6 +216,8 @@ export interface IngestResult {
   headlineRequests: HeadlineRequest[];
   /** Paths seen for the first time that have no plain-English description yet. */
   undescribedPaths: string[];
+  /** Tasks that ended in this batch: a template report card was written; the AI report worker looks at these. */
+  finishedTasks: string[];
 }
 
 export interface AiCallLog {
@@ -183,4 +251,18 @@ export interface Store {
   saveFileDescriptions(projectId: string, descriptions: Record<string, string>): Promise<void>;
 
   logAiCall(call: AiCallLog): Promise<void>;
+
+  // -- Phase 3: memory ---------------------------------------------------------------------
+  /** Tasks with activity (or an end) at or after `since`, newest first, with their report cards. */
+  listTasks(projectId: string, opts: { since: string; limit?: number }): Promise<TaskView[]>;
+  getReport(taskId: string): Promise<ReportRecord | null>;
+  /** Upsert the words of a card. Keeps `resolvedAt` unless the caller sets it. */
+  saveReport(record: Omit<ReportRecord, "createdAt" | "updatedAt"> & { resolvedAt?: string }): Promise<void>;
+  setReportResolved(taskId: string, resolved: boolean): Promise<void>;
+  getLastChecked(projectId: string): Promise<string | undefined>;
+  markChecked(projectId: string, at: string): Promise<void>;
+  getDigestCache(projectId: string, kind: DigestWindowKind): Promise<DigestCache | null>;
+  saveDigestCache(cache: DigestCache): Promise<void>;
+  addFeedback(input: { eventId: string; note?: string }): Promise<FeedbackRecord | null>;
+  listFeedback(projectId: string): Promise<FeedbackView[]>;
 }

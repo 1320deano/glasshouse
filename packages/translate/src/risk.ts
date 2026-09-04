@@ -18,6 +18,16 @@ const SETTINGS = /(^|\/)(package\.json|pyproject\.toml|cargo\.toml|go\.mod|gemfi
 const DATABASE = /(^|\/)migrations?\/|\.sql$|(^|\/)(prisma|drizzle)\//i;
 
 const order: Record<RiskLevel, number> = { low: 0, medium: 1, high: 2 };
+
+/** The changed files that count as secrets, settings or database layout. Facts for the report card's evidence. */
+export function sensitiveFiles(paths: readonly string[]): { secrets: string[]; settings: string[]; database: string[] } {
+  const unique = [...new Set(paths)];
+  return {
+    secrets: unique.filter((p) => SECRET.test(p)),
+    settings: unique.filter((p) => SETTINGS.test(p) && !SECRET.test(p)),
+    database: unique.filter((p) => DATABASE.test(p)),
+  };
+}
 const max = (a: RiskLevel, b: RiskLevel): RiskLevel => (order[a] >= order[b] ? a : b);
 
 export function assessRisk(facts: RiskFacts): Risk {

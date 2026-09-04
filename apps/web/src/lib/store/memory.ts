@@ -3,7 +3,7 @@
  * Used when no Supabase credentials are configured. Same behaviour as the Supabase store.
  */
 import type { AgentTool, Area, AreaMap, NormalisedEvent, ProjectTree } from "@glasshouse/schema";
-import type { EndedTask } from "@glasshouse/translate";
+import type { DigestWindowKind, EndedTask } from "@glasshouse/translate";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import {
@@ -15,15 +15,18 @@ import {
   changeLines,
   continuationFor,
   hashToken,
+  inboxItemFrom,
   latencyStats,
   newTaskState,
   newToken,
+  reportFactsFor,
+  templateReportFor,
   translateContext,
   viewEvent,
   viewTask,
   type TaskState,
 } from "./derive";
-import type { AiCallLog, EventView, IngestResult, ProjectSummary, RoomState, SessionView, Stats, Store, TaskDetail } from "./types";
+import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, IngestResult, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView } from "./types";
 
 type ProjectRow = ProjectSummary;
 interface SessionRow {
@@ -63,9 +66,14 @@ interface Db {
   trees: Record<string, ProjectTree>;
   fileDescriptions: Record<string, Record<string, string>>;
   aiCalls: AiCallRow[];
+  // Phase 3
+  reports: Record<string, ReportRecord>; // task id -> card words
+  feedback: FeedbackRecord[];
+  digests: DigestCache[];
+  lastChecked: Record<string, string>; // project id -> when the digest was last opened
 }
 
-const emptyDb = (): Db => ({ projects: {}, tokens: {}, sessions: {}, tasks: {}, events: [], areaMaps: {}, trees: {}, fileDescriptions: {}, aiCalls: [] });
+const emptyDb = (): Db => ({ projects: {}, tokens: {}, sessions: {}, tasks: {}, events: [], areaMaps: {}, trees: {}, fileDescriptions: {}, aiCalls: [], reports: {}, feedback: [], digests: [], lastChecked: {} });
 
 const MAX_EVENTS = 20000;
 const ROOM_SESSIONS = 12;
@@ -147,7 +155,7 @@ export class MemoryStore implements Store {
   // -- ingest -------------------------------------------------------------------------------
 
   async ingest(projectId: string, events: NormalisedEvent[]): Promise<IngestResult> {
-    const result: IngestResult = { inserted: 0, duplicates: 0, headlineRequests: [], undescribedPaths: [] };
+    const result: IngestResult = { inserted: 0, duplicates: 0, headlineRequests: [], undescribedPaths: [], finishedTasks: [] };
     const receivedAt = this.now();
     const ctx = translateContext(this.db.areaMaps[projectId], this.db.fileDescriptions[projectId] ?? {});
     const described = this.db.fileDescriptions[projectId] ?? {};
@@ -166,10 +174,15 @@ export class MemoryStore implements Store {
       const session = this.upsertSession(projectId, e);
       const task = e.taskKey ? this.upsertTask(projectId, session, e) : undefined;
       if (task) {
-        const { state, trigger } = applyEvent(task.state, e, ctx);
+        const { state, trigger, finished } = applyEvent(task.state, e, ctx);
         task.state = state;
         if (trigger) result.headlineRequests.push({ taskId: task.id, trigger });
         this.maybeLinkContinuation(projectId, task, ctx.areas);
+        if (finished) {
+          // The template card exists the moment the task ends; the AI worker improves the words later.
+          this.writeReport({ ...templateReportFor(state, task.tool, ctx), taskId: task.id, projectId, eventCount: state.eventCount, resolvedAt: undefined }, receivedAt, true);
+          if (!result.finishedTasks.includes(task.id)) result.finishedTasks.push(task.id);
+        }
       }
       session.lastEventAt = e.ts;
       if (e.kind === "session_end") session.endedAt = e.ts;
@@ -286,9 +299,22 @@ export class MemoryStore implements Store {
         nowIso,
         continuedFrom: from ? { taskId: from.id, tool: from.tool, headline: from.state.headline, prompt: from.state.prompt } : undefined,
         continuedByTool: by?.tool,
+        report: this.db.reports[t.id] ?? null,
       },
       ctx,
     );
+  }
+
+  private writeReport(record: Omit<ReportRecord, "createdAt" | "updatedAt"> & { resolvedAt?: string }, now: string, fresh: boolean) {
+    const existing = this.db.reports[record.taskId];
+    this.db.reports[record.taskId] = {
+      ...record,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      // A fresh ending is a new card: an old "cleared" mark must not hide a new flag.
+      resolvedAt: fresh ? record.resolvedAt : (record.resolvedAt ?? existing?.resolvedAt),
+    };
+    this.scheduleSave();
   }
 
   async getRoom(projectId: string): Promise<RoomState | null> {
@@ -322,7 +348,21 @@ export class MemoryStore implements Store {
         };
       });
     const map = this.db.areaMaps[projectId];
-    return { project, sessions, areas: map?.areas ?? [], areaMapSource: map?.source, generatedAt: nowIso };
+    const lastCheckedAt = this.db.lastChecked[projectId];
+    const recent = await this.listTasks(projectId, { since: new Date(new Date(nowIso).getTime() - 30 * 24 * 3600 * 1000).toISOString() });
+    const open = recent.map(inboxItemFrom).filter((i) => i && !i.resolvedAt);
+    const since = lastCheckedAt ?? new Date(new Date(nowIso).getTime() - 24 * 3600 * 1000).toISOString();
+    const doneSince = recent.filter((t) => t.tool !== "watcher" && t.endedAt && t.endedAt >= since);
+    return {
+      project,
+      sessions,
+      areas: map?.areas ?? [],
+      areaMapSource: map?.source,
+      generatedAt: nowIso,
+      inboxOpen: open.length,
+      lastCheckedAt,
+      sinceChecked: { done: doneSince.length, needsYou: doneSince.filter((t) => t.report && t.report.needsYou !== "nothing" && !t.report.resolvedAt).length },
+    };
   }
 
   async getTask(taskId: string): Promise<TaskDetail | null> {
@@ -335,7 +375,7 @@ export class MemoryStore implements Store {
       .slice(-DETAIL_EVENTS)
       .reverse()
       .map((e) => viewEvent(stripRow(e), ctx));
-    return { ...this.taskView(t, Boolean(session?.endedAt), this.now(), ctx), events, changes: changeLines(events, ctx), projectId: t.projectId };
+    return { ...this.taskView(t, Boolean(session?.endedAt), this.now(), ctx), events, changes: changeLines(events, ctx), projectId: t.projectId, facts: reportFactsFor(t.state, t.tool, ctx.areas) };
   }
 
   async setHeadline(taskId: string, headline: string, source: "ai" | "template") {
@@ -388,6 +428,78 @@ export class MemoryStore implements Store {
     this.db.aiCalls.push({ ...call, id: crypto.randomUUID(), createdAt: this.now() });
     if (this.db.aiCalls.length > 5000) this.db.aiCalls.splice(0, 500);
     this.scheduleSave();
+  }
+
+  // -- Phase 3: reports, digest, inbox, feedback --------------------------------------------
+
+  async listTasks(projectId: string, opts: { since: string; limit?: number }): Promise<TaskView[]> {
+    const ctx = this.ctx(projectId);
+    const nowIso = this.now();
+    return Object.values(this.db.tasks)
+      .filter((t) => t.projectId === projectId && ((t.state.lastEventAt ?? t.startedAt) >= opts.since || (t.state.endedAt ?? "") >= opts.since))
+      .sort((a, b) => (b.state.lastEventAt ?? b.startedAt).localeCompare(a.state.lastEventAt ?? a.startedAt))
+      .slice(0, opts.limit ?? 200)
+      .map((t) => this.taskView(t, Boolean(this.db.sessions[t.sessionId]?.endedAt), nowIso, ctx));
+  }
+
+  async getReport(taskId: string) {
+    return this.db.reports[taskId] ?? null;
+  }
+
+  async saveReport(record: Omit<ReportRecord, "createdAt" | "updatedAt"> & { resolvedAt?: string }) {
+    if (!this.db.tasks[record.taskId]) return;
+    this.writeReport(record, this.now(), false);
+  }
+
+  async setReportResolved(taskId: string, resolved: boolean) {
+    const r = this.db.reports[taskId];
+    if (!r) return;
+    r.resolvedAt = resolved ? this.now() : undefined;
+    r.updatedAt = this.now();
+    this.scheduleSave();
+  }
+
+  async getLastChecked(projectId: string) {
+    return this.db.lastChecked[projectId];
+  }
+
+  async markChecked(projectId: string, at: string) {
+    this.db.lastChecked[projectId] = at;
+    this.scheduleSave();
+  }
+
+  async getDigestCache(projectId: string, kind: DigestWindowKind) {
+    return [...this.db.digests].reverse().find((d) => d.projectId === projectId && d.kind === kind) ?? null;
+  }
+
+  async saveDigestCache(cache: DigestCache) {
+    this.db.digests = this.db.digests.filter((d) => !(d.projectId === cache.projectId && d.kind === cache.kind));
+    this.db.digests.push(cache);
+    if (this.db.digests.length > 200) this.db.digests.splice(0, 50);
+    this.scheduleSave();
+  }
+
+  async addFeedback(input: { eventId: string; note?: string }): Promise<FeedbackRecord | null> {
+    const row = this.db.events.find((e) => e.id === input.eventId);
+    if (!row) return null;
+    const plain = viewEvent(stripRow(row), this.ctx(row.projectId)).plain;
+    const record: FeedbackRecord = { id: crypto.randomUUID(), eventId: row.id, projectId: row.projectId, taskId: row.taskId, plain, summary: row.summary, kind: row.kind, note: input.note?.slice(0, 500), createdAt: this.now() };
+    this.db.feedback.push(record);
+    if (this.db.feedback.length > 2000) this.db.feedback.splice(0, 200);
+    this.scheduleSave();
+    return record;
+  }
+
+  async listFeedback(projectId: string): Promise<FeedbackView[]> {
+    const ctx = this.ctx(projectId);
+    return this.db.feedback
+      .filter((f) => f.projectId === projectId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((f) => {
+        const row = this.db.events.find((e) => e.id === f.eventId);
+        const event = row ? viewEvent(stripRow(row), ctx) : undefined;
+        return { ...f, event, plainNow: event?.plain };
+      });
   }
 }
 

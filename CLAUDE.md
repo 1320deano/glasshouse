@@ -6,6 +6,7 @@ Codex, Cursor and anything that saves to GitHub. It keeps one continuous story o
 when the user switches tools.
 
 Brief: `control-room-product-report.md`. Phased plan: `glasshouse-phased-plan.md`. Research: `docs/`.
+Phases 0 to 3 are built; findings per phase in `docs/phase-N-findings.md`.
 
 ## Reporting to Christopher (every finished task)
 
@@ -63,8 +64,13 @@ Then explain what was done in plain, non-technical language, leaving nothing out
   `glasshouse watch` is the one long-running process, only for sources without hooks (folder saves, git, Codex logs).
 - Plain-English lines, location, risk and "not touched" are computed at read time from the current area map
   (`derive.ts`), never stored, so a renamed area is right everywhere at once. Task facts live in one `state` object.
-- Claude API for the expensive calls only: headline on meaning change, area map, file descriptions, and later why,
-  report card, digest. All through `apps/web/src/lib/ai/client.ts`, which logs every call to `ai_calls`.
+- Report cards store words only (headline, before/after, the AI's reasons, needs-you and its question). Touched, not
+  touched, evidence and risk are recomputed on read (`packages/translate/src/report.ts`). The AI may raise "needs you",
+  never lower it, and may not name a part the changed-files list does not. The digest is built the same way
+  (`digest.ts`); the AI only adds an opening summary.
+- Claude API for the expensive calls only: headline on meaning change, area map, file descriptions, one report card
+  per finished task, one digest opening per window while the facts change, and Ask. All through
+  `apps/web/src/lib/ai/client.ts`, which logs every call to `ai_calls`.
   Without `ANTHROPIC_API_KEY` everything must still work from templates and folder names.
 - Codex and Cursor normalisers were written from documented shapes; their fixtures are `-synthetic`. Replace them
   with real recordings before trusting a field name. See `docs/phase-2-findings.md`.
@@ -89,5 +95,6 @@ node packages/connector/dist/cli.js status
 
 - Template translation costs nothing. AI calls are per task, not per action.
 - Always sent: event kind, paths, commands, tool names, timestamps, prompt text.
-- Sent only for the report card: the diff of files changed in that task.
+- Sent only for the report card and the Ask box: the diff of files changed in that task (rebuilt from the patches on
+  Claude Code edit events; never for secret files).
 - Never sent: other file contents, secrets. The connector redacts before upload.

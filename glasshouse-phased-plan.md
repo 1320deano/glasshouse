@@ -145,6 +145,17 @@ Build:
 
 Exit test: the first report card shows Christopher something he would have missed.
 
+**Phase 3 outcome (4 September 2026): built.** Report card written from the record the moment a task ends (the tile
+turns into it), with "Not touched" computed from the changed-files list and the AI only ever improving the words; the
+diff behind the card rebuilt from Claude Code's own edit patches; "Since you last checked", Today and This week digests
+with a cached AI opening; the needs-you inbox with clear and put back; the Ask box that cites the actions it rests on;
+thumbs-down on any line with a review page. 151 tests. Findings and the honest gaps in `docs/phase-3-findings.md`.
+Three things Phase 3 changed:
+- Cards store words, never facts: touched, not touched, evidence and risk are recomputed on read against the current map.
+- "Needs you" has a fact-based floor (usage limit, unresolved error, a question in the closing words, failing checks, high risk) the AI may raise but never lower.
+- "Since you last checked" is anchored to opening the digest page, not to the Room tab being open.
+Still needed from Christopher: an `ANTHROPIC_API_KEY` to see AI-written cards and digest openings, and the exit test on a real finished task.
+
 ---
 
 ## Phase 4 — Other people

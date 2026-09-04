@@ -18,16 +18,22 @@ import {
   locationFor,
   nextTriggerState,
   nounFor,
+  packagesFromCommand,
+  reportCard,
   stageAfter,
   templateHeadline,
+  templateReportText,
   translateEvent,
   type ContinuationLink,
+  type DigestTask,
   type EndedTask,
   type HeadlineTrigger,
+  type ReportFacts,
+  type ReportText,
   type TranslateContext,
 } from "@glasshouse/translate";
 import { createHash, randomBytes } from "node:crypto";
-import type { AreaTouched, ChangeLine, EventView, TaskView, ViewDepth } from "./types";
+import type { AreaTouched, ChangeLine, EventView, InboxItem, ReportRecord, TaskView, ViewDepth } from "./types";
 
 export const DEPTH: Record<AgentTool, ViewDepth> = { "claude-code": "full", codex: "standard", cursor: "standard", watcher: "basic" };
 
@@ -60,10 +66,40 @@ export interface TaskState {
   /** How many events have been checked for a continuation link. */
   continuityChecks: number;
   eventCount: number;
+  // Phase 3 facts for the report card and digest. Rows from before Phase 3 may lack them (see fullState).
+  /** Package names from install commands. */
+  installed: string[];
+  /** Files the task created (from the edit summary). */
+  createdPaths: string[];
+  testRuns: number;
+  errorCount: number;
+  commits: number;
+  /** The stage the task was in when it ended. */
+  stageAtEnd?: Stage;
 }
 
 export function newTaskState(): TaskState {
-  return { stage: "investigating", headlineSource: "template", changedPaths: [], touchedPaths: [], installs: 0, recentErrors: [], readsSinceEdit: 0, continuityChecks: 0, eventCount: 0 };
+  return {
+    stage: "investigating",
+    headlineSource: "template",
+    changedPaths: [],
+    touchedPaths: [],
+    installs: 0,
+    recentErrors: [],
+    readsSinceEdit: 0,
+    continuityChecks: 0,
+    eventCount: 0,
+    installed: [],
+    createdPaths: [],
+    testRuns: 0,
+    errorCount: 0,
+    commits: 0,
+  };
+}
+
+/** A stored state with every field present, whichever phase wrote it. */
+export function fullState(partial: Partial<TaskState> | null | undefined): TaskState {
+  return { ...newTaskState(), ...(partial ?? {}) };
 }
 
 const MAX_PATHS = 400;
@@ -74,12 +110,15 @@ export interface ApplyResult {
   trigger: HeadlineTrigger | null;
   /** Area of the event's first path, for continuity and the trigger. */
   areaId?: string;
+  /** True when this event ended a task that was running: time to write its report card. */
+  finished: boolean;
 }
 
 /** Apply one event to a task. The headline is refreshed from the template whenever the meaning changed. */
-export function applyEvent(prev: TaskState, e: NormalisedEvent, ctx: TranslateContext): ApplyResult {
+export function applyEvent(input: TaskState, e: NormalisedEvent, ctx: TranslateContext): ApplyResult {
+  const prev = fullState(input);
   const fromHelper = Boolean(e.agentId);
-  const state: TaskState = { ...prev, changedPaths: [...prev.changedPaths], touchedPaths: [...prev.touchedPaths], recentErrors: [...prev.recentErrors] };
+  const state: TaskState = { ...prev, changedPaths: [...prev.changedPaths], touchedPaths: [...prev.touchedPaths], recentErrors: [...prev.recentErrors], installed: [...prev.installed], createdPaths: [...prev.createdPaths] };
   const path = e.paths[0];
   const area = path ? areaForPath(path, ctx.areas) : undefined;
 
@@ -88,14 +127,25 @@ export function applyEvent(prev: TaskState, e: NormalisedEvent, ctx: TranslateCo
     state.endReason = undefined;
     state.endedAt = undefined;
     state.closingMessage = undefined;
+    state.stageAtEnd = undefined;
   }
   if (e.kind === "plan" && e.text) state.plan = e.text;
   if (e.kind === "edit" || e.kind === "commit") for (const p of e.paths) state.changedPaths = pushUnique(state.changedPaths, p);
   if (e.kind === "edit" || e.kind === "read" || e.kind === "commit") for (const p of e.paths) state.touchedPaths = pushUnique(state.touchedPaths, p);
-  if (e.kind === "install") state.installs++;
-  if (e.kind === "error") state.recentErrors = [e.text ?? e.summary, ...state.recentErrors].slice(0, 3);
-  else if (e.kind === "edit" || e.kind === "test_run" || e.kind === "command") state.recentErrors = [];
-  if (e.kind === "test_run" && e.tests) state.lastTests = e.tests;
+  if (e.kind === "edit" && /^(Created|Added)\b/.test(e.summary)) for (const p of e.paths) state.createdPaths = pushUnique(state.createdPaths, p);
+  if (e.kind === "install") {
+    state.installs++;
+    for (const pkg of packagesFromCommand(e.command ?? "")) state.installed = pushUnique(state.installed, pkg);
+  }
+  if (e.kind === "commit") state.commits++;
+  if (e.kind === "error") {
+    state.recentErrors = [e.text ?? e.summary, ...state.recentErrors].slice(0, 3);
+    state.errorCount++;
+  } else if (e.kind === "edit" || e.kind === "test_run" || e.kind === "command") state.recentErrors = [];
+  if (e.kind === "test_run") {
+    state.testRuns++;
+    if (e.tests) state.lastTests = e.tests;
+  }
   // A stop with words keeps them; a bare stop after one (Cursor sends both) does not erase them.
   if (e.kind === "stop") state.closingMessage = e.text ?? state.closingMessage ?? e.summary;
   if (e.kind === "usage_limit") state.usageLimitConfirmed = e.text === "confirmed";
@@ -105,9 +155,14 @@ export function applyEvent(prev: TaskState, e: NormalisedEvent, ctx: TranslateCo
   }
 
   const endReason = e.kind === "stop" ? "stop" : e.kind === "usage_limit" ? "usage_limit" : e.kind === "session_end" ? "session_end" : undefined;
+  let finished = false;
   if (endReason && !(fromHelper && e.kind === "stop")) {
     // The stop or session end that follows a usage limit is its consequence, not a new reason.
     if (prev.endReason !== "usage_limit") state.endReason = endReason;
+    if (!prev.endedAt) {
+      finished = true;
+      state.stageAtEnd = prev.stage === "waiting" ? (prev.resumeStage ?? prev.stage) : prev.stage;
+    }
     state.endedAt = e.ts;
   }
 
@@ -139,7 +194,7 @@ export function applyEvent(prev: TaskState, e: NormalisedEvent, ctx: TranslateCo
     });
     state.headlineSource = "template";
   }
-  return { state, trigger, areaId: area?.id };
+  return { state, trigger, areaId: area?.id, finished };
 }
 
 /** Everything the Room needs from a task, computed against the current area map. */
@@ -154,10 +209,12 @@ export interface ViewInput {
   nowIso: string;
   continuedFrom?: { taskId: string; tool: AgentTool; headline?: string; prompt?: string } | undefined;
   continuedByTool?: AgentTool;
+  /** The stored words of the report card, when one exists. */
+  report?: ReportRecord | null;
 }
 
 export function viewTask(input: ViewInput, ctx: TranslateContext): TaskView {
-  const s = input.state;
+  const s = fullState(input.state);
   // The folder watcher has no agent behind it: a quiet folder is not a stuck agent.
   const verdict = input.tool === "watcher" ? { stuck: false } : detectStuck({ stage: s.stage, lastEventAt: s.lastEventAt, recentErrors: s.recentErrors, sessionEnded: input.sessionEnded }, input.nowIso);
   const risk = riskFor(s, ctx.areas);
@@ -195,7 +252,70 @@ export function viewTask(input: ViewInput, ctx: TranslateContext): TaskView {
     closingMessage: s.closingMessage,
     continuedFrom: input.continuedFrom && s.continuedReason ? { ...input.continuedFrom, reason: s.continuedReason } : undefined,
     continuedBy: s.continuedBy && input.continuedByTool ? { taskId: s.continuedBy, tool: input.continuedByTool } : undefined,
+    report: input.report ? { ...reportCard(input.report, reportFactsFor(s, input.tool, ctx.areas), ctx), resolvedAt: input.report.resolvedAt, createdAt: input.report.createdAt } : undefined,
+    createdPaths: s.createdPaths,
+    installed: s.installed,
   };
+}
+
+// -- Phase 3: the report card, the digest and the inbox, from the same facts -------------------
+
+/** Every fact the report card is computed from, straight off the task row. */
+export function reportFactsFor(state: TaskState, tool: AgentTool, areas: readonly Area[]): ReportFacts {
+  const s = fullState(state);
+  return {
+    tool,
+    prompt: s.prompt,
+    closingMessage: s.closingMessage,
+    endReason: s.endReason,
+    usageLimitConfirmed: s.usageLimitConfirmed,
+    stageAtEnd: s.stageAtEnd,
+    changedPaths: s.changedPaths,
+    touchedPaths: s.touchedPaths,
+    createdPaths: s.createdPaths,
+    installs: s.installs,
+    installed: s.installed,
+    testRuns: s.testRuns,
+    lastTests: s.lastTests,
+    recentErrors: s.recentErrors,
+    errorCount: s.errorCount,
+    commits: s.commits,
+    eventCount: s.eventCount,
+    risk: riskFor(s, areas),
+  };
+}
+
+/** The zero-cost words for a card, written the moment a task ends. */
+export function templateReportFor(state: TaskState, tool: AgentTool, ctx: TranslateContext): ReportText {
+  return templateReportText(reportFactsFor(state, tool, ctx.areas), ctx);
+}
+
+/** What the digest needs from a task view. */
+export function digestTaskFrom(t: TaskView, continuedFrom?: { tool: AgentTool; endReason?: string; usageLimitConfirmed?: boolean }): DigestTask {
+  return {
+    id: t.id,
+    tool: t.tool,
+    headline: t.headline,
+    stage: t.stage,
+    startedAt: t.startedAt,
+    endedAt: t.endedAt,
+    lastEventAt: t.lastEventAt,
+    endReason: t.endReason,
+    usageLimitConfirmed: t.usageLimitConfirmed,
+    risk: t.risk.level,
+    location: t.location,
+    changedPaths: t.changedPaths,
+    createdPaths: t.createdPaths,
+    installed: t.installed,
+    report: t.report ? { headline: t.report.headline, needsYou: t.report.needsYou, needsYouDetail: t.report.needsYouDetail, resolved: Boolean(t.report.resolvedAt) } : undefined,
+    continuedFrom: continuedFrom ?? (t.continuedFrom ? { tool: t.continuedFrom.tool } : undefined),
+  };
+}
+
+/** The inbox: every finished task whose card flags something, until the owner clears it. */
+export function inboxItemFrom(t: TaskView): InboxItem | null {
+  if (!t.report || t.report.needsYou === "nothing") return null;
+  return { taskId: t.id, tool: t.tool, status: t.report.needsYou, detail: t.report.needsYouDetail, headline: t.report.headline, endedAt: t.endedAt, risk: t.risk, resolvedAt: t.report.resolvedAt };
 }
 
 export function riskFor(s: Pick<TaskState, "changedPaths" | "installs">, areas: readonly Area[]): Risk {
