@@ -31,11 +31,13 @@ describe("POST /api/ingest", () => {
 
     const ok = await POST(new Request("http://x/api/ingest", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body }));
     expect(await ok.json()).toEqual({ inserted: 1, duplicates: 0 });
+    expect(await POST(new Request("http://x/api/ingest", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body })).then((r) => r.json())).toEqual({ inserted: 0, duplicates: 1 });
     expect(notices).toHaveLength(1);
     expect(notices[0]).toMatchObject({ projectId: project.id, inserted: 1 });
 
     const room = await globalThis.__glasshouseStore.getRoom(project.id);
-    expect(room?.sessions[0]?.task?.headline).toBe("fix the login bug");
+    expect(room?.sessions[0]?.task?.headline).toBe("Looking into your request");
+    expect(room?.sessions[0]?.task?.prompt).toBe("fix the login bug");
     stop();
     globalThis.__glasshouseStore = undefined;
   });

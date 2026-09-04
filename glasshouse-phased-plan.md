@@ -56,7 +56,7 @@ Cost model:
 
 ---
 
-## Phase 0 — Foundations (days 1–2)
+## Phase 0 — Foundations
 
 **Goal:** a repo we can build in fast, and answers to the questions that would otherwise force rework later.
 
@@ -80,7 +80,7 @@ Still needed from Christopher: create the hosted Supabase project and link it (`
 
 ---
 
-## Phase 1 — The first tile (days 3–7)
+## Phase 1 — The first tile
 
 **Goal:** Claude Code events flowing live from Christopher's machine into one tile on the second monitor. Ugly is fine.
 
@@ -100,7 +100,7 @@ The week-long tab test starts now.
 
 ---
 
-## Phase 2 — Understanding (days 8–14)
+## Phase 2 — Understanding
 
 **Goal:** the tile speaks owner language and knows the app; the other tools show up; switching tools reads as one story.
 
@@ -117,9 +117,22 @@ Build:
 
 Exit test: switch from Claude Code to Codex mid-task; the Room shows it as one continuous story.
 
+**Phase 2 outcome (4 September 2026): built.** Area map (heuristic at once, AI in the background, rename/merge with
+corrections that survive refreshes), template translator with per-file nouns, stage machine with stuck and waiting,
+two-speed headline, risk badge from facts, expanded view with "Not changed" computed from the changed-files list,
+Codex (hooks and rollout tailer) and Cursor normalisers, folder/git watcher, continuity across tools, and every AI
+call logged with its cost. 121 tests. Findings, measurements and the honest gaps in `docs/phase-2-findings.md`.
+Three things Phase 2 changed:
+- Plain-English lines are computed when read, against the current area map, so a renamed area is right everywhere.
+- The Room never waits for AI: folder names give a usable map in milliseconds and the AI upgrades it afterwards.
+- `glasshouse watch` is the one long-running process, and only for sources with no hooks (folder, git, Codex logs).
+Still needed from Christopher: record one real Codex and one real Cursor session (the normalisers are written from
+docs), add an `ANTHROPIC_API_KEY` to see AI naming, and the Supabase project from Phase 0.
+The exit test is proven with fixtures; the live version is the next real credit switch.
+
 ---
 
-## Phase 3 — Memory (days 15–21)
+## Phase 3 — Memory
 
 **Goal:** the reasons to stay: reports, the digest, the inbox, and the Ask box.
 
@@ -134,7 +147,7 @@ Exit test: the first report card shows Christopher something he would have misse
 
 ---
 
-## Phase 4 — Other people (days 22–30)
+## Phase 4 — Other people
 
 **Goal:** ten semi-technical builders using it for five days, and a way to pay.
 
@@ -150,7 +163,7 @@ Exit test: 7 of 10 testers still have the tab open on day five; 3 or more say "I
 
 ---
 
-## Phase 5 — Launch and hardening (month 2)
+## Phase 5 — Launch and hardening
 
 - Product Hunt launch with the split-screen demo video.
 - Email digests every morning.
@@ -179,7 +192,7 @@ Exit test: 7 of 10 testers still have the tab open on day five; 3 or more say "I
 | Loved but unpaid | Free→Pro under 3% | Free tier is a taster (24h history, no digest) from Phase 4 |
 | Flaky feed across tools | "My Codex tile is blank" tickets | Claude Code deep first; standard-view label; folder-watch fallback |
 | Wrong translations burn someone | Thumbs-down above 5% | Raw action one click away; feedback loop in Phase 3; weekly review in Phase 5 |
-| Spread across three startups | Weeks without commits | Phase exit tests are short and dated; each phase is one week |
+| Spread across three startups | Weeks without commits | Phase exit tests are short and dated; each phase ends with one checkable test |
 
 ---
 

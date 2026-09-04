@@ -1,4 +1,5 @@
 import { EventBatch } from "@glasshouse/schema";
+import { afterIngest } from "@/lib/ai/workers";
 import { projectFromRequest } from "@/lib/auth";
 import { publish } from "@/lib/bus";
 import { getStore } from "@/lib/store";
@@ -17,6 +18,9 @@ export async function POST(req: Request) {
   // The token decides the project. Never trust the projectId in the payload.
   const events = parsed.data.events.map((e) => ({ ...e, projectId: project.id }));
   const result = await getStore().ingest(project.id, events);
-  if (result.inserted > 0) publish({ projectId: project.id, at: new Date().toISOString(), inserted: result.inserted });
-  return Response.json(result);
+  if (result.inserted > 0) {
+    publish({ projectId: project.id, at: new Date().toISOString(), inserted: result.inserted });
+    afterIngest(project.id, result); // AI headline and file descriptions, in the background
+  }
+  return Response.json({ inserted: result.inserted, duplicates: result.duplicates });
 }

@@ -1,6 +1,6 @@
 {
   "name": "glasshouse",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Glasshouse connector: listens to your AI coding agents and sends what they are doing to your control room.",
   "type": "module",
