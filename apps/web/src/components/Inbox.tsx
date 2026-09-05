@@ -2,12 +2,31 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { InboxItem, ProjectSummary } from "@/lib/store/types";
+import { Alert, Check } from "./icons";
 import { NEEDS_YOU_TEXT, RISK_TEXT, TOOL_NAMES, ago } from "./labels";
+import { PageHeader } from "./PageHeader";
 
 interface InboxState {
   open: InboxItem[];
   cleared: InboxItem[];
   days: number;
+}
+
+function InboxSkeleton() {
+  return (
+    <ul className="inbox" aria-busy="true">
+      <li className="visually-hidden">Loading the inbox</li>
+      {[0, 1, 2].map((i) => (
+        <li className="inbox-item" key={i}>
+          <div className="inbox-main" style={{ width: "100%" }}>
+            <div className="skeleton" style={{ width: 120, height: 20, borderRadius: 999 }} />
+            <div className="skeleton skeleton-line" style={{ width: "48%", height: 16 }} />
+            <div className="skeleton skeleton-line" style={{ width: "30%" }} />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export function Inbox({ project }: { project: ProjectSummary }) {
@@ -48,16 +67,18 @@ export function Inbox({ project }: { project: ProjectSummary }) {
   }
 
   const Item = ({ item, cleared }: { item: InboxItem; cleared?: boolean }) => (
-    <li className={`inbox-item ${item.status}`}>
+    <li className="inbox-item" data-status={item.status}>
       <div className="inbox-main">
-        <span className={`needs-badge ${item.status}`}>{NEEDS_YOU_TEXT[item.status]}</span>
-        <strong>{item.headline}</strong>
-        <div className="muted small">
+        <span className="needs-badge" data-need={item.status}>
+          {NEEDS_YOU_TEXT[item.status]}
+        </span>
+        <span className="inbox-headline">{item.headline}</span>
+        <div className="faint small">
           {TOOL_NAMES[item.tool]} · {RISK_TEXT[item.risk.level]}
           {item.endedAt ? ` · finished ${ago(item.endedAt, now)}` : ""}
           {cleared && item.resolvedAt ? ` · cleared ${ago(item.resolvedAt, now)}` : ""}
         </div>
-        {item.detail && <div className="inbox-detail">{item.detail}</div>}
+        {item.detail && <p className="inbox-detail">{item.detail}</p>}
       </div>
       <div className="inbox-actions">
         <a className="button subtle" href={`/room/${project.id}#task-${item.taskId}`}>
@@ -71,27 +92,32 @@ export function Inbox({ project }: { project: ProjectSummary }) {
   );
 
   return (
-    <main className="room">
-      <div className="room-header">
-        <div>
-          <a href={`/room/${project.id}`}>← Back to the Room</a>
-        </div>
-        <div>
-          <strong>{project.name}</strong> · Needs you
-        </div>
-      </div>
+    <main className="page">
+      <PageHeader back={`/room/${project.id}`} title={project.name} />
 
-      <div className="settings-intro">
+      <div className="page-intro">
+        <h1>Needs you</h1>
         <p>Everything a report card flagged as Review recommended, Decision needed or Blocked, in one list. Clear an item once you have dealt with it.</p>
       </div>
 
-      {error && <div className="notice error">{error}</div>}
-      {!state && !error && <div className="muted">Loading…</div>}
+      {error && (
+        <div className="notice critical" role="alert">
+          <Alert />
+          <div className="notice-body">
+            <span>{error}</span>
+            <button className="link-button" onClick={() => void load()}>
+              Try again
+            </button>
+          </div>
+        </div>
+      )}
+      {!state && !error && <InboxSkeleton />}
 
       {state && (
         <>
           {state.open.length === 0 ? (
             <div className="empty">
+              <Check size={22} className="empty-icon" />
               <h2>Nothing needs you.</h2>
               <p>When a finished task needs a look, a decision or is blocked, it appears here.</p>
             </div>
@@ -104,7 +130,7 @@ export function Inbox({ project }: { project: ProjectSummary }) {
           )}
           {state.cleared.length > 0 && (
             <>
-              <div className="section-title">Cleared</div>
+              <h2 className="section-label">Cleared</h2>
               <ul className="inbox cleared">
                 {state.cleared.map((item) => (
                   <Item key={item.taskId} item={item} cleared />
@@ -112,7 +138,7 @@ export function Inbox({ project }: { project: ProjectSummary }) {
               </ul>
             </>
           )}
-          <div className="footer">
+          <div className="page-foot">
             <span>Covers the last {state.days} days.</span>
           </div>
         </>

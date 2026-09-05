@@ -1,6 +1,7 @@
 "use client";
 
 import type { TaskView } from "@/lib/store/types";
+import { Check } from "./icons";
 import { NEEDS_YOU_TEXT, RISK_TEXT } from "./labels";
 
 /**
@@ -17,37 +18,39 @@ export function ReportCard({ task, technical = false, compact = false }: { task:
     <div className={`report${compact ? " compact" : ""}`}>
       {r.beforeAfter && <p className="report-before-after">{r.beforeAfter}</p>}
 
-      <div className="report-grid">
-        <section>
-          <div className="panel-title">Touched</div>
+      <div className="report-cols">
+        <section className="report-col">
+          <h3 className="section-label">Touched</h3>
           {r.touched.length === 0 ? (
             <p className="muted">No part of the app was changed.</p>
           ) : (
             <ul className="report-list">
               {r.touched.map((t) => (
                 <li key={t.id}>
-                  <strong>{t.name}</strong> <span className="muted">· {t.reason}</span>
-                  {technical && <div className="mono muted small">{t.files.join(", ")}</div>}
+                  <strong>{t.name}</strong> <span className="faint">· {t.reason}</span>
+                  {technical && <div className="mono faint tiny">{t.files.join(", ")}</div>}
                 </li>
               ))}
             </ul>
           )}
           {r.outsideAnyPart.length > 0 && (
-            <p className="muted small">
+            <p className="faint small">
               {r.outsideAnyPart.length} changed file{r.outsideAnyPart.length === 1 ? " is" : "s are"} outside any known part of the app.
               {technical && <span className="mono"> {r.outsideAnyPart.join(", ")}</span>}
             </p>
           )}
           {r.notTouched.length > 0 && (
-            <p className="not-touched">
-              Not touched: {r.notTouched.map((n) => `${n} ✓`).join(" · ")}
-              <span className="muted"> (checked against the list of files it changed)</span>
+            <p className="verified" title="Checked against the list of files this task changed">
+              <Check />
+              <span>
+                <span className="verified-label">Not touched:</span> {r.notTouched.join(" · ")}
+              </span>
             </p>
           )}
         </section>
 
-        <section>
-          <div className="panel-title">Evidence</div>
+        <section className="report-col">
+          <h3 className="section-label">Evidence</h3>
           <ul className="report-list">
             <li>
               {ev.tests.ran
@@ -60,14 +63,14 @@ export function ReportCard({ task, technical = false, compact = false }: { task:
             <li>
               Settings or secrets touched: {sensitive.length > 0 ? "yes" : "no"}
               {sensitive.length > 0 && (
-                <span className="muted">
+                <span className="faint">
                   {" "}
                   ({ev.secretsTouched.length > 0 ? `${ev.secretsTouched.length} secrets file${ev.secretsTouched.length === 1 ? "" : "s"}` : ""}
                   {ev.settingsTouched.length > 0 ? `${ev.secretsTouched.length > 0 ? ", " : ""}${ev.settingsTouched.length} settings file${ev.settingsTouched.length === 1 ? "" : "s"}` : ""}
                   {ev.databaseTouched.length > 0 ? `${ev.secretsTouched.length + ev.settingsTouched.length > 0 ? ", " : ""}database layout` : ""})
                 </span>
               )}
-              {technical && sensitive.length > 0 && <div className="mono muted small">{sensitive.join(", ")}</div>}
+              {technical && sensitive.length > 0 && <div className="mono faint tiny">{sensitive.join(", ")}</div>}
             </li>
             <li>
               {ev.filesChanged} file{ev.filesChanged === 1 ? "" : "s"} changed
@@ -76,18 +79,18 @@ export function ReportCard({ task, technical = false, compact = false }: { task:
               {ev.errors > 0 ? ` · ${ev.errors} error${ev.errors === 1 ? "" : "s"} along the way` : ""}
             </li>
           </ul>
-          <p className={`risk-line ${r.risk.level}`}>
+          <p className="risk-line" data-level={r.risk.level}>
             {RISK_TEXT[r.risk.level]}: {r.riskReason ?? r.risk.reasons.join("; ")}
           </p>
         </section>
       </div>
 
-      <div className={`needs-you ${r.needsYou}`}>
+      <p className="needs-you" data-need={r.needsYou}>
         <strong>{NEEDS_YOU_TEXT[r.needsYou]}</strong>
-        {r.needsYouDetail && <span> · {r.needsYouDetail}</span>}
-        {r.resolvedAt && <span className="muted"> · cleared</span>}
-      </div>
-      {!compact && <div className="muted small">{r.source === "ai" ? "Words written by AI; facts computed from the record." : "Written from the record without AI."}</div>}
+        {r.needsYouDetail ? <> — {r.needsYouDetail}</> : null}
+        {r.resolvedAt ? <span className="faint"> — cleared</span> : null}
+      </p>
+      {!compact && <p className="report-source">{r.source === "ai" ? "Words written by AI; facts computed from the record." : "Written from the record without AI."}</p>}
     </div>
   );
 }

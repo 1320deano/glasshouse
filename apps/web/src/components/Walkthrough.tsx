@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { firstMoment } from "@/lib/moment";
 import type { RoomState } from "@/lib/store/types";
+import { Info } from "./icons";
 import { TOOL_NAMES } from "./labels";
 
 /**
@@ -32,28 +33,33 @@ export function Walkthrough({ state, welcome }: { state: RoomState; welcome: boo
   const moment = firstMoment(state);
   if (moment && dismissed !== "moment" && dismissed !== "all") {
     return (
-      <div className="moment">
-        <div className="moment-label">This is the moment</div>
-        <div className="moment-fact">{moment.fact}</div>
-        <div className="moment-why">{moment.why} Expand the {TOOL_NAMES[moment.tool]} tile to see exactly what changed, and what verifiably did not.</div>
-        <button className="link-button" onClick={() => dismiss("moment")}>
+      <aside className="moment">
+        <p className="moment-label">This is the moment</p>
+        <p className="moment-fact">{moment.fact}</p>
+        <p className="moment-why">
+          {moment.why} Expand the {TOOL_NAMES[moment.tool]} tile to see exactly what changed, and what verifiably did not.
+        </p>
+        <button className="button subtle sm" onClick={() => dismiss("moment")}>
           Got it
         </button>
-      </div>
+      </aside>
     );
   }
   if (state.sessions.length === 0 && (welcome || dismissed !== "empty")) {
     return (
       <div className="notice">
-        <strong>Connected.</strong> Now start Claude Code, Codex or Cursor in that folder and give it something to do. Its tile appears here within a second or two. The first time it touches a part of your app you did not ask about, this page will say so.
-        {!welcome && (
-          <>
-            {" "}
+        <Info />
+        <div className="notice-body">
+          <span>
+            <strong>Connected.</strong> Now start Claude Code, Codex or Cursor in that folder and give it something to do. Its tile appears here within a second or two. The first time it touches a
+            part of your app you did not ask about, this page will say so.
+          </span>
+          {!welcome && (
             <button className="link-button" onClick={() => dismiss("empty")}>
               Hide
             </button>
-          </>
-        )}
+          )}
+        </div>
       </div>
     );
   }

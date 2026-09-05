@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Digest, DigestWindowKind } from "@glasshouse/translate";
 import type { ProjectSummary } from "@/lib/store/types";
+import { Alert } from "./icons";
 import { NEEDS_YOU_TEXT, RISK_TEXT, STAGE_TEXT, TOOL_NAMES, ago } from "./labels";
+import { PageHeader } from "./PageHeader";
 
 const WINDOWS: Array<{ kind: DigestWindowKind; label: string }> = [
   { kind: "since-checked", label: "Since you last checked" },
@@ -13,6 +15,29 @@ const WINDOWS: Array<{ kind: DigestWindowKind; label: string }> = [
 
 /** Opening the digest counts as checking, once you have had it open for a moment. */
 const MARK_AFTER_MS = 12_000;
+
+function DigestSkeleton() {
+  return (
+    <div className="digest" aria-busy="true">
+      <span className="visually-hidden">Loading the digest</span>
+      <div className="skeleton" style={{ width: "min(100%, 520px)", height: 30, borderRadius: 6 }} />
+      <div className="digest-section">
+        <div className="skeleton skeleton-line" style={{ width: 90, height: 9 }} />
+        <div className="skeleton skeleton-line" style={{ width: "62%", height: 15 }} />
+        <div className="skeleton skeleton-line" style={{ width: "44%" }} />
+      </div>
+      <div className="digest-grid">
+        {[0, 1].map((i) => (
+          <div className="digest-section" key={i}>
+            <div className="skeleton skeleton-line" style={{ width: 70, height: 9 }} />
+            <div className="skeleton skeleton-line" style={{ width: "80%", height: 15 }} />
+            <div className="skeleton skeleton-line" style={{ width: "55%" }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function DigestView({ project }: { project: ProjectSummary }) {
   const [kind, setKind] = useState<DigestWindowKind>("since-checked");
@@ -56,59 +81,73 @@ export function DigestView({ project }: { project: ProjectSummary }) {
   }, [project.id]);
 
   return (
-    <main className="room">
-      <div className="room-header">
-        <div>
-          <a href={`/room/${project.id}`}>← Back to the Room</a>
-        </div>
-        <div>
-          <strong>{project.name}</strong> · Digest
-        </div>
+    <main className="page">
+      <PageHeader back={`/room/${project.id}`} title={project.name} />
+
+      <div className="page-intro">
+        <h1>Digest</h1>
+        <p>What your agents did while you were doing something else.</p>
       </div>
 
-      <div className="settings-actions">
-        {WINDOWS.map((w) => (
-          <button key={w.kind} className={`button${kind === w.kind ? "" : " subtle"}`} onClick={() => setKind(w.kind)}>
-            {w.label}
-          </button>
-        ))}
-        <span className="muted small">
+      <div className="toolbar">
+        <div className="segmented" role="tablist" aria-label="Digest window">
+          {WINDOWS.map((w) => (
+            <button key={w.kind} role="tab" aria-selected={kind === w.kind} onClick={() => setKind(w.kind)}>
+              {w.label}
+            </button>
+          ))}
+        </div>
+        <span className="faint small">
           {kind === "since-checked" ? (lastCheckedAt ? `Last checked ${new Date(lastCheckedAt).toLocaleString()}` : "First look: showing the last 24 hours") : ""}
         </span>
       </div>
 
-      {error && <div className="notice error">{error}</div>}
-      {!digest && !error && <div className="muted">Loading…</div>}
+      {error && (
+        <div className="notice critical" role="alert">
+          <Alert />
+          <div className="notice-body">
+            <span>{error}</span>
+            <button className="link-button" onClick={() => void load(kind)}>
+              Try again
+            </button>
+          </div>
+        </div>
+      )}
+      {!digest && !error && <DigestSkeleton />}
 
       {digest && (
         <div className="digest">
           {digest.summary && <p className="digest-summary">{digest.summary}</p>}
 
           <section className={`digest-section${digest.needsYou.length > 0 ? " lit" : ""}`}>
-            <div className="panel-title">Needs you</div>
+            <h2 className="section-label">Needs you</h2>
             {digest.needsYou.length === 0 ? (
               <p className="muted">Nothing needs you.</p>
             ) : (
               <ul className="digest-list">
                 {digest.needsYou.map((n) => (
                   <li key={`${n.taskId}-${n.from}`}>
-                    <span className={`needs-badge ${n.status}`}>{NEEDS_YOU_TEXT[n.status]}</span> <strong>{n.headline}</strong>
-                    <span className="muted"> · {TOOL_NAMES[n.tool]}</span>
-                    {n.detail && <div className="muted">{n.detail}</div>}
+                    <span>
+                      <span className="needs-badge" data-need={n.status}>
+                        {NEEDS_YOU_TEXT[n.status]}
+                      </span>{" "}
+                      <strong>{n.headline}</strong> <span className="digest-meta">{TOOL_NAMES[n.tool]}</span>
+                    </span>
+                    {n.detail && <span className="muted">{n.detail}</span>}
                   </li>
                 ))}
               </ul>
             )}
             {digest.needsYou.some((n) => n.from === "report") && (
-              <a href={`/room/${project.id}/inbox`} className="small">
+              <a href={`/room/${project.id}/inbox`} className="link-accent link-underline small">
                 Open the inbox to clear these
               </a>
             )}
           </section>
 
-          <div className="panel-grid">
+          <div className="digest-grid">
             <section className="digest-section">
-              <div className="panel-title">Done</div>
+              <h2 className="section-label">Done</h2>
               {digest.done.length === 0 ? (
                 <p className="muted">Nothing finished in this window.</p>
               ) : (
@@ -116,11 +155,11 @@ export function DigestView({ project }: { project: ProjectSummary }) {
                   {digest.done.map((d) => (
                     <li key={d.taskId}>
                       <strong>{d.headline}</strong>
-                      <div className="muted small">
+                      <span className="digest-meta">
                         {TOOL_NAMES[d.tool]} · {RISK_TEXT[d.risk]} · {ago(d.endedAt, now)}
                         {d.needsYou !== "nothing" ? ` · ${NEEDS_YOU_TEXT[d.needsYou]}` : ""}
                         {d.note ? ` · ${d.note}` : ""}
-                      </div>
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -128,7 +167,7 @@ export function DigestView({ project }: { project: ProjectSummary }) {
             </section>
 
             <section className="digest-section">
-              <div className="panel-title">Still going</div>
+              <h2 className="section-label">Still going</h2>
               {digest.stillGoing.length === 0 ? (
                 <p className="muted">No agent is working right now.</p>
               ) : (
@@ -136,10 +175,10 @@ export function DigestView({ project }: { project: ProjectSummary }) {
                   {digest.stillGoing.map((g) => (
                     <li key={g.taskId}>
                       <strong>{g.headline}</strong>
-                      <div className="muted small">
+                      <span className="digest-meta">
                         {TOOL_NAMES[g.tool]} · {STAGE_TEXT[g.stage]}
                         {g.location ? ` · in ${g.location}` : ""} · {ago(g.lastEventAt, now)}
-                      </div>
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -147,7 +186,7 @@ export function DigestView({ project }: { project: ProjectSummary }) {
             </section>
 
             <section className="digest-section">
-              <div className="panel-title">New in your app</div>
+              <h2 className="section-label">New in your app</h2>
               {digest.newInApp.areas.length === 0 && digest.newInApp.dependencies.length === 0 && digest.newInApp.filesCreated === 0 ? (
                 <p className="muted">Nothing new.</p>
               ) : (
@@ -165,15 +204,17 @@ export function DigestView({ project }: { project: ProjectSummary }) {
             </section>
 
             <section className="digest-section">
-              <div className="panel-title">Tools used</div>
+              <h2 className="section-label">Tools used</h2>
               {digest.toolsUsed.length === 0 ? (
                 <p className="muted">No agent ran in this window.</p>
               ) : (
                 <ul className="digest-list">
                   {digest.toolsUsed.map((t) => (
                     <li key={t.tool}>
-                      {TOOL_NAMES[t.tool]}: {t.tasks} task{t.tasks === 1 ? "" : "s"}
-                      {t.note ? <span className="muted"> · {t.note}</span> : null}
+                      <span>
+                        {TOOL_NAMES[t.tool]}: {t.tasks} task{t.tasks === 1 ? "" : "s"}
+                        {t.note ? <span className="faint"> · {t.note}</span> : null}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -181,7 +222,7 @@ export function DigestView({ project }: { project: ProjectSummary }) {
             </section>
           </div>
 
-          <div className="footer">
+          <div className="page-foot">
             <span>
               Window: {new Date(digest.window.start).toLocaleString()} to {new Date(digest.window.end).toLocaleString()}
             </span>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { SessionView, TaskView } from "@/lib/store/types";
+import { ChevronDown, Handoff } from "./icons";
 import { DEPTH_LABELS, RISK_TEXT, STAGE_TEXT, TOOL_COLOURS, TOOL_NAMES, ago } from "./labels";
 import { ReportCard } from "./ReportCard";
 import { TaskPanel } from "./TaskPanel";
@@ -37,55 +38,85 @@ export function Tile({ session, project, now, quiet = false }: { session: Sessio
   const headline = card?.headline ?? task?.headline ?? last?.plain ?? "Starting up";
   const depth = DEPTH_LABELS[session.depth];
   const risk = task?.risk;
+  const panelId = task ? `task-panel-${task.id}` : `session-panel-${session.id}`;
 
   return (
-    <section id={task ? `task-${task.id}` : undefined} className={`tile${quiet ? " quiet" : ""}${open ? " open" : ""}`}>
+    <article
+      id={task ? `task-${task.id}` : undefined}
+      className={`tile${quiet ? " quiet" : ""}${open ? " open" : ""}${card && !quiet ? " has-report" : ""}`}
+      data-stage={stage.cls}
+    >
       <div className="tile-head">
-        <span className="tool-badge">
+        <span className="tile-tool">
           <span className="tool-dot" style={{ background: TOOL_COLOURS[session.tool] }} />
-          {TOOL_NAMES[session.tool]} · {project}
-          {depth && <span className="depth-label">{depth}</span>}
+          {TOOL_NAMES[session.tool]}
+          <span className="tile-project">· {project}</span>
+          {depth && <span className="badge sm plain">{depth}</span>}
         </span>
-        <span className="tile-when" title={session.externalId}>
+        <span className="tile-meta" title={session.externalId}>
           {task?.startedAt ? `started ${ago(task.startedAt, now)}` : ""}
         </span>
       </div>
 
       {task?.continuedFrom && (
-        <div className="continuing" title={task.continuedFrom.reason}>
-          Continuing from {TOOL_NAMES[task.continuedFrom.tool]}: {task.continuedFrom.headline ?? task.continuedFrom.prompt ?? "the earlier task"}
-        </div>
+        <p className="tile-continuing" title={task.continuedFrom.reason}>
+          <Handoff />
+          <span>
+            Continuing from {TOOL_NAMES[task.continuedFrom.tool]}: {task.continuedFrom.headline ?? task.continuedFrom.prompt ?? "the earlier task"}
+          </span>
+        </p>
       )}
 
-      <div className="headline">{headline}</div>
+      <h2 className="tile-headline">{headline}</h2>
 
-      {!card && <div className="location">{task?.location ? <>Working in <span>{task.location}</span></> : "Not in any part of the app yet"}</div>}
+      {!card && (
+        <p className="tile-location">
+          {task?.location ? (
+            <>
+              Working in <strong>{task.location}</strong>
+            </>
+          ) : (
+            "Not in any part of the app yet"
+          )}
+        </p>
+      )}
 
-      <div className="stage-row">
-        <span className={`stage ${stage.cls}`} title={stage.detail}>
+      <div className="tile-status">
+        <span className={`badge stage${stage.cls === "waiting" ? " attention" : ""}`} data-stage={stage.cls} title={stage.detail}>
+          <span className="dot" aria-hidden="true" />
           {stage.text}
         </span>
-        {stage.detail && <span className="stage-detail">{stage.detail}</span>}
         {risk && (
-          <span className={`risk ${risk.level}`} title={risk.reasons.join(". ")}>
+          <span className="badge risk plain" data-level={risk.level} title={risk.reasons.join(". ")}>
             {RISK_TEXT[risk.level]}
           </span>
         )}
-        {task?.continuedBy && <span className="stage-detail">Continued in {TOOL_NAMES[task.continuedBy.tool]}</span>}
+        {stage.detail && <span className="stage-note">{stage.detail}</span>}
+        {task?.continuedBy && <span className="stage-note">Continued in {TOOL_NAMES[task.continuedBy.tool]}</span>}
       </div>
 
-      {card && task && !open && <ReportCard task={task} compact />}
+      {card && task && !open && !quiet && <ReportCard task={task} compact />}
+      {card && task && quiet && card.needsYou !== "nothing" && (
+        <p className="needs-you" data-need={card.needsYou}>
+          <strong>{card.needsYou === "blocked" ? "Blocked" : card.needsYou === "decision" ? "Decision needed" : "Review recommended"}</strong>
+          {card.needsYouDetail ? <> — {card.needsYouDetail}</> : null}
+        </p>
+      )}
 
-      <div className="ticker">
-        <span className="line">{last?.plain ?? "…"}</span>
-        <span className="when">{ago(last?.ts, now)}</span>
+      <div className="tile-foot">
+        <span className="tile-ticker">{last?.plain ?? "…"}</span>
+        <span className="tile-when">{ago(last?.ts, now)}</span>
+        <button className="tile-toggle" data-shot="expand" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((o) => !o)}>
+          {open ? "Close" : card ? "Open the report" : "Expand"}
+          <ChevronDown />
+        </button>
       </div>
 
-      <button className="detail-toggle" onClick={() => setOpen((o) => !o)}>
-        {open ? "Close" : card ? "Open the report" : "Expand"}
-      </button>
-
-      {open && <TaskPanel session={session} now={now} />}
-    </section>
+      {open && (
+        <div id={panelId}>
+          <TaskPanel session={session} now={now} />
+        </div>
+      )}
+    </article>
   );
 }
