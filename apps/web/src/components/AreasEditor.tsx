@@ -147,7 +147,8 @@ function AreaRow({ area, others, busy, showFolders, onRename, onMerge }: { area:
             Rename
           </button>
           {others.length > 0 && (
-            <>
+            /* The picker and its button wrap as one, so "Merge" never lands alone on a phone. */
+            <span className="merge-group">
               <label className="visually-hidden" htmlFor={`merge-${area.id}`}>
                 Merge {area.name} into another part
               </label>
@@ -162,7 +163,7 @@ function AreaRow({ area, others, busy, showFolders, onRename, onMerge }: { area:
               <button className="button subtle" disabled={busy || !mergeInto} onClick={() => onMerge(mergeInto)}>
                 Merge
               </button>
-            </>
+            </span>
           )}
         </div>
       )}

@@ -872,6 +872,11 @@
   min-width: 200px;
 }
 
+.merge-group {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
 .area-actions select.field {
   width: 168px;
   flex: none;
