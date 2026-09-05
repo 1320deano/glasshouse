@@ -1,0 +1,178 @@
+/* ============================================================================================
+   Glasshouse design system — tokens
+   --------------------------------------------------------------------------------------------
+   The single source of truth for colour, type, space, line, radius, shadow and motion.
+   Nothing in the product may hard-code a colour, a size or a duration: pull it from here, so a
+   change made once is a change made everywhere.
+
+   Shape of the system
+     Colour   neutral-heavy. One accent (--accent) and it is only ever used for a primary action
+              or the thing the eye must land on first. Amber, green and red are *status* only:
+              they carry a fact ("waiting for you", "all checks passed", "an error"), never
+              decoration. Every text colour below passes WCAG AA (4.5:1) on its own surface.
+     Type     one scale, 11 -> 48. Sizes are absolute; the Room's headline is the one clamp,
+              because it has to read from two metres on a 4K second monitor.
+     Space    an 8pt grid. --space-2 (8px) is the step; 4px and 12px are the half-steps.
+     Line     hairlines only. One border weight, three border tones.
+     Shadow   almost none. Flat surfaces are separated by a hairline, not a glow. Shadows are
+              reserved for things that genuinely float.
+     Motion   short, eased, and never blocking. Everything is disabled under reduced motion.
+   ============================================================================================ */
+
+:root {
+  color-scheme: dark;
+
+  /* --- Colour: neutral ramp ---------------------------------------------------------------
+     A cool near-grey. Chroma is deliberately close to zero so the one accent and the three
+     status colours are the only things on screen with any saturation. */
+  --grey-1000: #08090a; /* the page */
+  --grey-950: #0b0c0e; /* inset: inputs, code, wells */
+  --grey-900: #0e0f11; /* surface: cards, tiles */
+  --grey-850: #131518; /* raised: hover, nested panels */
+  --grey-800: #17191d; /* subtle fill: chips, secondary buttons */
+  --grey-750: #1c1f23;
+  --grey-700: #23262b; /* the default hairline */
+  --grey-600: #32363d; /* a hairline that needs to be seen */
+  --grey-500: #454a52;
+  --grey-400: #62686f;
+  --grey-300: #7e848e; /* tertiary text: 4.9:1 on the page */
+  --grey-200: #a8adb6; /* secondary text: 8.3:1 */
+  --grey-100: #d3d7dd;
+  --grey-50: #ecedee; /* primary text: 15.3:1 */
+
+  /* --- Colour: surfaces --------------------------------------------------------------- */
+  --bg-canvas: var(--grey-1000);
+  --bg-surface: var(--grey-900);
+  --bg-raised: var(--grey-850);
+  --bg-subtle: var(--grey-800);
+  --bg-inset: var(--grey-950);
+  --bg-overlay: rgba(8, 9, 10, 0.72);
+
+  /* --- Colour: text -------------------------------------------------------------------- */
+  --text-primary: var(--grey-50);
+  --text-secondary: var(--grey-200);
+  --text-tertiary: var(--grey-300);
+  --text-on-accent: #05070d;
+
+  /* --- Colour: lines ------------------------------------------------------------------- */
+  --line-subtle: #16181b;
+  --line: var(--grey-700);
+  --line-strong: var(--grey-600);
+
+  /* --- Colour: the one accent -----------------------------------------------------------
+     Used for: the primary button, the focused control, the single most important link on a
+     page. Never for body links, never for decoration, never for a whole nav. */
+  --accent: #5b8cff;
+  --accent-hover: #7099ff;
+  --accent-quiet: rgba(91, 140, 255, 0.12);
+  --accent-line: rgba(91, 140, 255, 0.4);
+
+  /* --- Colour: status. A fact, never a mood. -------------------------------------------- */
+  --warn: #e6a840; /* waiting for you, medium risk, a decision to make */
+  --warn-quiet: rgba(230, 168, 64, 0.1);
+  --warn-line: rgba(230, 168, 64, 0.34);
+  --positive: #4cc38a; /* verified: not touched, checks passed */
+  --positive-quiet: rgba(76, 195, 138, 0.1);
+  --danger: #f2777a; /* an error, high risk, stuck */
+  --danger-quiet: rgba(242, 119, 122, 0.1);
+  --danger-line: rgba(242, 119, 122, 0.36);
+
+  --focus-ring: #7aa2ff;
+
+  /* --- Type -----------------------------------------------------------------------------
+     A system stack on purpose: the Room runs on a laptop that may be offline, and a webfont
+     that fails to load is a worse first impression than one that was never promised. */
+  --font-sans:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", "Roboto Mono", Menlo, Consolas, monospace;
+
+  --text-1: 11px; /* micro label, uppercase, tracked */
+  --text-2: 12px; /* caption, timestamps, meta */
+  --text-3: 13px; /* dense UI: buttons, badges, table cells */
+  --text-4: 14px; /* small body */
+  --text-5: 15px; /* body */
+  --text-6: 17px; /* lead paragraph, list items that matter */
+  --text-7: 20px; /* card title */
+  --text-8: 24px; /* section heading */
+  --text-9: 30px; /* page heading */
+  --text-10: 38px; /* landing sub-display */
+  --text-11: 48px; /* display */
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  --leading-tight: 1.12;
+  --leading-snug: 1.25;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+
+  --tracking-tight: -0.021em;
+  --tracking-snug: -0.011em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.07em;
+
+  /* The one place text is allowed to grow with the viewport: the Room's headline, which is
+     read from across a desk. */
+  --text-headline: clamp(23px, 2.15vw, 34px);
+  --text-display: clamp(34px, 4.6vw, 56px);
+
+  /* --- Space: 8pt grid ------------------------------------------------------------------ */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-15: 12px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-5: 40px;
+  --space-6: 48px;
+  --space-8: 64px;
+  --space-10: 80px;
+  --space-12: 96px;
+  --space-16: 128px;
+
+  /* --- Radius ---------------------------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
+
+  /* --- Shadow ---------------------------------------------------------------------------- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px -2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 10px 28px -8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 56px -16px rgba(0, 0, 0, 0.7);
+
+  /* --- Motion ---------------------------------------------------------------------------- */
+  --duration-instant: 90ms;
+  --duration-fast: 140ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --duration-slower: 520ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* --- Layout ---------------------------------------------------------------------------- */
+  --page-max: 1360px;
+  --page-narrow: 680px;
+  --measure: 68ch;
+  --page-pad-x: clamp(20px, 4vw, 40px);
+  --page-pad-y: clamp(20px, 3vw, 32px);
+  --control-height: 34px;
+  --control-height-sm: 28px;
+
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-overlay: 100;
+}
+
+/* Anything the room draws in a wide window gets a little more air. */
+@media (min-width: 1280px) {
+  :root {
+    --page-pad-y: 36px;
+  }
+}

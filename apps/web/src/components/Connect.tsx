@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Alert, Check, Copy } from "./icons";
+import { PageHeader } from "./PageHeader";
 
 interface CodeState {
   code: string;
@@ -73,36 +75,40 @@ export function Connect({ productName, connectCommand, server, local, plan, proj
   const fullCommand = server && !server.includes("localhost") ? `${command} --server ${server}` : command;
 
   return (
-    <main className="room narrow">
-      <div className="room-header">
-        <div>
-          <a href="/">← {productName}</a>
-        </div>
-        <div className="muted">{plan === "pro" ? "Pro" : "Free"}</div>
-      </div>
+    <main className="page narrow">
+      <PageHeader brand={productName} title="Connect a project" right={local ? undefined : <span className="badge sm plain">{plan === "pro" ? "Pro" : "Free"}</span>} />
 
-      <div className="settings-intro">
-        <h2>{projectCount === 0 ? "Connect your first project" : "Connect another project"}</h2>
+      <div className="page-intro">
+        <h1>{projectCount === 0 ? "Connect your first project" : "Connect another project"}</h1>
         <p>Open a terminal inside the folder of the app you want to watch, and run this one command. It adds listeners to your agents and sends the list of file names (never their contents).</p>
       </div>
 
       {upgrade ? (
-        <div className="notice waiting">
-          {error} <a href="/account">See plans</a>
+        <div className="notice attention">
+          <Alert />
+          <div className="notice-body">
+            <span>{error}</span>
+            <a className="link-underline" href="/account">
+              See plans
+            </a>
+          </div>
         </div>
       ) : error ? (
-        <div className="notice error">
-          {error}{" "}
-          <button className="link-button" onClick={() => void getCode()}>
-            Try again
-          </button>
+        <div className="notice critical" role="alert">
+          <Alert />
+          <div className="notice-body">
+            <span>{error}</span>
+            <button className="link-button" onClick={() => void getCode()}>
+              Try again
+            </button>
+          </div>
         </div>
       ) : null}
 
       {(local || code) && !project && (
         <div className="connect-box">
           <pre className="command">{fullCommand}</pre>
-          <div className="settings-actions">
+          <div className="toolbar">
             <button
               className="button"
               onClick={async () => {
@@ -115,30 +121,45 @@ export function Connect({ productName, connectCommand, server, local, plan, proj
                 }
               }}
             >
-              {copied ? "Copied" : "Copy"}
+              {copied ? <Check /> : <Copy />}
+              {copied ? "Copied" : "Copy the command"}
             </button>
-            {code && <span className="muted small">This code works once and expires in 15 minutes.</span>}
+            {code && <span className="faint small">This code works once and expires in 15 minutes.</span>}
           </div>
-          <p className="muted waiting-dots">Waiting for the connector…</p>
+          <p className="muted waiting-dots">Waiting for the connector</p>
           <details>
             <summary>What happens next</summary>
-            <ol>
+            <ol className="steps">
               <li>The command links the folder and registers listeners for Claude Code, and for Codex and Cursor if they are installed.</li>
               <li>It sends the file map so the Room can name the parts of your app.</li>
               <li>Start your agent in that folder as usual. Its tile appears here within a second or two.</li>
             </ol>
-            <p className="muted small">Codex only: open Codex, type /hooks and trust the listeners. Until then it is followed through its logs by `glasshouse watch`.</p>
+            <p className="faint small">Codex only: open Codex, type /hooks and trust the listeners. Until then it is followed through its logs by `glasshouse watch`.</p>
           </details>
         </div>
       )}
 
       {project && (
-        <div className="notice">
-          <strong>{project.name}</strong> is connected. <a href={`/room/${project.id}?welcome=1`}>Open its Room</a> and start your agent in that folder.
+        <div className="notice" role="status">
+          <Check />
+          <div className="notice-body">
+            <span>
+              <strong>{project.name}</strong> is connected.
+            </span>
+            <a className="link-accent link-underline" href={`/room/${project.id}?welcome=1`}>
+              Open its Room
+            </a>
+            <span>and start your agent in that folder.</span>
+          </div>
         </div>
       )}
 
-      {!local && !code && !project && !error && <div className="muted">Getting you a code…</div>}
+      {!local && !code && !project && !error && (
+        <span className="loading-row">
+          <span className="spinner" />
+          Getting you a code
+        </span>
+      )}
     </main>
   );
 }

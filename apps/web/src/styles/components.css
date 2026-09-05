@@ -1,0 +1,688 @@
+/* ============================================================================================
+   Components: the small, reusable pieces every screen is built from.
+   Buttons, fields, badges, cards, notices, empty states, skeletons, tables, the page shell.
+   Screens compose these; they do not restyle them.
+   ============================================================================================ */
+
+/* --- Page shell ---------------------------------------------------------------------------- */
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--page-pad-y) var(--page-pad-x) var(--space-10);
+  max-width: var(--page-max);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.page.narrow {
+  max-width: var(--page-narrow);
+  gap: var(--space-4);
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 32px;
+  flex-wrap: wrap;
+}
+
+.page-head-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-15);
+  min-width: 0;
+  font-size: var(--text-4);
+}
+
+.brand {
+  font-size: var(--text-4);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-snug);
+  color: var(--text-secondary);
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+.brand:hover {
+  color: var(--text-primary);
+}
+
+.crumb-sep {
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+.page-title {
+  font-size: var(--text-4);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-snug);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  font-size: var(--text-4);
+  color: var(--text-secondary);
+}
+.back-link:hover {
+  color: var(--text-primary);
+}
+.back-link svg {
+  transition: transform var(--duration-base) var(--ease-out);
+}
+.back-link:hover svg {
+  transform: translateX(-2px);
+}
+
+/* The lead paragraph under a page title. One measure, always. */
+.page-intro {
+  max-width: var(--measure);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  font-size: var(--text-5);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
+
+.page-intro h1,
+.page-intro h2 {
+  font-size: var(--text-8);
+  margin-bottom: var(--space-05);
+}
+
+.section-label {
+  font-size: var(--text-1);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* --- Buttons -------------------------------------------------------------------------------
+   Three weights: primary (accent, one per view), default (subtle fill), quiet (text only). */
+.button {
+  --button-bg: var(--bg-subtle);
+  --button-fg: var(--text-primary);
+  --button-line: var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: var(--control-height);
+  padding: 0 var(--space-15);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--button-line);
+  background: var(--button-bg);
+  color: var(--button-fg);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-snug);
+  white-space: nowrap;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard);
+}
+
+.button:hover:not(:disabled) {
+  --button-bg: var(--grey-750);
+  --button-line: var(--line-strong);
+}
+
+.button:active:not(:disabled) {
+  --button-bg: var(--grey-800);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.button.primary {
+  --button-bg: var(--accent);
+  --button-fg: var(--text-on-accent);
+  --button-line: var(--accent);
+  font-weight: var(--weight-semibold);
+}
+.button.primary:hover:not(:disabled) {
+  --button-bg: var(--accent-hover);
+  --button-line: var(--accent-hover);
+}
+
+.button.subtle {
+  --button-bg: transparent;
+  --button-fg: var(--text-secondary);
+  --button-line: var(--line);
+}
+.button.subtle:hover:not(:disabled) {
+  --button-bg: var(--bg-subtle);
+  --button-fg: var(--text-primary);
+}
+
+.button.quiet {
+  --button-bg: transparent;
+  --button-fg: var(--text-secondary);
+  --button-line: transparent;
+  padding: 0 var(--space-1);
+}
+.button.quiet:hover:not(:disabled) {
+  --button-bg: var(--bg-subtle);
+  --button-fg: var(--text-primary);
+  --button-line: transparent;
+}
+
+.button.selected {
+  --button-bg: var(--bg-raised);
+  --button-fg: var(--text-primary);
+  --button-line: var(--line-strong);
+}
+
+.button.sm {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-1);
+  font-size: var(--text-2);
+}
+
+.button.block {
+  width: 100%;
+}
+
+/* A text button that sits inside a sentence. */
+.link-button {
+  color: var(--text-secondary);
+  font-size: inherit;
+  font-weight: var(--weight-medium);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    text-decoration-color var(--duration-fast) var(--ease-standard);
+}
+.link-button:hover:not(:disabled) {
+  color: var(--text-primary);
+  text-decoration-color: currentColor;
+}
+.link-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* An icon-only control. Always carries an aria-label. */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.icon-button:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+/* --- Fields ---------------------------------------------------------------------------------- */
+.field {
+  height: var(--control-height);
+  padding: 0 var(--space-15);
+  background: var(--bg-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-4);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+
+textarea.field {
+  height: auto;
+  padding: var(--space-1) var(--space-15);
+  line-height: var(--leading-normal);
+  resize: vertical;
+}
+
+select.field {
+  padding-right: var(--space-3);
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-tertiary) 50%),
+    linear-gradient(135deg, var(--text-tertiary) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) calc(50% + 1px),
+    calc(100% - 10px) calc(50% + 1px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+
+.field::placeholder {
+  color: var(--grey-400);
+}
+
+.field:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+
+.field:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-quiet);
+}
+
+.field:disabled {
+  opacity: 0.5;
+}
+
+.field-row {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.field-row .field {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+/* A checkbox with its label, aligned on the box. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--text-3);
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+.switch:hover {
+  color: var(--text-primary);
+}
+.switch input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* --- Surfaces ------------------------------------------------------------------------------- */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+}
+
+.well {
+  background: var(--bg-inset);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-15) var(--space-2);
+}
+
+/* --- Badges --------------------------------------------------------------------------------
+   A badge states a fact. It is neutral unless the fact is one the owner must act on. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 26px;
+  padding: 0 var(--space-15);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-snug);
+  white-space: nowrap;
+}
+
+.badge.plain {
+  background: transparent;
+}
+
+.badge.attention {
+  border-color: var(--warn-line);
+  background: var(--warn-quiet);
+  color: var(--warn);
+}
+
+.badge.critical {
+  border-color: var(--danger-line);
+  background: var(--danger-quiet);
+  color: var(--danger);
+}
+
+.badge.info {
+  border-color: var(--accent-line);
+  background: var(--accent-quiet);
+  color: var(--accent);
+}
+
+.badge.sm {
+  height: 22px;
+  padding: 0 var(--space-1);
+  font-size: var(--text-2);
+}
+
+/* A 6px status dot. The only animated element in the product, and only while an agent works. */
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex: none;
+}
+
+.dot.lg {
+  width: 8px;
+  height: 8px;
+}
+
+.dot.live {
+  animation: pulse-ring 2s var(--ease-in-out) infinite;
+}
+
+/* --- Notices -------------------------------------------------------------------------------- */
+.notice {
+  display: flex;
+  gap: var(--space-15);
+  align-items: flex-start;
+  padding: var(--space-15) var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--text-4);
+  line-height: var(--leading-normal);
+}
+
+.notice > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+}
+
+.notice strong {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.notice code {
+  color: var(--text-primary);
+  background: var(--bg-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+}
+
+.notice.attention {
+  border-color: var(--warn-line);
+  background: var(--warn-quiet);
+  color: var(--warn);
+}
+.notice.attention > svg,
+.notice.attention strong {
+  color: var(--warn);
+}
+
+.notice.critical {
+  border-color: var(--danger-line);
+  background: var(--danger-quiet);
+  color: var(--danger);
+}
+.notice.critical > svg,
+.notice.critical strong {
+  color: var(--danger);
+}
+
+.notice.dashed {
+  border-style: dashed;
+  background: transparent;
+}
+
+.notice-body {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-05) var(--space-1);
+  align-items: baseline;
+}
+
+/* --- Empty state ----------------------------------------------------------------------------- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-15);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6) var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--text-5);
+  line-height: var(--leading-normal);
+}
+
+.empty-icon {
+  color: var(--grey-500);
+  margin-bottom: var(--space-05);
+}
+
+.empty h2 {
+  font-size: var(--text-7);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-snug);
+}
+
+.empty p {
+  max-width: 52ch;
+}
+
+.empty pre,
+.empty code {
+  font-family: var(--font-mono);
+  font-size: var(--text-3);
+}
+
+.empty pre {
+  width: 100%;
+  background: var(--bg-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-15) var(--space-2);
+  overflow-x: auto;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* --- Loading -------------------------------------------------------------------------------- */
+.skeleton {
+  border-radius: var(--radius-xs);
+  background: linear-gradient(90deg, var(--grey-850) 25%, var(--grey-800) 37%, var(--grey-850) 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.skeleton-line {
+  height: 12px;
+  margin-bottom: var(--space-1);
+}
+
+.skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--line-strong);
+  border-top-color: var(--text-secondary);
+  border-radius: var(--radius-full);
+  animation: spin 700ms linear infinite;
+  flex: none;
+}
+
+.loading-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--text-4);
+}
+
+/* --- Table ---------------------------------------------------------------------------------- */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-3);
+  min-width: 640px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--space-15) var(--space-2);
+  border-bottom: 1px solid var(--line-subtle);
+  white-space: nowrap;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  color: var(--text-tertiary);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-1);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  border-bottom-color: var(--line);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr {
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.table tbody tr:hover {
+  background: var(--bg-raised);
+}
+
+.table td.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Stat ------------------------------------------------------------------------------------ */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-15);
+}
+
+.stat {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+}
+
+.stat-value {
+  font-size: var(--text-8);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+}
+
+.stat-label {
+  font-size: var(--text-2);
+  color: var(--text-tertiary);
+  line-height: var(--leading-normal);
+}
+
+/* --- Toolbar ---------------------------------------------------------------------------------- */
+.toolbar {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.segmented button {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-15);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.segmented button:hover {
+  color: var(--text-primary);
+}
+
+.segmented button[aria-selected="true"] {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
+}
+
+/* --- Foot ------------------------------------------------------------------------------------- */
+.page-foot {
+  margin-top: var(--space-6);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-subtle);
+  display: flex;
+  gap: var(--space-15) var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+  color: var(--text-tertiary);
+  font-size: var(--text-2);
+}
+
+/* The Room fills the screen, so its footer sits at the bottom of it. */
+.room .page-foot {
+  margin-top: auto;
+}

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { Landing } from "@/components/Landing";
+import { PageHeader } from "@/components/PageHeader";
+import { ChevronRight } from "@/components/icons";
 import { currentViewer } from "@/lib/auth";
 import { CONNECT_COMMAND, PRODUCT_NAME } from "@/lib/brand";
 import { demoFrames } from "@/lib/demo";
@@ -24,24 +26,45 @@ export default async function Home() {
   if (projects.length === 0) redirect("/connect");
 
   return (
-    <main className="room">
-      <div className="room-header">
-        <div>
-          <strong>{PRODUCT_NAME}</strong>
-        </div>
-        <div className="room-links">
-          <a href="/connect">New project</a>
-          {!viewer.local && <a href="/account">{viewer.email ?? "Account"}</a>}
-          {viewer.admin && <a href="/admin">Testers</a>}
-          <span>{store.mode === "local" ? "on this computer" : viewer.plan === "pro" ? "Pro" : "Free"}</span>
-        </div>
+    <main className="page">
+      <PageHeader
+        brand={PRODUCT_NAME}
+        title="Your projects"
+        right={
+          <>
+            <a className="nav-link" href="/connect">
+              New project
+            </a>
+            {!viewer.local && (
+              <a className="nav-link" href="/account">
+                {viewer.email ?? "Account"}
+              </a>
+            )}
+            {viewer.admin && (
+              <a className="nav-link" href="/admin">
+                Testers
+              </a>
+            )}
+            <span className="live-state">{store.mode === "local" ? "on this computer" : viewer.plan === "pro" ? "Pro" : "Free"}</span>
+          </>
+        }
+      />
+
+      <div className="page-intro">
+        <h1>Your projects</h1>
+        <p>Each one is a folder an agent works in. Open a project to see what is happening in it right now.</p>
       </div>
-      <div className="section-title">Your projects</div>
+
       <ul className="projects">
         {projects.map((p) => (
           <li key={p.id}>
-            <a href={`/room/${p.id}`}>{p.name}</a>
-            {p.rootHint && <span className="muted small"> · {p.rootHint}</span>}
+            <a className="project-card" href={`/room/${p.id}`}>
+              <span className="project-main">
+                <span className="project-name">{p.name}</span>
+                {p.rootHint && <span className="project-root">{p.rootHint}</span>}
+              </span>
+              <ChevronRight />
+            </a>
           </li>
         ))}
       </ul>

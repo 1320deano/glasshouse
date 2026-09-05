@@ -9,11 +9,15 @@ export const TOOL_NAMES: Record<AgentTool, string> = {
   watcher: "Folder watcher",
 };
 
+/**
+ * One muted hue per tool, used only for the 7px dot on a tile. Never for text, never for a fill:
+ * these say "which agent", they are not part of the palette.
+ */
 export const TOOL_COLOURS: Record<AgentTool, string> = {
-  "claude-code": "#d9a066",
-  codex: "#8be9a8",
-  cursor: "#c7b6ff",
-  watcher: "#8b91a1",
+  "claude-code": "#d39463",
+  codex: "#5cbe94",
+  cursor: "#9d92e0",
+  watcher: "#7e848e",
 };
 
 export const DEPTH_LABELS: Record<ViewDepth, string | null> = {
