@@ -30,6 +30,8 @@ import {
   viewTask,
   type TaskState,
 } from "./derive";
+import { WEEK_MS, activityFrom, areaProgress } from "../progress";
+import { storyFrom } from "../story";
 import { newLinkCode, normaliseCode } from "./memory";
 import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
 
@@ -367,15 +369,23 @@ export class SupabaseStore implements Store {
     const open = recent.map(inboxItemFrom).filter((i) => i && !i.resolvedAt);
     const sinceIso = lastCheckedAt ?? new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const doneSince = recent.filter((t) => t.tool !== "watcher" && t.endedAt && t.endedAt >= sinceIso);
+    const weekAgo = new Date(Date.now() - WEEK_MS).toISOString();
+    const week = recent.filter((t) => (t.lastEventAt ?? t.startedAt) >= weekAgo || (t.endedAt ?? "") >= weekAgo);
+    const areas = map?.areas ?? [];
+    // Actions per hour over the week. Capped: a very busy project still gets a truthful "at least" picture.
+    const { data: weekEvents } = await this.db.from("events").select("ts,tool").eq("project_id", projectId).gte("ts", weekAgo).order("ts", { ascending: false }).limit(8000);
     return {
       project,
       sessions: views,
-      areas: map?.areas ?? [],
+      areas,
       areaMapSource: map?.source,
       generatedAt: nowIso,
       inboxOpen: open.length,
       lastCheckedAt,
       sinceChecked: { done: doneSince.length, needsYou: doneSince.filter((t) => t.report && t.report.needsYou !== "nothing" && !t.report.resolvedAt).length },
+      story: storyFrom(week),
+      progress: areaProgress(week, areas, weekAgo),
+      activity: activityFrom((weekEvents ?? []).map((e) => ({ ts: e.ts as string, tool: e.tool as AgentTool })), weekAgo),
     };
   }
 

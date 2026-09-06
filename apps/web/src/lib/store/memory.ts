@@ -26,6 +26,8 @@ import {
   viewTask,
   type TaskState,
 } from "./derive";
+import { WEEK_MS, activityFrom, areaProgress } from "../progress";
+import { storyFrom } from "../story";
 import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
 
 type ProjectRow = ProjectSummary;
@@ -392,15 +394,24 @@ export class MemoryStore implements Store {
     const open = recent.map(inboxItemFrom).filter((i) => i && !i.resolvedAt);
     const since = lastCheckedAt ?? new Date(new Date(nowIso).getTime() - 24 * 3600 * 1000).toISOString();
     const doneSince = recent.filter((t) => t.tool !== "watcher" && t.endedAt && t.endedAt >= since);
+    const weekAgo = new Date(new Date(nowIso).getTime() - WEEK_MS).toISOString();
+    const week = recent.filter((t) => (t.lastEventAt ?? t.startedAt) >= weekAgo || (t.endedAt ?? "") >= weekAgo);
+    const areas = map?.areas ?? [];
     return {
       project,
       sessions,
-      areas: map?.areas ?? [],
+      areas,
       areaMapSource: map?.source,
       generatedAt: nowIso,
       inboxOpen: open.length,
       lastCheckedAt,
       sinceChecked: { done: doneSince.length, needsYou: doneSince.filter((t) => t.report && t.report.needsYou !== "nothing" && !t.report.resolvedAt).length },
+      story: storyFrom(week),
+      progress: areaProgress(week, areas, weekAgo),
+      activity: activityFrom(
+        this.db.events.filter((e) => e.projectId === projectId && e.ts >= weekAgo),
+        weekAgo,
+      ),
     };
   }
 

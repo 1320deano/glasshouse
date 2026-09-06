@@ -55,6 +55,8 @@ In order of how much they unblock. Each item says what it is for, in plain words
   and, when the name is decided, `NEXT_PUBLIC_PRODUCT_NAME` and `NEXT_PUBLIC_CONNECT_COMMAND`. `apps/web/.env.example`
   lists them all with a line each. One caveat: background AI work runs inside the web server; on a serverless host it
   can be cut off, so a small always-on server (Railway, Fly, a VPS) is safer than Vercel for now (`docs/phase-2-findings.md`).
+  **Leave the three `GLASSHOUSE_DEV_*` settings blank there.** They are the test account's one-click sign-in, meant for
+  your computer only (`docs/running-the-room.md`); set on a public address, anyone could use them to get in.
 - **In the Supabase dashboard, turn on email sign-in (magic links)** and add `https://<your address>/auth/callback` to
   the allowed redirect addresses. Optionally set a custom email sender so sign-in emails do not land in spam.
 - **Publish the connector to npm** so `npx … connect` works for testers. The package name depends on the name decision

@@ -6,7 +6,8 @@ Codex, Cursor and anything that saves to GitHub. It keeps one continuous story o
 when the user switches tools.
 
 Brief: `control-room-product-report.md`. Phased plan: `glasshouse-phased-plan.md`. Research: `docs/`.
-Phases 0 to 4 are built; findings per phase in `docs/phase-N-findings.md`. What only Christopher can do is listed in
+Phases 0 to 4 are built; findings per phase in `docs/phase-N-findings.md`. Phase 5 (the three-column Room) is in
+`docs/phase-5-findings.md`. What only Christopher can do is listed in
 `docs/what-christopher-needs-to-do.md`.
 
 ## Reporting to Christopher (every finished task)
@@ -44,9 +45,19 @@ Then explain what was done in plain, non-technical language, leaving nothing out
 
 ## Design rules for the Room
 
-- Readable from two metres. Glanced at, not leaned into.
-- Two speeds: the headline changes only when the *meaning* changes; the ticker carries every action.
-- Tile order is fixed: header, headline, location, stage, risk badge, ticker.
+- Readable from two metres. Glanced at, not leaned into. Light palette only (no dark mode).
+- Three columns (Phase 5): agents on the left, the running story in the middle, progress on the right.
+  Below 960px the columns become three tabs: Agents, Story, Progress.
+- Card order is fixed: tool + status pill, headline, where and why, anything that needs the owner,
+  parts touched, not touched, then the ticker and the Details toggle. Live agents are full cards;
+  finished ones collapse to a line; days before today sit behind "Show earlier".
+- Two speeds: the story gets a message only when the *meaning* changes (started, waiting, stuck,
+  finished, ran out of usage); the ticker at the foot of each card carries every action.
+- The story is templates over the record (`lib/story.ts`). The reply box asks about one task through
+  the existing Ask. Nothing typed in the Room reaches an agent; "Copy a message for the agent" copies
+  words for the owner to paste themselves.
+- Progress is stages and counts (`lib/progress.ts`): a five-segment stage bar per part of the app,
+  actions per hour, actions per tool. Never a percentage, never a velocity.
 - "Stuck" is detected (same error three times, nothing for minutes), never declared.
 - "Waiting for you" is the one badge allowed to light up.
 
@@ -75,9 +86,11 @@ Then explain what was done in plain, non-technical language, leaving nothing out
   Without `ANTHROPIC_API_KEY` everything must still work from templates and folder names.
 - Codex and Cursor normalisers were written from documented shapes; their fixtures are `-synthetic`. Replace them
   with real recordings before trusting a field name. See `docs/phase-2-findings.md`.
-- The design system is `apps/web/src/styles/{tokens,base,components,screens}.css`, in that order, imported by
-  `globals.css`. One accent colour, status colour only where it carries a fact, an 8pt grid, AA contrast
+- The design system is `apps/web/src/styles/{tokens,base,components,screens,room}.css`, in that order, imported by
+  `globals.css`. Light only. One accent colour, status colour only where it carries a fact, an 8pt grid, AA contrast
   everywhere, motion only to say "this arrived" or "this opened". Rules and the QA loop: `docs/design-system.md`.
+- The Room's story, progress rows and activity counts are computed at read time in both stores (`getRoom`), from the
+  same task views the digest uses, and cut to the plan's history window in `lib/plan.ts`. Nothing about them is stored.
 - People and plans (Phase 4): local mode has one implicit person ("local") and no sign-in. Hosted mode uses Supabase
   Auth; `apps/web/src/lib/auth.ts` decides who may read what, `lib/plan.ts` is the one Free/Pro rule (applied on the
   server, never in the browser), and only the Stripe webhook or the admin switch may change a plan. The product name
@@ -98,6 +111,7 @@ node packages/connector/dist/cli.js map       # resend the file map
 node packages/connector/dist/cli.js watch     # follow saves, commits and Codex logs (long-running)
 node packages/connector/dist/cli.js status
 
+pnpm dev:account                           # the already-verified test account for signing in without an email (--free for the free tier)
 pnpm tsx scripts/seed-demo.ts              # fill a local Room with every state, for looking at the design
 node scripts/design-screenshots.mjs out/   # every screen at 390px and 1440px + a WCAG AA contrast audit
 ```

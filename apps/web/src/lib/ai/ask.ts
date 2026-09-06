@@ -62,7 +62,7 @@ export async function askAboutTask(taskId: string, question: string): Promise<As
   const store = getStore();
   const task = await store.getTask(taskId);
   if (!task) return null;
-  if (!aiEnabled()) return { answer: null, basedOn: [], unsure: true, reason: "Ask needs an AI key. Add ANTHROPIC_API_KEY to the Room's settings; until then the report card and the stream above are the answer." };
+  if (!aiEnabled()) return { answer: null, basedOn: [], unsure: true, reason: "Ask needs an AI key. Add ANTHROPIC_API_KEY to the Room's settings; until then the report card and the card's details are the answer." };
   const { user, byShortId } = askFacts(task, question);
   const reply = await askForJson({ purpose: "ask", projectId: task.projectId, taskId, system: SYSTEM, user, schema: Reply, maxTokens: 800 });
   if (!reply) return { answer: null, basedOn: [], unsure: true, reason: "The AI did not answer this time. Try again in a moment." };

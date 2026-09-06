@@ -105,7 +105,7 @@ export function Landing({ frames, productName, priceGbp, local, connectCommand }
         <h1>See what your AI coding agents are doing. In plain English.</h1>
         <p className="lede">
           You prompt on one screen. On the other, {productName} narrates: what each agent is doing this second, which part of your app that is, whether it is stuck or waiting for you. When it
-          finishes, the tile turns into a report card. When your credits run out and you switch tools, the story carries on.
+          finishes, its card turns into a report card. When your credits run out and you switch tools, the story carries on.
         </p>
         <SignUpForm local={local} label="Get started free" />
       </section>
@@ -144,7 +144,7 @@ export function Landing({ frames, productName, priceGbp, local, connectCommand }
             </span>
           </li>
           <li>
-            <span>Start Claude Code, Codex or Cursor as usual. The tile appears within a second.</span>
+            <span>Start Claude Code, Codex or Cursor as usual. Its card appears within a second.</span>
           </li>
           <li>
             <span>Put the tab on your second monitor and get on with your day.</span>

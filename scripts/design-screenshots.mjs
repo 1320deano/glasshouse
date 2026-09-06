@@ -74,6 +74,17 @@ const WIDTHS = [
 
 const json = async (p) => (await fetch(`${BASE}${p}`)).json();
 
+/** The Room's phone tabs only answer once the page has hydrated; click until one takes. */
+async function pickTab(page, name) {
+  const tab = page.getByRole("tab", { name });
+  for (let i = 0; i < 12; i++) {
+    await tab.click();
+    await page.waitForTimeout(400);
+    if ((await tab.getAttribute("aria-selected")) === "true") break;
+  }
+  await page.waitForTimeout(600);
+}
+
 async function main() {
   mkdirSync(OUT, { recursive: true });
   const { projects } = await json("/api/projects/link");
@@ -97,6 +108,19 @@ async function main() {
       },
     },
     { name: "room-empty", path: `/room/${quiet.id}` },
+    {
+      name: "room-phone-story",
+      path: `/room/${busy.id}`,
+      only: "390",
+      act: (page) => pickTab(page, /story/i),
+    },
+    {
+      name: "room-phone-progress",
+      path: `/room/${busy.id}`,
+      only: "390",
+      full: true,
+      act: (page) => pickTab(page, /progress/i),
+    },
     { name: "areas", path: `/room/${busy.id}/areas`, full: true },
     { name: "digest", path: `/room/${busy.id}/digest`, full: true },
     { name: "inbox", path: `/room/${busy.id}/inbox`, full: true },
@@ -162,9 +186,10 @@ async function main() {
     },
   ];
 
-  const browser = await chromium.launch({ executablePath: process.env.CHROME ?? "/opt/pw-browsers/chromium" });
+  const chromePath = process.env.CHROME ?? (process.platform === "win32" ? "C:/Program Files/Google/Chrome/Application/chrome.exe" : "/opt/pw-browsers/chromium");
+  const browser = await chromium.launch({ executablePath: chromePath });
   const shot = async (screen, size) => {
-    const context = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: 2, colorScheme: "dark" });
+    const context = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: 2, colorScheme: "light" });
     // The Next.js dev-mode badge is not part of the design.
     await context.addInitScript(() => {
       const hide = () => {
@@ -184,7 +209,9 @@ async function main() {
     await page.waitForTimeout(screen.settle ?? 2600);
     if (screen.act) await screen.act(page).catch((e) => errors.push(`act: ${e}`));
     const file = join(OUT, `${screen.name}-${size.tag}.png`);
-    await page.screenshot({ path: file, fullPage: Boolean(screen.full) });
+    // The working dot pulses forever; freeze animations so the shot does not wait on them. A shot
+    // that still cannot be taken is reported, not fatal: the rest of the product is still worth seeing.
+    await page.screenshot({ path: file, fullPage: Boolean(screen.full), animations: "disabled", timeout: 45000 }).catch((e) => errors.push(`screenshot: ${String(e).slice(0, 120)}`));
     const contrast = await page.evaluate(CONTRAST_AUDIT).catch(() => []);
     await context.close();
     return { file, errors, contrast };
@@ -194,8 +221,10 @@ async function main() {
   for (const screen of screens) {
     if (ONLY && !ONLY.has(screen.name)) continue;
     for (const size of WIDTHS) {
+      if (screen.only && screen.only !== size.tag) continue;
       const r = await shot(screen, size);
       report.push({ screen: screen.name, width: size.tag, ...r });
+      writeFileSync(join(OUT, "report.json"), JSON.stringify(report, null, 2));
       console.log(`${r.file}${r.errors.length ? `  ⚠ ${r.errors.length} console errors` : ""}${r.contrast.length ? `  ✖ ${r.contrast.length} contrast failures` : ""}`);
     }
   }

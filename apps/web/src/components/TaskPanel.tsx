@@ -1,8 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { AskAnswer } from "@/lib/ai/ask";
+import { diffFromEvents } from "@glasshouse/translate";
 import type { EventView, SessionView, TaskDetail } from "@/lib/store/types";
+
+/** Lines added and removed, counted off the patches Claude Code sends with each edit. Other tools send none. */
+function diffLines(events: readonly EventView[]): { added: number; removed: number; files: number; withoutPatch: number } {
+  const d = diffFromEvents(events, 400_000);
+  let added = 0;
+  let removed = 0;
+  for (const line of d.text.split("\n")) {
+    if (line.startsWith("+") && !line.startsWith("+++")) added++;
+    else if (line.startsWith("-") && !line.startsWith("---")) removed++;
+  }
+  return { added, removed, files: d.files, withoutPatch: d.withoutPatch };
+}
 import { Alert, Check, ThumbsDown } from "./icons";
 import { RISK_TEXT, TOOL_NAMES, ago, latencyOf } from "./labels";
 import { ReportCard } from "./ReportCard";
@@ -60,70 +72,6 @@ export function Dislike({ eventId, projectId }: { eventId: string; projectId: st
     >
       {state === "failed" ? <span className="tiny error-text">Failed</span> : <ThumbsDown />}
     </button>
-  );
-}
-
-/** The Ask box (brief 5.1): a question about this task, answered from its record, with the actions it rests on. */
-export function AskBox({ taskId, technical }: { taskId: string; technical: boolean }) {
-  const [question, setQuestion] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [history, setHistory] = useState<Array<{ question: string; answer: AskAnswer }>>([]);
-
-  async function ask() {
-    const q = question.trim();
-    if (q.length < 2 || busy) return;
-    setBusy(true);
-    try {
-      const res = await fetch("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId, question: q }) });
-      const data = (await res.json()) as AskAnswer & { error?: string };
-      const answer: AskAnswer = res.ok ? data : { answer: null, basedOn: [], unsure: true, reason: data.error ?? "Could not ask right now." };
-      setHistory((h) => [{ question: q, answer }, ...h]);
-      setQuestion("");
-    } catch {
-      setHistory((h) => [{ question: q, answer: { answer: null, basedOn: [], unsure: true, reason: "Could not reach the Room." } }, ...h]);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="ask">
-      <h3 className="section-label">Ask about this task</h3>
-      <form
-        className="ask-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void ask();
-        }}
-      >
-        <label className="visually-hidden" htmlFor={`ask-${taskId}`}>
-          Your question about this task
-        </label>
-        <input id={`ask-${taskId}`} className="field" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Did it change how people log in?" maxLength={600} disabled={busy} />
-        <button className="button primary" type="submit" disabled={busy || question.trim().length < 2}>
-          {busy ? <span className="spinner" /> : null}
-          {busy ? "Asking" : "Ask"}
-        </button>
-      </form>
-      <ul className="ask-history">
-        {history.map((h, i) => (
-          <li key={i}>
-            <div className="ask-q">You asked: {h.question}</div>
-            {h.answer.answer ? (
-              <div className={`ask-a${h.answer.unsure ? " unsure" : ""}`}>{h.answer.answer}</div>
-            ) : (
-              <div className="ask-a muted">{h.answer.reason ?? "No answer."}</div>
-            )}
-            {h.answer.basedOn.length > 0 && (
-              <div className="faint small">
-                Based on: {h.answer.basedOn.map((e) => e.plain).join(" · ")}
-                {technical && <div className="mono">{h.answer.basedOn.map((e) => `${e.summary}${e.paths.length ? ` (${e.paths.join(", ")})` : ""}`).join(" · ")}</div>}
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 
@@ -205,6 +153,7 @@ export function TaskPanel({ session, now }: { session: SessionView; now: number 
   if (!detail) return <PanelSkeleton />;
 
   const helpers = new Set(detail.events.filter((e) => e.agentId).map((e) => e.agentId));
+  const diff = technical ? diffLines(detail.events) : null;
 
   return (
     <div className="panel">
@@ -219,6 +168,41 @@ export function TaskPanel({ session, now }: { session: SessionView; now: number 
           {detail.headlineSource === "ai" ? " · headline written by AI" : ""}
         </span>
       </div>
+
+      {technical && (
+        <section className="panel-section tech">
+          <h3 className="section-label">Modified files</h3>
+          {detail.changedPaths.length === 0 ? (
+            <p className="muted">None yet.</p>
+          ) : (
+            <div className="chips">
+              {detail.changedPaths.map((p) => (
+                <code className="chip mono" key={p}>
+                  {p}
+                </code>
+              ))}
+            </div>
+          )}
+          <p className="tech-line">
+            <span>
+              Task ID <code>{detail.id}</code>
+            </span>
+            {detail.externalKey && (
+              <span>
+                Tool&apos;s own ID <code>{detail.externalKey}</code>
+              </span>
+            )}
+            {diff && diff.files > 0 ? (
+              <span className="tabular">
+                <span className="positive-text">+{diff.added}</span> / <span className="error-text">-{diff.removed}</span> lines across {diff.files} file{diff.files === 1 ? "" : "s"}
+                {diff.withoutPatch > 0 ? ` (${diff.withoutPatch} edit${diff.withoutPatch === 1 ? "" : "s"} carried no patch)` : ""}
+              </span>
+            ) : (
+              <span className="faint">Line counts need the patches Claude Code sends with each edit; none were recorded here.</span>
+            )}
+          </p>
+        </section>
+      )}
 
       {detail.report && (
         <section className="panel-section">
@@ -323,8 +307,6 @@ export function TaskPanel({ session, now }: { session: SessionView; now: number 
           ))}
         </ul>
       </section>
-
-      <AskBox taskId={taskId} technical={technical} />
     </div>
   );
 }

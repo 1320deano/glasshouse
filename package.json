@@ -16,7 +16,8 @@
     "connector": "node packages/connector/dist/cli.js",
     "supabase": "supabase",
     "room": "pnpm --filter @glasshouse/web build && pnpm --filter @glasshouse/web start",
-    "connector:build": "pnpm --filter glasshouse build"
+    "connector:build": "pnpm --filter glasshouse build",
+    "dev:account": "tsx scripts/dev-account.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

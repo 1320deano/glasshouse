@@ -8,13 +8,18 @@ invents a value.
 | tokens | `apps/web/src/styles/tokens.css` | colour, type scale, spacing, radii, shadow, motion, layout |
 | base | `apps/web/src/styles/base.css` | reset, typographic defaults, links, the focus ring, the motion contract |
 | components | `apps/web/src/styles/components.css` | buttons, fields, badges, cards, notices, empty states, skeletons, tables, page shell |
-| screens | `apps/web/src/styles/screens.css` | the Room, the report card, the task panel, digest, inbox, areas, landing, admin |
+| screens | `apps/web/src/styles/screens.css` | the report card, the task panel, digest, inbox, areas, landing, admin |
+| room | `apps/web/src/styles/room.css` | the Room: header, three columns, agent cards, the story, progress |
 
-`apps/web/src/app/globals.css` is four `@import` lines and nothing else.
+`apps/web/src/app/globals.css` is five `@import` lines and nothing else.
+
+**Light only.** The palette is a light one and there is no dark mode. The grey ramp's numbers name a
+role, not a lightness (`--grey-1000` is the page, `--grey-50` is the primary text), so every rule
+reads the same whichever way the palette leans.
 
 ## The rules
 
-**One accent.** `--accent` (#5b8cff) is for a primary action, a focused control, or the single most
+**One accent.** `--accent` (#2456d6) is for a primary action, a focused control, or the single most
 important link on a page. Never a whole navigation, never decoration. Links are neutral by default;
 `.link-accent` opts one in.
 
@@ -22,10 +27,11 @@ important link on a page. Never a whole navigation, never decoration. Links are 
 a decision needed, a part that counts as high risk. Green (`--positive`) means verified: "not
 touched", checks passed. Red (`--danger`) means an error, stuck, or high risk. Nothing is coloured
 because it looks nice. Per the Room's design rules, "waiting for you" is the one badge allowed to
-light up, and the tile it belongs to is the one tile allowed an amber border.
+light up, and the card it belongs to is the one card allowed an amber border. The activity heatmap
+climbs `--accent-1` to `--accent-4`: it is a count, so it may use the accent's ramp and nothing else.
 
 **Contrast passes AA everywhere.** Every text token is at or above 4.5:1 on the surface it is used
-on (`--text-tertiary` is the floor at 4.9:1). Earlier sessions are made quieter with size and
+on (`--text-tertiary` is the floor at 5.0:1 on the subtle fill). Earlier sessions are made quieter with size and
 colour, never with `opacity` — a dimmed tile is an unreadable tile.
 `node scripts/design-screenshots.mjs out/` audits every rendered screen and fails loudly.
 

@@ -7,6 +7,7 @@
  * Upgrade triggers, in the order the brief expects them to bite: second project → history beyond a
  * day → the digest → the inbox. Each one names the fact that tripped it, never a vague "upgrade".
  */
+import { activityWindow } from "@/lib/progress";
 import type { RoomState, SessionView } from "@/lib/store/types";
 
 export type Plan = "free" | "pro";
@@ -31,7 +32,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   pro: { projects: Number.POSITIVE_INFINITY, agentsAtOnce: Number.POSITIVE_INFINITY, historyMs: Number.POSITIVE_INFINITY, digest: true, inbox: true, ask: true },
 };
 
-export const PRO_PRICE_GBP = Number(process.env.NEXT_PUBLIC_PRO_PRICE_GBP ?? "15");
+export const PRO_PRICE_GBP = Number(process.env.NEXT_PUBLIC_PRO_PRICE_GBP?.trim() || "15");
 
 /** What the owner sees when a gate closes. Owner language, one checkable reason each. */
 export const UPGRADE_REASONS: Record<GatedFeature, string> = {
@@ -94,8 +95,17 @@ export function gateRoom(room: RoomState, plan: Plan, nowIso: string): GatedRoom
     sessions = inWindow.filter((s) => !isActive(s, nowMs) || keep.has(s.id));
   }
 
+  // The story, the progress rows and the activity counts reach back only as far as the plan's history window.
+  const windowStart = Number.isFinite(limits.historyMs) ? new Date(nowMs - limits.historyMs).toISOString() : undefined;
+  const story = windowStart ? room.story.filter((m) => m.at >= windowStart) : room.story;
+  const progress = windowStart
+    ? room.progress.map((p) => (p.lastTouchedAt && p.lastTouchedAt >= windowStart ? p : { ...p, stage: null, attention: undefined, running: 0, finished: 0, filesChanged: 0, checks: undefined, lastTouchedAt: undefined, tools: [] }))
+    : room.progress;
+  const activity = windowStart ? activityWindow(room.activity.hours, windowStart) : room.activity;
+
   // Inbox counts and "since you last checked" are Pro features; the free room does not tease them.
-  const gated: RoomState = limits.inbox ? { ...room, sessions } : { ...room, sessions, inboxOpen: 0, sinceChecked: { done: 0, needsYou: 0 } };
+  const base: RoomState = { ...room, sessions, story, progress, activity };
+  const gated: RoomState = limits.inbox ? base : { ...base, inboxOpen: 0, sinceChecked: { done: 0, needsYou: 0 } };
   return { room: gated, plan, locked: { agents: hiddenAgents, history, reasons } };
 }
 

@@ -6,9 +6,9 @@
    change made once is a change made everywhere.
 
    Shape of the system
-     Colour   neutral-heavy. One accent (--accent) and it is only ever used for a primary action
-              or the thing the eye must land on first. Amber, green and red are *status* only:
-              they carry a fact ("waiting for you", "all checks passed", "an error"), never
+     Colour   light, neutral-heavy. One accent (--accent) and it is only ever used for a primary
+              action or the thing the eye must land on first. Amber, green and red are *status*
+              only: they carry a fact ("waiting for you", "all checks passed", "an error"), never
               decoration. Every text colour below passes WCAG AA (4.5:1) on its own surface.
      Type     one scale, 11 -> 48. Sizes are absolute; the Room's headline is the one clamp,
               because it has to read from two metres on a 4K second monitor.
@@ -20,25 +20,27 @@
    ============================================================================================ */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
   /* --- Colour: neutral ramp ---------------------------------------------------------------
-     A cool near-grey. Chroma is deliberately close to zero so the one accent and the three
-     status colours are the only things on screen with any saturation. */
-  --grey-1000: #08090a; /* the page */
-  --grey-950: #0b0c0e; /* inset: inputs, code, wells */
-  --grey-900: #0e0f11; /* surface: cards, tiles */
-  --grey-850: #131518; /* raised: hover, nested panels */
-  --grey-800: #17191d; /* subtle fill: chips, secondary buttons */
-  --grey-750: #1c1f23;
-  --grey-700: #23262b; /* the default hairline */
-  --grey-600: #32363d; /* a hairline that needs to be seen */
-  --grey-500: #454a52;
-  --grey-400: #62686f;
-  --grey-300: #7e848e; /* tertiary text: 4.9:1 on the page */
-  --grey-200: #a8adb6; /* secondary text: 8.3:1 */
-  --grey-100: #d3d7dd;
-  --grey-50: #ecedee; /* primary text: 15.3:1 */
+     The numbers name a role, not a lightness: 1000 is the page, 50 is the primary text, so
+     every reference below reads the same whichever way the palette leans. A cool near-grey;
+     chroma is deliberately close to zero so the one accent and the three status colours are
+     the only things on screen with any saturation. */
+  --grey-1000: #f5f6f8; /* the page */
+  --grey-950: #f0f2f5; /* inset: inputs, code, wells */
+  --grey-900: #ffffff; /* surface: cards, tiles */
+  --grey-850: #f8f9fb; /* raised: hover, nested panels */
+  --grey-800: #eef0f3; /* subtle fill: chips, secondary buttons */
+  --grey-750: #e6e9ed;
+  --grey-700: #e2e5ea; /* the default hairline */
+  --grey-600: #cdd2d9; /* a hairline that needs to be seen */
+  --grey-500: #aab1ba;
+  --grey-400: #858d98;
+  --grey-300: #5f6772; /* tertiary text: 5.4:1 on the page */
+  --grey-200: #414954; /* secondary text: 8.6:1 */
+  --grey-100: #2a3038;
+  --grey-50: #14181d; /* primary text: 16.6:1 */
 
   /* --- Colour: surfaces --------------------------------------------------------------- */
   --bg-canvas: var(--grey-1000);
@@ -46,38 +48,43 @@
   --bg-raised: var(--grey-850);
   --bg-subtle: var(--grey-800);
   --bg-inset: var(--grey-950);
-  --bg-overlay: rgba(8, 9, 10, 0.72);
+  --bg-overlay: rgba(20, 24, 29, 0.42);
 
   /* --- Colour: text -------------------------------------------------------------------- */
   --text-primary: var(--grey-50);
   --text-secondary: var(--grey-200);
   --text-tertiary: var(--grey-300);
-  --text-on-accent: #05070d;
+  --text-on-accent: #ffffff;
 
   /* --- Colour: lines ------------------------------------------------------------------- */
-  --line-subtle: #16181b;
+  --line-subtle: #eaedf1;
   --line: var(--grey-700);
   --line-strong: var(--grey-600);
 
   /* --- Colour: the one accent -----------------------------------------------------------
      Used for: the primary button, the focused control, the single most important link on a
-     page. Never for body links, never for decoration, never for a whole nav. */
-  --accent: #5b8cff;
-  --accent-hover: #7099ff;
-  --accent-quiet: rgba(91, 140, 255, 0.12);
-  --accent-line: rgba(91, 140, 255, 0.4);
+     page, the "working" dot. Never for body links, never for decoration, never for a whole nav. */
+  --accent: #2456d6;
+  --accent-hover: #1d47b3;
+  --accent-quiet: rgba(36, 86, 214, 0.09);
+  --accent-line: rgba(36, 86, 214, 0.35);
+  /* The activity heatmap's ramp, from "one action" to "the busiest hour of the week". */
+  --accent-1: #d4e0fa;
+  --accent-2: #a6c0f4;
+  --accent-3: #6b95ea;
+  --accent-4: var(--accent);
 
   /* --- Colour: status. A fact, never a mood. -------------------------------------------- */
-  --warn: #e6a840; /* waiting for you, medium risk, a decision to make */
-  --warn-quiet: rgba(230, 168, 64, 0.1);
-  --warn-line: rgba(230, 168, 64, 0.34);
-  --positive: #4cc38a; /* verified: not touched, checks passed */
-  --positive-quiet: rgba(76, 195, 138, 0.1);
-  --danger: #f2777a; /* an error, high risk, stuck */
-  --danger-quiet: rgba(242, 119, 122, 0.1);
-  --danger-line: rgba(242, 119, 122, 0.36);
+  --warn: #9a5b00; /* waiting for you, medium risk, a decision to make: 5.6:1 on white */
+  --warn-quiet: rgba(214, 137, 16, 0.12);
+  --warn-line: rgba(214, 137, 16, 0.45);
+  --positive: #1b7a3e; /* verified: not touched, checks passed: 5.2:1 */
+  --positive-quiet: rgba(27, 122, 62, 0.1);
+  --danger: #c0303a; /* an error, high risk, stuck: 5.6:1 */
+  --danger-quiet: rgba(192, 48, 58, 0.08);
+  --danger-line: rgba(192, 48, 58, 0.4);
 
-  --focus-ring: #7aa2ff;
+  --focus-ring: #2456d6;
 
   /* --- Type -----------------------------------------------------------------------------
      A system stack on purpose: the Room runs on a laptop that may be offline, and a webfont
@@ -141,10 +148,10 @@
   --radius-full: 999px;
 
   /* --- Shadow ---------------------------------------------------------------------------- */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 2px 8px -2px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 10px 28px -8px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 24px 56px -16px rgba(0, 0, 0, 0.7);
+  --shadow-xs: 0 1px 2px rgba(20, 24, 29, 0.06);
+  --shadow-sm: 0 2px 8px -2px rgba(20, 24, 29, 0.1);
+  --shadow-md: 0 10px 28px -8px rgba(20, 24, 29, 0.16);
+  --shadow-lg: 0 24px 56px -16px rgba(20, 24, 29, 0.22);
 
   /* --- Motion ---------------------------------------------------------------------------- */
   --duration-instant: 90ms;
@@ -165,6 +172,12 @@
   --control-height: 34px;
   --control-height-sm: 28px;
 
+  /* The Room's three columns. */
+  --room-agents: 340px;
+  --room-progress: 300px;
+  --room-gap: var(--space-2);
+  --room-pad: var(--space-2);
+
   --z-base: 0;
   --z-sticky: 10;
   --z-overlay: 100;
@@ -174,5 +187,7 @@
 @media (min-width: 1280px) {
   :root {
     --page-pad-y: 36px;
+    --room-agents: 360px;
+    --room-progress: 320px;
   }
 }

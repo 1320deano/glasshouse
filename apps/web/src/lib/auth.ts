@@ -100,6 +100,24 @@ export async function adminViewer(req: Request): Promise<Viewer | null> {
   return viewer?.admin ? viewer : null;
 }
 
+/**
+ * The test account (scripts/dev-account.ts): a verified sign-in for trying the hosted Room on this
+ * computer, with no email to wait for. Off unless the switch and both values are set.
+ */
+export function devLogin(): { email: string; password: string } | null {
+  if (process.env.GLASSHOUSE_DEV_LOGIN !== "1") return null;
+  const email = process.env.GLASSHOUSE_DEV_EMAIL?.trim().toLowerCase();
+  const password = process.env.GLASSHOUSE_DEV_PASSWORD;
+  if (!email || !password) return null;
+  return { email, password };
+}
+
+/** Second lock on the test account: it answers only a request made on this computer. */
+export function localRequest(req: Request): boolean {
+  const host = new URL(req.url).hostname.replace(/^\[|\]$/g, "");
+  return host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".localhost");
+}
+
 /** Sign-in gate for the tester cohort. */
 export async function signInAllowed(email: string): Promise<{ ok: boolean; reason?: string }> {
   const e = email.trim().toLowerCase();

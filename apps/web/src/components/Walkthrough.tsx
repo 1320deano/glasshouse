@@ -37,7 +37,7 @@ export function Walkthrough({ state, welcome }: { state: RoomState; welcome: boo
         <p className="moment-label">This is the moment</p>
         <p className="moment-fact">{moment.fact}</p>
         <p className="moment-why">
-          {moment.why} Expand the {TOOL_NAMES[moment.tool]} tile to see exactly what changed, and what verifiably did not.
+          {moment.why} Open the {TOOL_NAMES[moment.tool]} card's details to see exactly what changed, and what verifiably did not.
         </p>
         <button className="button subtle sm" onClick={() => dismiss("moment")}>
           Got it
@@ -51,7 +51,7 @@ export function Walkthrough({ state, welcome }: { state: RoomState; welcome: boo
         <Info />
         <div className="notice-body">
           <span>
-            <strong>Connected.</strong> Now start Claude Code, Codex or Cursor in that folder and give it something to do. Its tile appears here within a second or two. The first time it touches a
+            <strong>Connected.</strong> Now start Claude Code, Codex or Cursor in that folder and give it something to do. Its card appears here within a second or two. The first time it touches a
             part of your app you did not ask about, this page will say so.
           </span>
           {!welcome && (

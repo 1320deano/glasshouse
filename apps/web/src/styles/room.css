@@ -1,0 +1,1234 @@
+/* ============================================================================================
+   The Room (Phase 5): three columns, read from two metres.
+     left    one card per agent
+     middle  the running story, and the box to ask about it
+     right   the week as counts and stages
+   Composes tokens, base and components. Nothing here invents a value.
+   ============================================================================================ */
+
+.room {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg-canvas);
+}
+
+/* --- Header ---------------------------------------------------------------------------------- */
+.room-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-15) var(--room-pad);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-surface);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.room-head-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-15);
+  min-width: 0;
+  font-size: var(--text-4);
+}
+
+.project-switch {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-3) 0 var(--space-1);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-4);
+  background-color: transparent;
+  border-color: transparent;
+  max-width: 260px;
+}
+.project-switch:hover {
+  border-color: var(--line);
+  background-color: var(--bg-subtle);
+}
+
+.room-head-mid {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.room-last {
+  color: var(--text-tertiary);
+  font-size: var(--text-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.room-last.stale {
+  color: var(--warn);
+}
+
+.room-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-05);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-height-sm);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.nav-link:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+/* The one link allowed to light up. */
+.nav-link.lit {
+  color: var(--warn);
+}
+.nav-link.lit:hover {
+  background: var(--warn-quiet);
+  color: var(--warn);
+}
+
+.nav-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  border: 1px solid var(--line);
+  color: var(--text-secondary);
+  font-size: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.nav-link.lit .nav-count,
+.nav-count.lit {
+  background: var(--warn-quiet);
+  border-color: var(--warn-line);
+  color: var(--warn);
+}
+
+.live-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-left: var(--space-1);
+  margin-left: var(--space-05);
+  border-left: 1px solid var(--line);
+  color: var(--text-tertiary);
+  font-size: var(--text-2);
+  white-space: nowrap;
+}
+.live-state .dot {
+  color: var(--positive);
+}
+.live-state[data-state="polling"] .dot,
+.live-state[data-state="connecting"] .dot {
+  color: var(--grey-400);
+}
+
+/* --- Pills: a fact in a capsule. Neutral unless the fact is one the owner must act on. ------ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 24px;
+  padding: 0 var(--space-15);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-2);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-snug);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill .dot {
+  color: var(--grey-400);
+}
+.pill .dot[data-on="yes"] {
+  color: var(--accent);
+  animation: pulse-ring 2s var(--ease-in-out) infinite;
+}
+
+.pill[data-tone="attention"],
+.pill[data-need="decision"],
+.pill[data-need="blocked"] {
+  border-color: var(--warn-line);
+  background: var(--warn-quiet);
+  color: var(--warn);
+}
+.pill[data-tone="critical"] {
+  border-color: var(--danger-line);
+  background: var(--danger-quiet);
+  color: var(--danger);
+}
+.pill[data-tone="info"],
+.pill[data-need="review"] {
+  border-color: var(--accent-line);
+  background: var(--accent-quiet);
+  color: var(--accent);
+}
+.pill[data-tone="positive"] {
+  border-color: var(--positive);
+  background: var(--positive-quiet);
+  color: var(--positive);
+}
+
+/* The status pill on a card: neutral while working (the dot carries the accent), amber when
+   the owner is the blocker, red when something has gone wrong, green when finished. */
+.pill.status {
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  font-size: var(--text-1);
+  font-weight: var(--weight-semibold);
+}
+.pill.status[data-status="working"] {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-quiet);
+}
+.pill.status[data-status="working"] .dot {
+  color: var(--accent);
+  animation: pulse-ring 2s var(--ease-in-out) infinite;
+}
+.pill.status[data-status="waiting"] {
+  color: var(--warn);
+  border-color: var(--warn-line);
+  background: var(--warn-quiet);
+}
+.pill.status[data-status="waiting"] .dot {
+  color: var(--warn);
+}
+.pill.status[data-status="done"] {
+  color: var(--positive);
+  border-color: var(--positive);
+  background: var(--positive-quiet);
+}
+.pill.status[data-status="done"] .dot {
+  color: var(--positive);
+}
+.pill.status[data-status="stuck"],
+.pill.status[data-status="limit"] {
+  color: var(--danger);
+  border-color: var(--danger-line);
+  background: var(--danger-quiet);
+}
+.pill.status[data-status="stuck"] .dot,
+.pill.status[data-status="limit"] .dot {
+  color: var(--danger);
+}
+
+.pill.risk[data-level="medium"] {
+  color: var(--warn);
+  border-color: var(--warn-line);
+  background: transparent;
+}
+.pill.risk[data-level="high"] {
+  color: var(--danger);
+  border-color: var(--danger-line);
+  background: transparent;
+}
+
+.tool-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex: none;
+}
+
+/* --- Chips: a part of the app, or (behind the toggle) a file ------------------------------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-05) var(--space-1);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-size: var(--text-2);
+  font-weight: var(--weight-medium);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip.quiet {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-normal);
+}
+.chip.mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-2);
+}
+
+/* --- Tabs: phones only ----------------------------------------------------------------------- */
+.room-tabs {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--line);
+  padding: 0 var(--room-pad);
+}
+
+.room-tabs button {
+  flex: 1;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  font-size: var(--text-4);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+.room-tabs button[aria-selected="true"] {
+  color: var(--text-primary);
+  border-bottom-color: var(--text-primary);
+}
+
+/* --- The three columns ----------------------------------------------------------------------- */
+.room-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--room-agents) minmax(0, 1fr) var(--room-progress);
+  gap: var(--room-gap);
+  padding: var(--room-pad);
+}
+
+.room-col {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+}
+
+.col-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding: var(--space-05) var(--space-05) 0;
+}
+
+.col-sub {
+  margin-top: var(--space-1);
+  padding: 0 var(--space-05);
+  align-self: flex-start;
+}
+
+.col-foot {
+  margin-top: auto;
+  padding: var(--space-2) var(--space-05) 0;
+  border-top: 1px solid var(--line-subtle);
+  display: flex;
+  gap: var(--space-1) var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+  color: var(--text-tertiary);
+  font-size: var(--text-2);
+}
+
+/* On a wide screen the Room is the screen: each column scrolls on its own, like a control room
+   wall, and the story's reply box stays put at the bottom. */
+@media (min-width: 960px) {
+  .room {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .room-col {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: var(--space-05);
+  }
+  .room-col.story {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 1180px) {
+  :root {
+    --room-agents: 300px;
+    --room-progress: 260px;
+  }
+}
+
+/* Phones and narrow windows: one column at a time, chosen by the tabs. */
+@media (max-width: 959px) {
+  .room-head {
+    position: static;
+    padding: var(--space-15) var(--room-pad);
+  }
+  .room-head-mid {
+    order: 3;
+    width: 100%;
+  }
+  .room-nav {
+    margin-left: 0;
+    width: 100%;
+    order: 4;
+  }
+  .live-state {
+    border-left: none;
+    padding-left: 0;
+    margin-left: 0;
+  }
+  .room-tabs {
+    display: flex;
+  }
+  .room-grid {
+    grid-template-columns: 1fr;
+  }
+  .room-col[data-active="false"] {
+    display: none;
+  }
+  .room-col.story {
+    min-height: calc(100dvh - 44px - var(--room-pad) * 2);
+  }
+}
+
+/* --- Agents: the cards ----------------------------------------------------------------------- */
+.agents-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+}
+.agents-list.finished {
+  gap: var(--space-1);
+}
+
+.agent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
+  animation: rise var(--duration-slow) var(--ease-out) both;
+  transition:
+    border-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
+}
+.agent:hover {
+  border-color: var(--line-strong);
+}
+
+/* "Waiting for you" is the one card allowed to catch the eye across the room. */
+.agent[data-status="waiting"] {
+  border-color: var(--warn-line);
+}
+.agent.open {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-sm);
+}
+.agent.flash {
+  box-shadow: 0 0 0 3px var(--accent-quiet);
+  border-color: var(--accent-line);
+}
+
+.agent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  min-height: 24px;
+}
+
+.agent-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-1);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.agent-continuing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  align-self: flex-start;
+  font-size: var(--text-2);
+  color: var(--text-tertiary);
+  padding: var(--space-05) var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--bg-subtle);
+}
+
+.agent-title {
+  font-size: var(--text-6);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-snug);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.agent-desc {
+  font-size: var(--text-3);
+  line-height: var(--leading-normal);
+  color: var(--text-tertiary);
+  margin-top: calc(var(--space-05) * -1);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.agent-desc strong {
+  color: var(--text-secondary);
+  font-weight: var(--weight-medium);
+}
+
+.agent-alert {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-start;
+  padding: var(--space-1) var(--space-15);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-size: var(--text-3);
+  line-height: var(--leading-normal);
+}
+.agent-alert svg {
+  flex: none;
+  margin-top: 2px;
+}
+.agent-alert strong {
+  font-weight: var(--weight-semibold);
+}
+.agent-alert[data-tone="critical"] {
+  border-color: var(--danger-line);
+  background: var(--danger-quiet);
+  color: var(--danger);
+}
+.agent-alert[data-tone="attention"] {
+  border-color: var(--warn-line);
+  background: var(--warn-quiet);
+  color: var(--warn);
+}
+.agent-alert[data-tone="info"] {
+  border-color: var(--accent-line);
+  background: var(--accent-quiet);
+  color: var(--accent);
+}
+
+.agent-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.agent-label {
+  font-size: var(--text-1);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.agent-verified {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  font-size: var(--text-3);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+.agent-verified svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--positive);
+}
+.agent-verified .verified-label {
+  color: var(--positive);
+  font-weight: var(--weight-medium);
+}
+
+.agent-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-top: var(--space-15);
+  border-top: 1px solid var(--line-subtle);
+  min-width: 0;
+  font-size: var(--text-3);
+}
+
+.agent-ticker {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-when {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.agent-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  height: var(--control-height-sm);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-2);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.agent-toggle:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+.agent-toggle svg {
+  transition: transform var(--duration-base) var(--ease-out);
+}
+.agent-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+/* A finished card is one line until it is opened. */
+.agent.finished {
+  padding: var(--space-1) var(--space-15);
+  gap: var(--space-1);
+  background: transparent;
+  animation: none;
+}
+.agent.finished.open {
+  background: var(--bg-surface);
+  padding: var(--space-15) var(--space-2);
+}
+
+.agent-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-05) var(--space-1);
+  flex-wrap: wrap;
+  min-width: 0;
+  font-size: var(--text-3);
+}
+.agent-line .pill {
+  margin-left: auto;
+}
+.agent-line-tool {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-2);
+}
+.agent-line-title {
+  flex: 1 1 160px;
+  min-width: 120px;
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent.finished.open .agent-line-title {
+  white-space: normal;
+}
+
+/* The task panel inside a card is one column wide. */
+.agent .panel {
+  padding-top: var(--space-2);
+  gap: var(--space-3);
+}
+.agent .panel-grid {
+  grid-template-columns: 1fr;
+}
+.agent .stream li {
+  grid-template-columns: 1fr auto;
+}
+.agent .stream .dislike {
+  display: none;
+}
+
+.panel-section.tech {
+  padding: var(--space-15);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+}
+.tech-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-05) var(--space-2);
+  font-size: var(--text-2);
+  color: var(--text-tertiary);
+}
+.tech-line code {
+  color: var(--text-secondary);
+}
+.positive-text {
+  color: var(--positive);
+}
+
+/* --- The story ------------------------------------------------------------------------------- */
+.story-head {
+  padding: var(--space-05) var(--space-05) 0;
+}
+
+.story-title {
+  font-size: var(--text-7);
+  letter-spacing: var(--tracking-snug);
+}
+
+.story-sub {
+  font-size: var(--text-3);
+  color: var(--text-tertiary);
+  margin-top: var(--space-05);
+}
+
+.chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.chat-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  scroll-behavior: smooth;
+}
+
+.chat-empty {
+  margin: auto;
+  max-width: 44ch;
+  text-align: center;
+  font-size: var(--text-4);
+  padding: var(--space-6) 0;
+}
+
+.chat-day {
+  align-self: center;
+  font-size: var(--text-1);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: var(--space-05) var(--space-15);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  margin: var(--space-1) 0;
+}
+
+.msg {
+  display: flex;
+  gap: var(--space-15);
+  align-items: flex-start;
+  animation: rise var(--duration-slow) var(--ease-out) both;
+}
+.msg + .msg,
+.chat-scroll > div + div .msg {
+  margin-top: var(--space-1);
+}
+
+.msg-avatar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--text-3);
+  font-weight: var(--weight-semibold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.msg-body {
+  min-width: 0;
+  max-width: var(--measure);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.msg-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  font-size: var(--text-2);
+  color: var(--text-tertiary);
+}
+.msg-who {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-3);
+}
+.msg-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.msg-text {
+  font-size: var(--text-5);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.msg-question {
+  font-size: var(--text-4);
+  line-height: var(--leading-normal);
+  color: var(--warn);
+  padding: var(--space-1) var(--space-15);
+  border-left: 2px solid var(--warn-line);
+  background: var(--warn-quiet);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.msg-facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  padding: var(--space-1) var(--space-15);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  font-size: var(--text-3);
+  line-height: var(--leading-normal);
+}
+.msg-facts > div {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+.msg-facts dt {
+  flex: none;
+  min-width: 84px;
+  color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+}
+.msg-facts dd {
+  margin: 0;
+  color: var(--text-secondary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.msg-facts .verified dt {
+  color: var(--positive);
+  font-weight: var(--weight-medium);
+}
+.msg-facts .risk-word[data-level="medium"] {
+  color: var(--warn);
+}
+.msg-facts .risk-word[data-level="high"] {
+  color: var(--danger);
+}
+
+.msg-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.msg-suggest {
+  font-size: var(--text-3);
+  color: var(--text-tertiary);
+  line-height: var(--leading-normal);
+  font-style: italic;
+}
+
+.msg-about,
+.msg-based {
+  font-size: var(--text-2);
+  color: var(--text-tertiary);
+  line-height: var(--leading-normal);
+}
+.msg-based .block {
+  display: block;
+  margin-top: var(--space-05);
+}
+
+/* The owner's own words sit on the right, in a quiet capsule. */
+.msg.you {
+  flex-direction: row-reverse;
+}
+.msg.you .msg-body {
+  align-items: flex-end;
+  max-width: min(var(--measure), 80%);
+}
+.msg.you .msg-text {
+  background: var(--bg-subtle);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-xs) var(--radius-lg);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-4);
+}
+
+.composer {
+  border-top: 1px solid var(--line);
+  padding: var(--space-15) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--bg-surface);
+}
+
+.composer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.composer-about {
+  height: var(--control-height-sm);
+  font-size: var(--text-2);
+  max-width: 100%;
+  flex: 0 1 420px;
+  min-width: 0;
+  background-color: transparent;
+}
+
+.composer-input {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+.composer-input .field {
+  flex: 1;
+  height: 40px;
+  border-radius: var(--radius-full);
+  padding: 0 var(--space-2);
+}
+
+.composer-send {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  flex: none;
+}
+
+/* The first-session moment, inside the story. */
+.moment {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  border: 1px solid var(--warn-line);
+  background: var(--warn-quiet);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-3);
+  animation: rise var(--duration-slower) var(--ease-out) both;
+}
+.moment-label {
+  color: var(--warn);
+  font-size: var(--text-1);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+.moment-fact {
+  font-size: var(--text-6);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-snug);
+  line-height: var(--leading-snug);
+  max-width: var(--measure);
+}
+.moment-why {
+  color: var(--text-secondary);
+  font-size: var(--text-4);
+  max-width: var(--measure);
+}
+
+/* --- Progress -------------------------------------------------------------------------------- */
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+}
+
+.panel-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+}
+
+.panel-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.panel-card-lead {
+  font-size: var(--text-3);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
+.panel-card-lead strong {
+  color: var(--text-primary);
+  font-size: var(--text-6);
+  font-weight: var(--weight-semibold);
+}
+
+/* The heatmap: seven rows of two-hour cells. Level 0 is the empty cell; 1 to 4 climb the accent. */
+.heat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.heat-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.heat-row {
+  display: grid;
+  grid-template-columns: 30px repeat(12, 1fr);
+  gap: 3px;
+  align-items: center;
+}
+.heat-day {
+  font-size: var(--text-1);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.heat-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--bg-subtle);
+  min-width: 10px;
+}
+.heat-cell[data-level="1"] {
+  background: var(--accent-1);
+}
+.heat-cell[data-level="2"] {
+  background: var(--accent-2);
+}
+.heat-cell[data-level="3"] {
+  background: var(--accent-3);
+}
+.heat-cell[data-level="4"] {
+  background: var(--accent-4);
+}
+.heat-hours .heat-hour {
+  font-size: var(--text-1);
+  color: var(--text-tertiary);
+  text-align: left;
+  line-height: 1;
+}
+.heat-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  font-size: var(--text-1);
+  color: var(--text-tertiary);
+}
+.heat-legend .heat-cell {
+  width: 10px;
+  min-width: 10px;
+  height: 10px;
+  aspect-ratio: auto;
+}
+.heat-legend span:first-child {
+  margin-right: var(--space-05);
+}
+.heat-legend span:last-child {
+  margin-left: var(--space-05);
+}
+
+.mix {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.mix-bar {
+  display: flex;
+  height: 8px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  gap: 2px;
+  background: var(--bg-subtle);
+}
+.mix-bar span {
+  flex-basis: 0;
+  min-width: 3px;
+}
+.mix-legend {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  font-size: var(--text-3);
+  color: var(--text-secondary);
+}
+.mix-legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.mix-legend li span:last-child {
+  margin-left: auto;
+}
+
+.parts {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+}
+
+.part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+}
+
+.part-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1);
+  font-size: var(--text-3);
+}
+.part-name {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.part-stage {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: var(--text-2);
+  font-weight: var(--weight-medium);
+}
+.part[data-touched="no"] .part-name {
+  color: var(--text-secondary);
+  font-weight: var(--weight-normal);
+}
+.part[data-touched="no"] .part-stage {
+  color: var(--text-tertiary);
+  font-weight: var(--weight-normal);
+}
+.part[data-attention="waiting"] .part-stage {
+  color: var(--warn);
+}
+.part[data-attention="stuck"] .part-stage {
+  color: var(--danger);
+}
+
+/* Five segments, one per stage: looking, planning, building, testing, finished. A filled
+   segment is a stage reached. Nothing here is a percentage. */
+.part-bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  height: 6px;
+}
+.part-bar span {
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+}
+.part-bar span[data-on="yes"] {
+  background: var(--accent);
+}
+.part[data-attention="waiting"] .part-bar span[data-on="yes"] {
+  background: var(--warn);
+}
+.part[data-attention="stuck"] .part-bar span[data-on="yes"] {
+  background: var(--danger);
+}
+.part-bar span:last-child[data-on="yes"] {
+  background: var(--positive);
+}
+
+.part-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-05) var(--space-15);
+  font-size: var(--text-2);
+  color: var(--text-secondary);
+}
+.part-meta .faint:last-child {
+  margin-left: auto;
+}

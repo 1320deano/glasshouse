@@ -18,5 +18,8 @@ export default async function RoomPage({ params, searchParams }: { params: Promi
   if (!viewer.local && !viewer.admin && project.ownerId !== viewer.id) notFound();
   const initial = await roomForViewer(projectId, viewer);
   if (!initial) notFound();
-  return <Room initial={initial} mode={store.mode} productName={PRODUCT_NAME} welcome={welcome === "1"} viewer={{ email: viewer.email, admin: viewer.admin, local: viewer.local }} />;
+  // The header's project switcher: the viewer's own projects (every project in local mode).
+  const mine = await store.listProjects(viewer.local ? undefined : viewer.id);
+  const projects = (mine.some((p) => p.id === projectId) ? mine : [project, ...mine]).map((p) => ({ id: p.id, name: p.name }));
+  return <Room initial={initial} mode={store.mode} productName={PRODUCT_NAME} welcome={welcome === "1"} viewer={{ email: viewer.email, admin: viewer.admin, local: viewer.local }} projects={projects} />;
 }

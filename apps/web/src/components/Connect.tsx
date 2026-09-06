@@ -132,7 +132,7 @@ export function Connect({ productName, connectCommand, server, local, plan, proj
             <ol className="steps">
               <li>The command links the folder and registers listeners for Claude Code, and for Codex and Cursor if they are installed.</li>
               <li>It sends the file map so the Room can name the parts of your app.</li>
-              <li>Start your agent in that folder as usual. Its tile appears here within a second or two.</li>
+              <li>Start your agent in that folder as usual. Its card appears here within a second or two.</li>
             </ol>
             <p className="faint small">Codex only: open Codex, type /hooks and trust the listeners. Until then it is followed through its logs by `glasshouse watch`.</p>
           </details>

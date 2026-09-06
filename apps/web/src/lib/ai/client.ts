@@ -9,7 +9,7 @@ import type { z } from "zod";
 import { getStore } from "@/lib/store";
 import type { AiCallLog } from "@/lib/store/types";
 
-export const AI_MODEL = process.env.GLASSHOUSE_AI_MODEL ?? "claude-opus-5";
+export const AI_MODEL = process.env.GLASSHOUSE_AI_MODEL?.trim() || "claude-opus-5";
 
 /** USD per million tokens (input, output). Anthropic list prices at time of writing. */
 const PRICES_USD: Record<string, { input: number; output: number }> = {
@@ -19,7 +19,7 @@ const PRICES_USD: Record<string, { input: number; output: number }> = {
   "claude-sonnet-5": { input: 2, output: 10 },
   "claude-haiku-4-5": { input: 1, output: 5 },
 };
-const USD_TO_GBP = Number(process.env.GLASSHOUSE_USD_GBP ?? "0.78");
+const USD_TO_GBP = Number(process.env.GLASSHOUSE_USD_GBP?.trim() || "0.78");
 
 export function aiEnabled(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY) && process.env.GLASSHOUSE_AI !== "off";

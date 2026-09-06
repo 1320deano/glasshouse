@@ -185,6 +185,54 @@ export interface SessionView {
   recentEvents: EventView[];
 }
 
+/** One line of the Room's running story: a meaning change, written from the record (Phase 5). */
+export interface StoryMessage {
+  id: string;
+  /** When the thing it describes happened. */
+  at: string;
+  kind: "started" | "handoff" | "waiting" | "stuck" | "finished" | "limit";
+  taskId: string;
+  tool: AgentTool;
+  /** The plain-English line. */
+  text: string;
+  /** Verified facts for a finished task, computed from the changed-files list. */
+  touched?: string[];
+  notTouched?: string[];
+  needsYou?: NeedsYou;
+  needsYouDetail?: string;
+  risk?: Risk["level"];
+  /** "All 24 checks passed" / "2 of 26 checks failed" / undefined when none ran. */
+  checks?: string;
+  /** A message the owner may copy into the agent's own window. Never sent by us (rule 4). */
+  suggestedReply?: string;
+}
+
+/** How far one part of the app has got this week, as stages (never percentages). */
+export interface AreaProgress {
+  id: string;
+  name: string;
+  sensitive: boolean;
+  /** The furthest stage any task touching this part has reached; null when nothing touched it. */
+  stage: Stage | null;
+  /** Something in this part needs the owner, or is stuck. */
+  attention?: "waiting" | "stuck";
+  running: number;
+  finished: number;
+  filesChanged: number;
+  /** The most recent test counts from a task that changed this part. */
+  checks?: { passed?: number; failed?: number };
+  lastTouchedAt?: string;
+  tools: AgentTool[];
+}
+
+/** Actions per hour over the window, by tool. Hours are ISO strings truncated to the hour, in UTC; the page buckets them in local time. */
+export interface ActivityView {
+  since: string;
+  hours: Record<string, Partial<Record<AgentTool, number>>>;
+  total: number;
+  byTool: Record<AgentTool, number>;
+}
+
 export interface RoomState {
   project: ProjectSummary;
   sessions: SessionView[];
@@ -196,6 +244,11 @@ export interface RoomState {
   lastCheckedAt?: string;
   /** Tasks finished, and flagged, since the owner last opened the digest. */
   sinceChecked: { done: number; needsYou: number };
+  /** The conversation column: every meaning change over the last week, oldest first. */
+  story: StoryMessage[];
+  /** The progress column. */
+  progress: AreaProgress[];
+  activity: ActivityView;
 }
 
 /** The stored words of a report card. The facts are computed when read (derive.ts). */

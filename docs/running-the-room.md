@@ -94,6 +94,26 @@ kinds of actions, your prompt text, and the first lines of the README. Never fil
 in pounds is recorded; `http://localhost:3000/api/stats/<project id>` shows the running total. For a report card the
 diff of the files that task changed is also sent, once, and only for that card and for Ask; never for other files.
 
+## Signing in while you test (the test account)
+
+Once the Room is using Supabase, it asks you to sign in, and normally that means waiting for an email. For testing
+there is a ready-made account that is already verified, so no email is ever needed:
+
+```
+pnpm dev:account          make it (or repair it), on the Pro plan
+pnpm dev:account --free   move the same account to Free, to see the upgrade gates
+```
+
+Then either open `http://localhost:3000/api/auth/dev`, or go to the sign-in page and click
+**sign in as the test account** at the bottom. Both put you straight in.
+
+- The account is `dev@glasshouse.test`. It is a real account in Supabase, marked verified, on the Pro plan, on the
+  invite list, and allowed into `/admin`. Nothing is ever emailed to it; the address does not need to exist.
+- Its password lives in `apps/web/.env.local` next to `GLASSHOUSE_DEV_EMAIL`. That file is never committed.
+- The one-click way in only works when `GLASSHOUSE_DEV_LOGIN=1` is set **and** the page is opened on this computer.
+  Leave all three `GLASSHOUSE_DEV_*` lines blank anywhere the Room is published, or anyone could use them.
+- Sign out from `/account` to go back to being a stranger and check what a new visitor sees.
+
 ## Previewing the free tier
 
 Start the Room with `GLASSHOUSE_PLAN=free` (for example `GLASSHOUSE_PLAN=free pnpm room`) to see what a free user

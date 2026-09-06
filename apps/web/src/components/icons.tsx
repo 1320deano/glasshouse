@@ -51,6 +51,12 @@ export const ArrowRight = (p: IconProps) => (
   </Icon>
 );
 
+export const ArrowUp = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 12.5v-9M4 7l4-3.5L12 7" />
+  </Icon>
+);
+
 export const Check = (p: IconProps) => (
   <Icon {...p}>
     <path d="M3 8.5 6.25 11.5 13 4.5" />

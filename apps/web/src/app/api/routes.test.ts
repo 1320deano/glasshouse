@@ -233,6 +233,30 @@ describe("Phase 4 routes (local mode)", () => {
     expect(((await (await admin(new Request("http://x/"))).json()) as { invites: unknown[] }).invites).toEqual([]);
   });
 
+  it("the test-account sign-in stays shut unless the switch is on and the request is from this computer", async () => {
+    const { GET: devSignIn } = await import("./auth/dev/route");
+    const go = (host: string) => devSignIn(new Request(`http://${host}/api/auth/dev`));
+    const before = { on: process.env.GLASSHOUSE_DEV_LOGIN, email: process.env.GLASSHOUSE_DEV_EMAIL, password: process.env.GLASSHOUSE_DEV_PASSWORD };
+    try {
+      delete process.env.GLASSHOUSE_DEV_LOGIN;
+      expect((await go("localhost")).headers.get("location")).toBe("http://localhost/signin");
+      process.env.GLASSHOUSE_DEV_LOGIN = "1";
+      process.env.GLASSHOUSE_DEV_EMAIL = "dev@example.test";
+      process.env.GLASSHOUSE_DEV_PASSWORD = "secret";
+      // switched on, but asked for from somewhere that is not this computer
+      expect((await go("glasshouse.app")).headers.get("location")).toBe("http://glasshouse.app/signin");
+      // switched on and local, but this Room is the on-your-own-computer one: no sign-in exists
+      expect((await go("localhost")).headers.get("location")).toBe("http://localhost/");
+    } finally {
+      if (before.on === undefined) delete process.env.GLASSHOUSE_DEV_LOGIN;
+      else process.env.GLASSHOUSE_DEV_LOGIN = before.on;
+      if (before.email === undefined) delete process.env.GLASSHOUSE_DEV_EMAIL;
+      else process.env.GLASSHOUSE_DEV_EMAIL = before.email;
+      if (before.password === undefined) delete process.env.GLASSHOUSE_DEV_PASSWORD;
+      else process.env.GLASSHOUSE_DEV_PASSWORD = before.password;
+    }
+  });
+
   it("sign-in, checkout and portal say plainly why they do nothing in local mode", async () => {
     const { POST: signin } = await import("./auth/signin/route");
     const { POST: checkout } = await import("./billing/checkout/route");

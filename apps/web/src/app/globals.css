@@ -2,9 +2,11 @@
      tokens      the design system: colour, type, space, line, radius, shadow, motion
      base        the reset, typographic defaults, the focus ring, the motion contract
      components  buttons, fields, badges, cards, notices, empty states, skeletons, tables
-     screens     the Room and the pages around it, composed from the layers above
+     screens     the pages around the Room, composed from the layers above
+     room        the Room itself: three columns, cards, the story, progress
    Nothing below tokens.css may hard-code a colour, a size or a duration. */
 @import "../styles/tokens.css";
 @import "../styles/base.css";
 @import "../styles/components.css";
 @import "../styles/screens.css";
+@import "../styles/room.css";

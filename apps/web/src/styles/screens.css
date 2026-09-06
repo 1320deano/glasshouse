@@ -1,94 +1,11 @@
 /* ============================================================================================
-   Screens: the Room, the report card, the task panel, and the pages around them.
+   Screens: the report card, the task panel, and the pages around the Room (which is room.css).
    Everything here composes the tokens and the components; nothing invents a value.
    ============================================================================================ */
 
 /* ============================================================================================
-   1. The Room
+   1. Tiles (the landing page's live mock). The Room itself lives in room.css.
    ============================================================================================ */
-.room {
-  gap: var(--space-3);
-}
-
-.room-nav {
-  display: flex;
-  align-items: center;
-  gap: var(--space-05);
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.nav-link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  height: var(--control-height-sm);
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-3);
-  font-weight: var(--weight-medium);
-  color: var(--text-secondary);
-  transition:
-    background var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
-}
-
-.nav-link:hover {
-  background: var(--bg-subtle);
-  color: var(--text-primary);
-}
-
-/* The one badge allowed to light up. */
-.nav-link.lit {
-  color: var(--warn);
-}
-.nav-link.lit:hover {
-  background: var(--warn-quiet);
-  color: var(--warn);
-}
-
-.nav-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: var(--radius-full);
-  background: var(--bg-subtle);
-  border: 1px solid var(--line);
-  color: var(--text-secondary);
-  font-size: var(--text-1);
-  font-variant-numeric: tabular-nums;
-}
-
-.nav-link.lit .nav-count {
-  background: var(--warn-quiet);
-  border-color: var(--warn-line);
-  color: var(--warn);
-}
-
-.live-state {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding-left: var(--space-1);
-  margin-left: var(--space-05);
-  border-left: 1px solid var(--line);
-  color: var(--text-tertiary);
-  font-size: var(--text-2);
-  white-space: nowrap;
-}
-
-.live-state .dot {
-  color: var(--positive);
-}
-.live-state[data-state="polling"] .dot,
-.live-state[data-state="connecting"] .dot {
-  color: var(--grey-400);
-}
-
-/* --- Tiles ---------------------------------------------------------------------------------- */
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
@@ -337,15 +254,6 @@
 }
 
 @media (max-width: 640px) {
-  .room-nav {
-    justify-content: flex-start;
-    width: 100%;
-  }
-  .live-state {
-    border-left: none;
-    padding-left: 0;
-    margin-left: 0;
-  }
   .tile-project {
     display: none;
   }
@@ -361,41 +269,6 @@
   .tile-toggle {
     margin-left: auto;
   }
-}
-
-/* --- The moment: the first time the Room shows something you would have missed ------------- */
-.moment {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1);
-  border: 1px solid var(--warn-line);
-  background: var(--warn-quiet);
-  border-radius: var(--radius-lg);
-  padding: var(--space-2) var(--space-3);
-  animation: rise var(--duration-slower) var(--ease-out) both;
-}
-
-.moment-label {
-  color: var(--warn);
-  font-size: var(--text-1);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-}
-
-.moment-fact {
-  font-size: var(--text-7);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-tight);
-  line-height: var(--leading-snug);
-  max-width: var(--measure);
-}
-
-.moment-why {
-  color: var(--text-secondary);
-  font-size: var(--text-4);
-  max-width: var(--measure);
 }
 
 /* ============================================================================================
@@ -737,7 +610,7 @@
 
 .raw-line .meta {
   margin-left: var(--space-1);
-  color: var(--grey-400);
+  color: var(--text-tertiary);
 }
 
 /* --- Ask ------------------------------------------------------------------------------------ */

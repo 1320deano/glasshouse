@@ -53,11 +53,27 @@ describe("plans", () => {
       generatedAt: now,
       inboxOpen: 3,
       sinceChecked: { done: 2, needsYou: 1 },
+      story: [
+        { id: "old", at: "2026-09-02T10:00:00.000Z", kind: "finished", taskId: "t0", tool: "cursor", text: "Old" },
+        { id: "new", at: "2026-09-04T11:00:00.000Z", kind: "started", taskId: "t1", tool: "claude-code", text: "New" },
+      ],
+      progress: [
+        { id: "auth", name: "Sign-in", sensitive: true, stage: "done", running: 0, finished: 1, filesChanged: 2, lastTouchedAt: "2026-09-02T10:00:00.000Z", tools: ["cursor"] },
+        { id: "dash", name: "Dashboard", sensitive: false, stage: "building", running: 1, finished: 0, filesChanged: 1, lastTouchedAt: "2026-09-04T11:55:00.000Z", tools: ["claude-code"] },
+      ],
+      activity: { since: "2026-08-28T12:00:00.000Z", hours: { "2026-09-02T10:00:00.000Z": { cursor: 5 }, "2026-09-04T11:00:00.000Z": { "claude-code": 3, codex: 1 } }, total: 9, byTool: { "claude-code": 3, codex: 1, cursor: 5, watcher: 0 } },
     };
     const free = gateRoom(room, "free", now);
     expect(free.room.sessions.map((s) => s.id)).toEqual(["a", "d"]);
     expect(free.locked).toEqual({ agents: 1, history: 1, reasons: ["history", "more_agents"] });
     expect(free.room.inboxOpen).toBe(0);
+    // The story, progress and activity stop at the free tier's 24-hour line too.
+    expect(free.room.story.map((m) => m.id)).toEqual(["new"]);
+    expect(free.room.progress.find((p) => p.id === "auth")?.stage).toBeNull();
+    expect(free.room.progress.find((p) => p.id === "dash")?.stage).toBe("building");
+    expect(free.room.activity.total).toBe(4);
+    expect(free.room.activity.byTool.cursor).toBe(0);
+    expect(gateRoom(room, "pro", now).room.activity.total).toBe(9);
     const pro = gateRoom(room, "pro", now);
     expect(pro.room.sessions).toHaveLength(4);
     expect(pro.locked).toEqual({ agents: 0, history: 0, reasons: [] });

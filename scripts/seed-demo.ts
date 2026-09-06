@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { RecordedHook, type NormalisedEvent } from "@glasshouse/schema";
-import { normaliseClaudeCode, normaliseCodex } from "@glasshouse/translate";
+import { normaliseClaudeCode, normaliseCodex, normaliseCursor } from "@glasshouse/translate";
 
 const BASE = process.env.SEED_BASE ?? "http://127.0.0.1:3000";
 const ROOT = "/home/chris/apps/storyboard";
@@ -53,7 +53,7 @@ function replay(file: string, projectId: string, startAt: number, stepMs: number
     .map((r) => {
       const now = () => new Date((t += stepMs)).toISOString();
       const ctx = { projectId, projectRoot: ROOT, makeId: () => randomUUID(), now };
-      const e = r.tool === "codex" ? normaliseCodex(r.hookEvent, r.payload, ctx) : normaliseClaudeCode(r.hookEvent, r.payload, ctx);
+      const e = r.tool === "codex" ? normaliseCodex(r.hookEvent, r.payload, ctx) : r.tool === "cursor" ? normaliseCursor(r.hookEvent, r.payload, ctx) : normaliseClaudeCode(r.hookEvent, r.payload, ctx);
       return e ? { ...e, sessionId: `${e.sessionId}-${sessionSuffix}`, ts: new Date(t).toISOString() } : null;
     })
     .filter((e): e is NormalisedEvent => e !== null);
@@ -150,6 +150,18 @@ async function main() {
   const c = replay("claude-code-basic.jsonl", busy.projectId, now - 3 * 60_000, 2_500, "c");
   await send(busy.token, [...a, ...b, ...c]);
   await send(busy.token, [...decisionSession(busy.projectId, now), ...stuckSession(busy.projectId, now), ...waitingSession(busy.projectId, now)]);
+
+  // Earlier in the week, so the activity heatmap, the tool mix and the per-part progress have a
+  // week to show and the "Show earlier" link has something behind it.
+  const day = 24 * 60 * 60_000;
+  const earlier = [
+    replay("claude-code-basic.jsonl", busy.projectId, now - 1 * day - 3 * 60 * 60_000, 3_000, "d1"),
+    replay("codex-hooks-synthetic.jsonl", busy.projectId, now - 2 * day - 5 * 60 * 60_000, 5_000, "d2"),
+    replay("cursor-synthetic.jsonl", busy.projectId, now - 3 * day - 2 * 60 * 60_000, 4_000, "d3"),
+    replay("claude-code-basic.jsonl", busy.projectId, now - 4 * day + 4 * 60 * 60_000, 2_000, "d4"),
+    replay("claude-code-usage-limit-synthetic.jsonl", busy.projectId, now - 6 * day - 1 * 60 * 60_000, 6_000, "d6"),
+  ];
+  for (const events of earlier) await send(busy.token, events);
 
   // 2. A second project with nothing running, for the project list and the empty Room.
   await seedProject("marketing-site", { tree: true });
