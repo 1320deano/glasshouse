@@ -326,7 +326,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--room-agents) minmax(0, 1fr) var(--room-progress);
+  /* Agents grow into whatever the story column does not take. */
+  grid-template-columns: minmax(var(--room-agents), 1fr) minmax(0, var(--room-story)) var(--room-progress);
   gap: var(--room-gap);
   padding: var(--room-pad);
 }

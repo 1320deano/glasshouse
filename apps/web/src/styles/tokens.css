@@ -172,11 +172,20 @@
   --control-height: 34px;
   --control-height-sm: 28px;
 
-  /* The Room's three columns. */
+  /* The Room's three columns. Agents and progress have a floor; the story takes a fixed share
+     of whatever is left between them, and the agents column grows into the rest so cards stay
+     readable from across the room. */
   --room-agents: 340px;
   --room-progress: 300px;
   --room-gap: var(--space-2);
   --room-pad: var(--space-2);
+  --room-story-share: 0.6;
+  --room-story-min: 320px;
+  --room-story: max(
+    var(--room-story-min),
+    (100vw - var(--room-agents) - var(--room-progress) - 2 * var(--room-gap) - 2 * var(--room-pad)) *
+      var(--room-story-share)
+  );
 
   --z-base: 0;
   --z-sticky: 10;
