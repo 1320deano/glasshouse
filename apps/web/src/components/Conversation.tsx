@@ -138,7 +138,7 @@ function StoryLine({ m, onOpenTask }: { m: StoryMessage; onOpenTask: (taskId: st
         </dl>
       ) : null}
       <div className="msg-actions">
-        <button className="msg-link" onClick={() => onOpenTask(m.taskId)}>
+        <button className="msg-link" data-task={m.taskId} onClick={() => onOpenTask(m.taskId)}>
           {m.kind === "finished" || m.kind === "limit" ? "Open the report" : "Show the card"}
           <ChevronRight size={12} />
         </button>
