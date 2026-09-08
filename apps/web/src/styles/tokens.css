@@ -6,16 +6,18 @@
    change made once is a change made everywhere.
 
    Shape of the system
-     Colour   light, neutral-heavy. One accent (--accent) and it is only ever used for a primary
-              action or the thing the eye must land on first. Amber, green and red are *status*
-              only: they carry a fact ("waiting for you", "all checks passed", "an error"), never
+     Colour   warm and neutral-heavy, the way the Claude app is: an ivory page, white surfaces,
+              warm greys for lines and quiet text, and one terracotta accent spent only on the
+              primary action and the thing the eye must land on first. Amber, green and red are
+              *status*: they carry a fact ("waiting for you", "verified", "an error"), never
               decoration. Every text colour below passes WCAG AA (4.5:1) on its own surface.
-     Type     one scale, 11 -> 48. Sizes are absolute; the Room's headline is the one clamp,
-              because it has to read from two metres on a 4K second monitor.
-     Space    an 8pt grid. --space-2 (8px) is the step; 4px and 12px are the half-steps.
+     Type     Geist for everything (the open face closest to Anthropic Sans), one serif for the
+              greeting-style title at the top of the story. One scale, 11 -> 48.
+     Space    an 8pt grid. --space-1 (8px) is the step; 4px and 12px are the half-steps.
      Line     hairlines only. One border weight, three border tones.
-     Shadow   almost none. Flat surfaces are separated by a hairline, not a glow. Shadows are
-              reserved for things that genuinely float.
+     Radius   generous. Cards and the reply box sit at 12 to 16px, capsules are round.
+     Shadow   almost none. Surfaces are separated by a hairline; the reply box is the one thing
+              that floats, and it floats by a whisker.
      Motion   short, eased, and never blocking. Everything is disabled under reduced motion.
    ============================================================================================ */
 
@@ -24,23 +26,22 @@
 
   /* --- Colour: neutral ramp ---------------------------------------------------------------
      The numbers name a role, not a lightness: 1000 is the page, 50 is the primary text, so
-     every reference below reads the same whichever way the palette leans. A cool near-grey;
-     chroma is deliberately close to zero so the one accent and the three status colours are
-     the only things on screen with any saturation. */
-  --grey-1000: #f5f6f8; /* the page */
-  --grey-950: #f0f2f5; /* inset: inputs, code, wells */
-  --grey-900: #ffffff; /* surface: cards, tiles */
-  --grey-850: #f8f9fb; /* raised: hover, nested panels */
-  --grey-800: #eef0f3; /* subtle fill: chips, secondary buttons */
-  --grey-750: #e6e9ed;
-  --grey-700: #e2e5ea; /* the default hairline */
-  --grey-600: #cdd2d9; /* a hairline that needs to be seen */
-  --grey-500: #aab1ba;
-  --grey-400: #858d98;
-  --grey-300: #5f6772; /* tertiary text: 5.4:1 on the page */
-  --grey-200: #414954; /* secondary text: 8.6:1 */
-  --grey-100: #2a3038;
-  --grey-50: #14181d; /* primary text: 16.6:1 */
+     every reference below reads the same whichever way the palette leans. A warm near-grey,
+     leaning ivory: the page is a shade darker than a white card, so white reads as "a thing". */
+  --grey-1000: #f5f4ee; /* the page */
+  --grey-950: #f0efe8; /* inset: wells, code, the quiet fill behind a select */
+  --grey-900: #ffffff; /* surface: cards, the reply box */
+  --grey-850: #faf9f5; /* raised: hover on a card, the story's own ground */
+  --grey-800: #eeece4; /* subtle fill: chips, your own messages, secondary buttons */
+  --grey-750: #e8e6dc;
+  --grey-700: #e3e1d7; /* the default hairline */
+  --grey-600: #cfcdc2; /* a hairline that needs to be seen */
+  --grey-500: #aca99c;
+  --grey-400: #87857c; /* placeholders and disabled text only */
+  --grey-300: #5e5d59; /* tertiary text: 6.0:1 on the page */
+  --grey-200: #3d3d3a; /* secondary text: 9.9:1 */
+  --grey-100: #2c2c2a;
+  --grey-50: #141413; /* primary text: 16.7:1 */
 
   /* --- Colour: surfaces --------------------------------------------------------------- */
   --bg-canvas: var(--grey-1000);
@@ -48,7 +49,7 @@
   --bg-raised: var(--grey-850);
   --bg-subtle: var(--grey-800);
   --bg-inset: var(--grey-950);
-  --bg-overlay: rgba(20, 24, 29, 0.42);
+  --bg-overlay: rgba(20, 20, 19, 0.4);
 
   /* --- Colour: text -------------------------------------------------------------------- */
   --text-primary: var(--grey-50);
@@ -57,49 +58,52 @@
   --text-on-accent: #ffffff;
 
   /* --- Colour: lines ------------------------------------------------------------------- */
-  --line-subtle: #eaedf1;
+  --line-subtle: #ebe9e0;
   --line: var(--grey-700);
   --line-strong: var(--grey-600);
 
   /* --- Colour: the one accent -----------------------------------------------------------
-     Used for: the primary button, the focused control, the single most important link on a
-     page, the "working" dot. Never for body links, never for decoration, never for a whole nav. */
-  --accent: #2456d6;
-  --accent-hover: #1d47b3;
-  --accent-quiet: rgba(36, 86, 214, 0.09);
-  --accent-line: rgba(36, 86, 214, 0.35);
+     Terracotta. Used for: the primary button, the focused control, the single most important
+     link on a page, the "working" dot. Never for body links, never for decoration, never for a
+     whole nav. --accent-ink is the same hue a shade deeper, for text that sits on a tint. */
+  --accent: #b04f2c;
+  --accent-hover: #9c4426;
+  --accent-ink: #9e4627;
+  --accent-quiet: rgba(201, 100, 66, 0.12);
+  --accent-line: rgba(201, 100, 66, 0.4);
   /* The activity heatmap's ramp, from "one action" to "the busiest hour of the week". */
-  --accent-1: #d4e0fa;
-  --accent-2: #a6c0f4;
-  --accent-3: #6b95ea;
+  --accent-1: #f1dcd2;
+  --accent-2: #e3b6a3;
+  --accent-3: #d08a6d;
   --accent-4: var(--accent);
 
   /* --- Colour: status. A fact, never a mood. -------------------------------------------- */
-  --warn: #9a5b00; /* waiting for you, medium risk, a decision to make: 5.6:1 on white */
-  --warn-quiet: rgba(214, 137, 16, 0.12);
+  --warn: #8a5200; /* waiting for you, medium risk, a decision to make: 5.3:1 on its tint */
+  --warn-quiet: rgba(214, 137, 16, 0.13);
   --warn-line: rgba(214, 137, 16, 0.45);
-  --positive: #1b7a3e; /* verified: not touched, checks passed: 5.2:1 */
+  --positive: #1b7a3e; /* verified: not touched, checks passed: 4.6:1 on its tint */
   --positive-quiet: rgba(27, 122, 62, 0.1);
-  --danger: #c0303a; /* an error, high risk, stuck: 5.6:1 */
-  --danger-quiet: rgba(192, 48, 58, 0.08);
-  --danger-line: rgba(192, 48, 58, 0.4);
+  --danger: #ab2b3f; /* an error, high risk, stuck: 5.5:1 on its tint */
+  --danger-quiet: rgba(171, 43, 63, 0.09);
+  --danger-line: rgba(171, 43, 63, 0.4);
 
-  --focus-ring: #2456d6;
+  --focus-ring: var(--accent);
 
   /* --- Type -----------------------------------------------------------------------------
-     A system stack on purpose: the Room runs on a laptop that may be offline, and a webfont
-     that fails to load is a worse first impression than one that was never promised. */
+     Geist is bundled with the app by Next at build time, so the Room still renders offline;
+     the system stack behind it is the fallback if that bundle is ever missing. */
   --font-sans:
-    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    "Noto Sans", sans-serif;
+    var(--font-geist), ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-serif: var(--font-source-serif), ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", "Roboto Mono", Menlo, Consolas, monospace;
 
-  --text-1: 11px; /* micro label, uppercase, tracked */
+  --text-1: 11px; /* micro label */
   --text-2: 12px; /* caption, timestamps, meta */
   --text-3: 13px; /* dense UI: buttons, badges, table cells */
   --text-4: 14px; /* small body */
   --text-5: 15px; /* body */
-  --text-6: 17px; /* lead paragraph, list items that matter */
+  --text-6: 17px; /* lead paragraph, the card headline */
   --text-7: 20px; /* card title */
   --text-8: 24px; /* section heading */
   --text-9: 30px; /* page heading */
@@ -111,14 +115,14 @@
   --weight-semibold: 600;
 
   --leading-tight: 1.12;
-  --leading-snug: 1.25;
-  --leading-normal: 1.45;
-  --leading-relaxed: 1.6;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
 
-  --tracking-tight: -0.021em;
-  --tracking-snug: -0.011em;
+  --tracking-tight: -0.02em;
+  --tracking-snug: -0.008em;
   --tracking-normal: 0;
-  --tracking-wide: 0.07em;
+  --tracking-wide: 0.04em;
 
   /* The one place text is allowed to grow with the viewport: the Room's headline, which is
      read from across a desk. */
@@ -140,18 +144,18 @@
   --space-16: 128px;
 
   /* --- Radius ---------------------------------------------------------------------------- */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
   --radius-full: 999px;
 
   /* --- Shadow ---------------------------------------------------------------------------- */
-  --shadow-xs: 0 1px 2px rgba(20, 24, 29, 0.06);
-  --shadow-sm: 0 2px 8px -2px rgba(20, 24, 29, 0.1);
-  --shadow-md: 0 10px 28px -8px rgba(20, 24, 29, 0.16);
-  --shadow-lg: 0 24px 56px -16px rgba(20, 24, 29, 0.22);
+  --shadow-xs: 0 1px 2px rgba(20, 20, 19, 0.05);
+  --shadow-sm: 0 4px 20px rgba(20, 20, 19, 0.04);
+  --shadow-md: 0 10px 28px -8px rgba(20, 20, 19, 0.14);
+  --shadow-lg: 0 24px 56px -16px rgba(20, 20, 19, 0.2);
 
   /* --- Motion ---------------------------------------------------------------------------- */
   --duration-instant: 90ms;
@@ -166,26 +170,20 @@
   /* --- Layout ---------------------------------------------------------------------------- */
   --page-max: 1360px;
   --page-narrow: 680px;
-  --measure: 68ch;
+  --measure: 66ch;
   --page-pad-x: clamp(20px, 4vw, 40px);
   --page-pad-y: clamp(20px, 3vw, 32px);
   --control-height: 34px;
   --control-height-sm: 28px;
 
-  /* The Room's three columns. Agents and progress have a floor; the story takes a fixed share
-     of whatever is left between them, and the agents column grows into the rest so cards stay
-     readable from across the room. */
-  --room-agents: 340px;
-  --room-progress: 300px;
-  --room-gap: var(--space-2);
+  /* The Room's three columns. Agents and progress have a fixed width and can each be folded
+     away; the story takes everything between them and is centred on its own measure. */
+  --room-head: 52px;
+  --room-agents: 360px;
+  --room-agents-rail: 56px;
+  --room-progress: 312px;
+  --room-story-max: 760px;
   --room-pad: var(--space-2);
-  --room-story-share: 0.6;
-  --room-story-min: 320px;
-  --room-story: max(
-    var(--room-story-min),
-    (100vw - var(--room-agents) - var(--room-progress) - 2 * var(--room-gap) - 2 * var(--room-pad)) *
-      var(--room-story-share)
-  );
 
   --z-base: 0;
   --z-sticky: 10;
@@ -193,10 +191,10 @@
 }
 
 /* Anything the room draws in a wide window gets a little more air. */
-@media (min-width: 1280px) {
+@media (min-width: 1440px) {
   :root {
     --page-pad-y: 36px;
-    --room-agents: 360px;
-    --room-progress: 320px;
+    --room-agents: 384px;
+    --room-progress: 336px;
   }
 }

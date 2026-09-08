@@ -13,15 +13,18 @@ invents a value.
 
 `apps/web/src/app/globals.css` is five `@import` lines and nothing else.
 
-**Light only.** The palette is a light one and there is no dark mode. The grey ramp's numbers name a
-role, not a lightness (`--grey-1000` is the page, `--grey-50` is the primary text), so every rule
-reads the same whichever way the palette leans.
+**Light only, and warm.** The palette is the Claude app's: an ivory page (`#f5f4ee`), white surfaces,
+warm greys for lines and quiet text, one terracotta accent. There is no dark mode. The grey ramp's
+numbers name a role, not a lightness (`--grey-1000` is the page, `--grey-50` is the primary text), so
+every rule reads the same whichever way the palette leans. White is spent on things: cards, and the
+reply box, which is the one surface that floats.
 
 ## The rules
 
-**One accent.** `--accent` (#2456d6) is for a primary action, a focused control, or the single most
-important link on a page. Never a whole navigation, never decoration. Links are neutral by default;
-`.link-accent` opts one in.
+**One accent.** `--accent` (terracotta, #b04f2c) is for a primary action, a focused control, the
+"working" dot, or the single most important link on a page. Never a whole navigation, never
+decoration. Text that sits on the accent's tint uses `--accent-ink`, a shade deeper, so it still
+passes AA. Links are neutral by default; `.link-accent` opts one in.
 
 **Status colour carries a fact.** Amber (`--warn`) means the owner is the blocker: waiting for you,
 a decision needed, a part that counts as high risk. Green (`--positive`) means verified: "not
@@ -35,15 +38,26 @@ on (`--text-tertiary` is the floor at 5.0:1 on the subtle fill). Earlier session
 colour, never with `opacity` — a dimmed tile is an unreadable tile.
 `node scripts/design-screenshots.mjs out/` audits every rendered screen and fails loudly.
 
-**Type is one scale, 11px to 48px.** Sizes are absolute. The only two clamps are
-`--text-headline` (the Room's tile headline) and `--text-display` (the landing hero), because those
-two are read from across a desk.
+**Type is Geist, one scale, 11px to 48px.** Geist is the open face closest to Anthropic Sans (which
+credits Geist's designers); Next bundles it at build time (`app/layout.tsx`), so the Room renders it
+offline and falls back to the system stack only if that bundle is missing. Source Serif 4 is the one
+serif, and it is used for exactly one thing: the project's name at the top of the story, set the way
+Claude sets its greeting. Sizes are absolute. The only two clamps are `--text-headline` (the Room's
+tile headline) and `--text-display` (the landing hero), because those two are read from across a desk.
+Labels are sentence case. Nothing in the Room is uppercase, tracked or set in the mono face except
+paths behind the technical toggle.
 
 **Space is an 8pt grid.** `--space-1` is 8px; 4px and 12px are the half-steps. Nothing is spaced by
 a number typed in by hand.
 
-**Lines, not shadows.** Surfaces are separated by one hairline at one of three tones. Shadows exist
-in the tokens but are reserved for things that genuinely float.
+**Lines, not shadows.** Surfaces are separated by one hairline at one of three tones. Pills and
+badges are borderless tints. Shadows exist in the tokens but are reserved for things that genuinely
+float, which in the Room is the reply box and an opened card.
+
+**The owner decides how much is on screen.** The agents column folds to a rail (one square per live
+agent, amber if it needs you), the progress column folds away, cards have a compact density, and each
+progress section folds on its own. Every fold is remembered in that browser (`glasshouse.room.*` in
+localStorage) and none of it is stored on the server or changes what the record says.
 
 **Motion says "this arrived" or "this opened", and nothing else.** Tiles rise in, panels expand, the
 working dot pulses, the chevron turns. All of it is switched off under `prefers-reduced-motion`.
