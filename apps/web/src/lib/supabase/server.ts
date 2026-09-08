@@ -1,6 +1,6 @@
 /**
  * Supabase Auth on the server: a client bound to the request's cookies, used to find out who is
- * signed in, to exchange a magic-link code for a session, and to sign out. Data access never goes
+ * signed in, to sign in with an email and a password, and to sign out. Data access never goes
  * through this client (the store uses the service role); this is identity only.
  */
 import { createServerClient } from "@supabase/ssr";

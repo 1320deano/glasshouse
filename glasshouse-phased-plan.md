@@ -172,7 +172,8 @@ Build:
 
 Exit test: 7 of 10 testers still have the tab open on day five; 3 or more say "I'd pay".
 
-**Phase 4 outcome (4 September 2026): built, not yet hosted.** Sign-in with magic links, projects per person, the
+**Phase 4 outcome (4 September 2026): built, not yet hosted.** Sign-up and sign-in with an email and a password
+(magic links, until 8 September 2026), projects per person, the
 one-command onboarding with a link code, the first-session walkthrough that names the first change the owner would
 have missed, Free and Pro gating as one pure rule, Stripe checkout and webhook, the landing page with a live tile
 replayed from the recordings, sign-up rate metrics, and the tester dashboard (invites, day-five count, "what broke",
