@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AskAnswer } from "@/lib/ai/ask";
 import type { RoomState, StoryMessage } from "@/lib/store/types";
-import { ArrowUp, Check, Copy } from "./icons";
+import { ArrowUp, Check, ChevronRight, Copy, Mark } from "./icons";
 import { NEEDS_YOU_TEXT, RISK_TEXT, TOOL_NAMES, clip, clock, dayLabel } from "./labels";
 
 /**
@@ -14,6 +14,10 @@ import { NEEDS_YOU_TEXT, RISK_TEXT, TOOL_NAMES, clip, clock, dayLabel } from "./
  * about one task through the existing Ask, which answers only from that task's record and names
  * the actions it rests on. Nothing typed here reaches an agent (rule 4): the one "for the agent"
  * action copies words to the clipboard for the owner to paste themselves.
+ *
+ * Laid out like a Claude transcript: the Room's own lines sit flush on the page under a small
+ * mark, your questions sit in a quiet capsule on the right, and the reply box is the one white
+ * thing that floats.
  */
 
 interface ChatLine {
@@ -45,7 +49,7 @@ function CopyForAgent({ text }: { text: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
-      className="button sm"
+      className="msg-link"
       title="Copies these words so you can paste them into the agent's own window. Nothing is sent from here."
       onClick={async () => {
         try {
@@ -68,7 +72,7 @@ function Bubble({ who, at, badge, children }: { who: "glasshouse" | "you"; at: s
     <div className={`msg ${who}`}>
       {who === "glasshouse" && (
         <span className="msg-avatar" aria-hidden="true">
-          G
+          <Mark size={16} />
         </span>
       )}
       <div className="msg-body">
@@ -78,7 +82,7 @@ function Bubble({ who, at, badge, children }: { who: "glasshouse" | "you"; at: s
             {clock(at)}
           </time>
           {badge && (
-            <span className="pill" data-tone={badge.tone}>
+            <span className="pill sm" data-tone={badge.tone}>
               {badge.text}
             </span>
           )}
@@ -134,8 +138,9 @@ function StoryLine({ m, onOpenTask }: { m: StoryMessage; onOpenTask: (taskId: st
         </dl>
       ) : null}
       <div className="msg-actions">
-        <button className="button sm subtle" onClick={() => onOpenTask(m.taskId)}>
+        <button className="msg-link" onClick={() => onOpenTask(m.taskId)}>
           {m.kind === "finished" || m.kind === "limit" ? "Open the report" : "Show the card"}
+          <ChevronRight size={12} />
         </button>
         {m.suggestedReply && <CopyForAgent text={m.suggestedReply} />}
       </div>
@@ -182,7 +187,21 @@ function ChatLineView({ c, technical }: { c: ChatLine; technical: boolean }) {
   );
 }
 
-export function Conversation({ state, now, onOpenTask, intro, active = true }: { state: RoomState; now: number; onOpenTask: (taskId: string) => void; intro?: ReactNode; active?: boolean }) {
+export function Conversation({
+  state,
+  now,
+  onOpenTask,
+  head,
+  intro,
+  active = true,
+}: {
+  state: RoomState;
+  now: number;
+  onOpenTask: (taskId: string) => void;
+  head?: ReactNode;
+  intro?: ReactNode;
+  active?: boolean;
+}) {
   const [chat, setChat] = useState<ChatLine[]>([]);
   const [question, setQuestion] = useState("");
   const [about, setAbout] = useState<string>("");
@@ -239,54 +258,72 @@ export function Conversation({ state, now, onOpenTask, intro, active = true }: {
   return (
     <section className="chat" aria-label="The story of this project">
       <div className="chat-scroll" ref={scroller}>
-        {intro}
-        {lines.length === 0 && !intro && (
-          <div className="chat-empty">
-            <p className="muted">Nothing has happened yet. When an agent starts, finishes, gets stuck or needs you, it is written here in plain English, and you can ask about any of it.</p>
-          </div>
-        )}
-        {lines.map((l) => {
-          const day = dayLabel(l.at, now);
-          const divider = day !== lastDay ? <div className="chat-day" key={`day-${day}`}>{day}</div> : null;
-          lastDay = day;
-          return (
-            <div key={l.kind === "story" ? l.m.id : l.c.id}>
-              {divider}
-              {l.kind === "story" ? <StoryLine m={l.m} onOpenTask={onOpenTask} /> : <ChatLineView c={l.c} technical={technical} />}
+        <div className="chat-inner">
+          {head}
+          {intro}
+          {lines.length === 0 && !intro && (
+            <div className="chat-empty">
+              <p className="muted">Nothing has happened yet. When an agent starts, finishes, gets stuck or needs you, it is written here in plain English, and you can ask about any of it.</p>
             </div>
-          );
-        })}
+          )}
+          {lines.map((l) => {
+            const day = dayLabel(l.at, now);
+            const divider =
+              day !== lastDay ? (
+                <div className="chat-day" key={`day-${day}`}>
+                  <span>{day}</span>
+                </div>
+              ) : null;
+            lastDay = day;
+            return (
+              <div key={l.kind === "story" ? l.m.id : l.c.id}>
+                {divider}
+                {l.kind === "story" ? <StoryLine m={l.m} onOpenTask={onOpenTask} /> : <ChatLineView c={l.c} technical={technical} />}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void ask();
-        }}
-      >
-        <div className="composer-row">
-          <label className="visually-hidden" htmlFor="ask-about">
-            Which task the question is about
-          </label>
-          <select id="ask-about" className="field composer-about" value={aboutId} onChange={(e) => setAbout(e.target.value)} disabled={askable.length === 0}>
-            {askable.length === 0 ? <option value="">No task to ask about yet</option> : askable.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-          </select>
-          <label className="switch tiny">
-            <input type="checkbox" checked={technical} onChange={(e) => setTechnical(e.target.checked)} />
-            Technical detail
-          </label>
-        </div>
-        <div className="composer-input">
+      <div className="composer-wrap">
+        <form
+          className="composer"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void ask();
+          }}
+        >
           <label className="visually-hidden" htmlFor="ask-question">
             Your question
           </label>
-          <input id="ask-question" className="field" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder={askable.length === 0 ? "Ask once an agent has started" : "Did it change how people log in?"} maxLength={600} disabled={busy || askable.length === 0} />
-          <button className="button primary composer-send" type="submit" aria-label="Ask" disabled={busy || question.trim().length < 2 || !aboutId}>
-            {busy ? <span className="spinner" /> : <ArrowUp />}
-          </button>
-        </div>
-      </form>
+          <input
+            id="ask-question"
+            className="composer-field"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder={askable.length === 0 ? "Ask once an agent has started" : "Ask about this task. Did it change how people log in?"}
+            maxLength={600}
+            disabled={busy || askable.length === 0}
+            autoComplete="off"
+          />
+          <div className="composer-row">
+            <label className="visually-hidden" htmlFor="ask-about">
+              Which task the question is about
+            </label>
+            <select id="ask-about" className="composer-about" value={aboutId} onChange={(e) => setAbout(e.target.value)} disabled={askable.length === 0} title="Which task the question is about">
+              {askable.length === 0 ? <option value="">No task to ask about yet</option> : askable.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+            <label className="switch tiny composer-switch">
+              <input type="checkbox" checked={technical} onChange={(e) => setTechnical(e.target.checked)} />
+              Technical detail
+            </label>
+            <button className="composer-send" type="submit" aria-label="Ask" title="Ask" disabled={busy || question.trim().length < 2 || !aboutId}>
+              {busy ? <span className="spinner" /> : <ArrowUp size={16} />}
+            </button>
+          </div>
+        </form>
+        <p className="composer-note">Answers come only from this task&apos;s own record. Nothing you type here reaches an agent.</p>
+      </div>
     </section>
   );
 }

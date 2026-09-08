@@ -12,10 +12,25 @@ import { TaskPanel } from "./TaskPanel";
  * The default view is owner language only (rule 5): paths, diff counts and the task id live
  * behind "Details", which opens the full task panel underneath.
  *
- *   live      the full card
+ *   live      the full card. `compact` keeps the tool, status, headline and ticker and folds the rest,
+ *             so a wall of agents still fits one screen.
  *   finished  one line: the headline and "See the report"
  */
-export function AgentCard({ session, now, mode, open, onToggle }: { session: SessionView; now: number; mode: "live" | "finished"; open: boolean; onToggle: (taskId: string | null) => void }) {
+export function AgentCard({
+  session,
+  now,
+  mode,
+  open,
+  compact = false,
+  onToggle,
+}: {
+  session: SessionView;
+  now: number;
+  mode: "live" | "finished";
+  open: boolean;
+  compact?: boolean;
+  onToggle: (taskId: string | null) => void;
+}) {
   const task = session.task;
   const last = session.recentEvents[0];
   const status = statusOf(task);
@@ -39,6 +54,8 @@ export function AgentCard({ session, now, mode, open, onToggle }: { session: Ses
   }, [open]);
 
   const toggle = () => onToggle(open ? null : (task?.id ?? session.id));
+  // An open card is always the full card: the owner asked to see it.
+  const folded = compact && !open;
 
   if (mode === "finished") {
     return (
@@ -49,17 +66,19 @@ export function AgentCard({ session, now, mode, open, onToggle }: { session: Ses
           <span className="agent-line-title" title={headline}>
             {headline}
           </span>
-          {needsYou && (
-            <span className="pill" data-need={needsYou}>
-              {NEEDS_YOU_TEXT[needsYou]}
-            </span>
-          )}
           <span className="agent-when">{task?.endedAt ? ago(task.endedAt, now) : ago(session.endedAt ?? session.lastEventAt, now)}</span>
-          <button className="agent-toggle" data-shot="expand" aria-expanded={open} aria-controls={panelId} onClick={toggle}>
-            {open ? "Close" : report ? "See the report" : "Details"}
+          <button className="agent-toggle" data-shot="expand" aria-expanded={open} aria-controls={panelId} title={open ? "Close" : report ? "See the report" : "Details"} onClick={toggle}>
+            {open ? "Close" : report ? "Report" : "Details"}
             <ChevronDown />
           </button>
         </div>
+        {needsYou && (
+          <div className="agent-line-sub">
+            <span className="pill sm" data-need={needsYou}>
+              {NEEDS_YOU_TEXT[needsYou]}
+            </span>
+          </div>
+        )}
         {open && (
           <div id={panelId}>
             <TaskPanel session={session} now={now} />
@@ -70,19 +89,19 @@ export function AgentCard({ session, now, mode, open, onToggle }: { session: Ses
   }
 
   return (
-    <article id={task ? `task-${task.id}` : undefined} className={`agent${open ? " open" : ""}${flash ? " flash" : ""}`} data-status={status.cls}>
+    <article id={task ? `task-${task.id}` : undefined} className={`agent${open ? " open" : ""}${flash ? " flash" : ""}${folded ? " compact" : ""}`} data-status={status.cls}>
       <header className="agent-head">
         <span className="agent-tool">
           <span className="tool-dot" style={{ background: TOOL_COLOURS[session.tool] }} aria-hidden="true" />
           {TOOL_NAMES[session.tool]}
         </span>
-        <span className="pill status" data-status={status.cls} title={status.detail}>
+        <span className="status" data-status={status.cls} title={status.detail}>
           <span className="dot" aria-hidden="true" />
           {status.text}
         </span>
       </header>
 
-      {task?.continuedFrom && (
+      {task?.continuedFrom && !folded && (
         <p className="agent-continuing" title={task.continuedFrom.reason}>
           <Handoff />
           <span>Continuing from {TOOL_NAMES[task.continuedFrom.tool]}</span>
@@ -91,16 +110,18 @@ export function AgentCard({ session, now, mode, open, onToggle }: { session: Ses
 
       <h3 className="agent-title">{headline}</h3>
 
-      <p className="agent-desc">
-        {task?.location ? (
-          <>
-            Working in <strong>{task.location}</strong>.
-          </>
-        ) : (
-          "Not in any part of the app yet."
-        )}
-        {task?.prompt ? <> You asked: “{clip(task.prompt, 140)}”</> : null}
-      </p>
+      {!folded && (
+        <p className="agent-desc">
+          {task?.location ? (
+            <>
+              Working in <strong>{task.location}</strong>.
+            </>
+          ) : (
+            "Not in any part of the app yet."
+          )}
+          {task?.prompt ? <> You asked: “{clip(task.prompt, 140)}”</> : null}
+        </p>
+      )}
 
       {status.cls === "stuck" && (
         <div className="agent-alert" data-tone="critical" role="status">
@@ -124,27 +145,29 @@ export function AgentCard({ session, now, mode, open, onToggle }: { session: Ses
         </div>
       )}
 
-      <div className="agent-facts">
-        <span className="agent-label">Parts touched</span>
-        {changed.length === 0 && looked.length === 0 ? (
-          <span className="faint small">Nothing yet.</span>
-        ) : (
-          <div className="chips">
-            {changed.map((a) => (
-              <span className="chip" key={a.id} title={a.description || `${a.changed.length} file${a.changed.length === 1 ? "" : "s"} changed`}>
-                {a.name}
-              </span>
-            ))}
-            {looked.map((a) => (
-              <span className="chip quiet" key={a.id} title="Only looked at, nothing changed">
-                {a.name}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+      {!folded && (
+        <div className="agent-facts">
+          <span className="agent-label">Parts touched</span>
+          {changed.length === 0 && looked.length === 0 ? (
+            <span className="faint small">Nothing yet.</span>
+          ) : (
+            <div className="chips">
+              {changed.map((a) => (
+                <span className="chip" key={a.id} title={a.description || `${a.changed.length} file${a.changed.length === 1 ? "" : "s"} changed`}>
+                  {a.name}
+                </span>
+              ))}
+              {looked.map((a) => (
+                <span className="chip quiet" key={a.id} title="Only looked at, nothing changed">
+                  {a.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      {changed.length > 0 && notTouched.length > 0 && (
+      {!folded && changed.length > 0 && notTouched.length > 0 && (
         <p className="agent-verified" title="Checked against the list of files this task changed">
           <Check />
           <span>
@@ -155,8 +178,8 @@ export function AgentCard({ session, now, mode, open, onToggle }: { session: Ses
       )}
 
       <footer className="agent-foot">
-        {task?.risk && (
-          <span className="pill risk" data-level={task.risk.level} title={task.risk.reasons.join(". ")}>
+        {task?.risk && task.risk.level !== "low" && (
+          <span className="risk" data-level={task.risk.level} title={task.risk.reasons.join(". ")}>
             {RISK_TEXT[task.risk.level]}
           </span>
         )}

@@ -45,9 +45,12 @@ Then explain what was done in plain, non-technical language, leaving nothing out
 
 ## Design rules for the Room
 
-- Readable from two metres. Glanced at, not leaned into. Light palette only (no dark mode).
+- Readable from two metres. Glanced at, not leaned into. Light palette only (no dark mode), the Claude app's
+  warm ivory-and-white with one terracotta accent, set in Geist. Rules and tokens: `docs/design-system.md`.
 - Three columns (Phase 5): agents on the left, the running story in the middle, progress on the right.
-  Below 960px the columns become three tabs: Agents, Story, Progress.
+  Below 960px the columns become three tabs: Agents, Story, Progress. On a wide screen the agents column folds
+  to a rail, the progress column folds away, cards have a compact density and each progress section folds;
+  every fold is remembered in the browser only.
 - Card order is fixed: tool + status pill, headline, where and why, anything that needs the owner,
   parts touched, not touched, then the ticker and the Details toggle. Live agents are full cards;
   finished ones collapse to a line; days before today sit behind "Show earlier".

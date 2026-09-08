@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AgentTool, Stage } from "@glasshouse/schema";
 import { PROGRESS_STEPS, hourTotal, stepIndex } from "@/lib/progress";
 import type { ActivityView, AreaProgress, RoomState } from "@/lib/store/types";
-import { Info } from "./icons";
+import { ChevronDown, Info } from "./icons";
 import { STAGE_TEXT, TOOL_COLOURS, TOOL_NAMES, ago } from "./labels";
 
 /**
@@ -15,13 +15,15 @@ import { STAGE_TEXT, TOOL_COLOURS, TOOL_NAMES, ago } from "./labels";
  *   Parts      how far each part of the app got, as the furthest stage a task reached there.
  *
  * Nothing here is a percentage (rule 1) and nothing is generated: every cell is a count and
- * every bar is a stage read off a task row.
+ * every bar is a stage read off a task row. Each section folds on its own and stays folded in
+ * this browser.
  */
 
 const SLOTS = 12; // two hours each
 const DAYS = 7;
 const TOOLS: AgentTool[] = ["claude-code", "codex", "cursor", "watcher"];
 const STEP_WORDS: Partial<Record<Stage, string>> = { investigating: "Looking", planning: "Planning", building: "Building", testing: "Testing", done: "Finished" };
+const FOLDS_KEY = "glasshouse.room.progress-folds";
 
 function Heatmap({ activity, now }: { activity: ActivityView; now: number }) {
   const grid = useMemo(() => {
@@ -135,40 +137,76 @@ function AreaRow({ p, now }: { p: AreaProgress; now: number }) {
   );
 }
 
+type SectionId = "activity" | "tools" | "parts";
+
+/** A white card with a heading that folds it. The fold is remembered in this browser. */
+function Section({ id, title, aside, open, onToggle, children }: { id: SectionId; title: string; aside?: ReactNode; open: boolean; onToggle: (id: SectionId) => void; children: ReactNode }) {
+  const bodyId = `progress-${id}`;
+  return (
+    <section className="panel-card" data-open={open ? "yes" : "no"} aria-labelledby={`${bodyId}-h`}>
+      <div className="panel-card-head">
+        <button className="panel-card-fold" aria-expanded={open} aria-controls={bodyId} onClick={() => onToggle(id)}>
+          <ChevronDown size={14} />
+          <h2 id={`${bodyId}-h`} className="panel-card-title">
+            {title}
+          </h2>
+        </button>
+        {aside}
+      </div>
+      {open && (
+        <div id={bodyId} className="panel-card-body">
+          {children}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function Progress({ state, now }: { state: RoomState; now: number }) {
+  const [folded, setFolded] = useState<Record<SectionId, boolean>>({ activity: false, tools: false, parts: false });
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(FOLDS_KEY) ?? "null") as Partial<Record<SectionId, boolean>> | null;
+      if (saved) setFolded((f) => ({ ...f, ...saved }));
+    } catch {
+      /* ignore a bad value */
+    }
+  }, []);
+  const toggle = (id: SectionId) =>
+    setFolded((f) => {
+      const next = { ...f, [id]: !f[id] };
+      try {
+        localStorage.setItem(FOLDS_KEY, JSON.stringify(next));
+      } catch {
+        /* no storage */
+      }
+      return next;
+    });
+
   return (
     <div className="progress">
-      <section className="panel-card" aria-labelledby="activity-h">
-        <div className="panel-card-head">
-          <h2 id="activity-h" className="section-label">
-            Activity
-          </h2>
-          <span className="faint tiny">Last 7 days</span>
-        </div>
+      <Section id="activity" title="Activity" open={!folded.activity} onToggle={toggle} aside={<span className="panel-card-aside tabular">{state.activity.total} action{state.activity.total === 1 ? "" : "s"}</span>}>
         <p className="panel-card-lead">
           <strong className="tabular">{state.activity.total}</strong> action{state.activity.total === 1 ? "" : "s"} recorded across the agents this week.
         </p>
         <Heatmap activity={state.activity} now={now} />
-      </section>
+      </Section>
 
-      <section className="panel-card" aria-labelledby="tools-h">
-        <div className="panel-card-head">
-          <h2 id="tools-h" className="section-label">
-            Which tools
-          </h2>
-        </div>
+      <Section id="tools" title="Which tools" open={!folded.tools} onToggle={toggle}>
         <ToolMix activity={state.activity} />
-      </section>
+      </Section>
 
-      <section className="panel-card" aria-labelledby="parts-h">
-        <div className="panel-card-head">
-          <h2 id="parts-h" className="section-label">
-            Parts of your app
-          </h2>
-          <a className="faint tiny link-underline" href={`/room/${state.project.id}/areas`}>
+      <Section
+        id="parts"
+        title="Parts of your app"
+        open={!folded.parts}
+        onToggle={toggle}
+        aside={
+          <a className="panel-card-aside link-underline" href={`/room/${state.project.id}/areas`}>
             Rename
           </a>
-        </div>
+        }
+      >
         {state.progress.length === 0 ? (
           <div className="notice">
             <Info />
@@ -185,7 +223,7 @@ export function Progress({ state, now }: { state: RoomState; now: number }) {
             ))}
           </ul>
         )}
-      </section>
+      </Section>
     </div>
   );
 }

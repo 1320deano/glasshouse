@@ -5,23 +5,25 @@ import { UPGRADE_REASONS, type GatedRoom } from "@/lib/plan";
 import type { RoomState, SessionView } from "@/lib/store/types";
 import { AgentCard } from "./AgentCard";
 import { Conversation } from "./Conversation";
-import { Info, Screen } from "./icons";
-import { TOOL_NAMES, ago } from "./labels";
+import { Info, Mark, PanelLeft, PanelRight, Rows, Screen } from "./icons";
+import { TOOL_COLOURS, TOOL_NAMES, ago, statusOf } from "./labels";
 import { Progress } from "./Progress";
 import { ReportProblem } from "./ReportProblem";
 import { Walkthrough } from "./Walkthrough";
 
 /**
- * The Room (Phase 5): three columns.
- *   left    one card per agent: live ones in full, finished ones as a line, older ones behind a link
+ * The Room (Phase 5): three columns, laid out the way the Claude app lays out a coding session.
+ *   left    one card per agent: live ones in full, finished ones as a line, older ones behind a link.
+ *           Folds to a narrow rail so the story can have the screen.
  *   middle  the running story of the project, and a box to ask about any task in it
- *   right   the week as counts and stages: activity, tools, parts of the app
+ *   right   the week as counts and stages: activity, tools, parts of the app. Folds away entirely.
  * On a phone the columns become three tabs. "Waiting for you" is the one thing allowed to light up.
  */
 
 const ACTIVE_WINDOW_MS = 30 * 60 * 1000;
 const STALE_MS = 10 * 60 * 1000;
 const POLL_MS = 10000;
+const LAYOUT_KEY = "glasshouse.room.layout";
 
 function isActive(s: SessionView, now: number): boolean {
   if (s.endedAt) return false;
@@ -39,6 +41,14 @@ function isToday(iso: string | undefined, now: number): boolean {
 const LIVE_TEXT = { live: "Live", polling: "Refreshing every 10s", connecting: "Connecting" } as const;
 
 type Tab = "agents" | "chat" | "progress";
+
+/** How much of the Room is on screen. Remembered per browser; never anything about the project. */
+interface Layout {
+  agents: "open" | "rail";
+  progress: "open" | "closed";
+  density: "comfortable" | "compact";
+}
+const DEFAULT_LAYOUT: Layout = { agents: "open", progress: "open", density: "comfortable" };
 
 export interface RoomProject {
   id: string;
@@ -73,8 +83,30 @@ export function Room({
   const [showEarlier, setShowEarlier] = useState(false);
   // Wide screens show all three columns; the story is always visible there.
   const [wide, setWide] = useState(true);
+  const [layout, setLayoutState] = useState<Layout>(DEFAULT_LAYOUT);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectId = initial.room.project.id;
+
+  const setLayout = useCallback((patch: Partial<Layout>) => {
+    setLayoutState((l) => {
+      const next = { ...l, ...patch };
+      try {
+        localStorage.setItem(LAYOUT_KEY, JSON.stringify(next));
+      } catch {
+        /* no storage: the layout lasts for this page only */
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? "null") as Partial<Layout> | null;
+      if (saved) setLayoutState({ ...DEFAULT_LAYOUT, ...saved });
+    } catch {
+      /* ignore a bad value */
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -123,16 +155,20 @@ export function Room({
     };
   }, [projectId, refresh, scheduleRefresh]);
 
-  // The conversation can point at a card: open it, switch to the agents tab on a phone, scroll to it.
+  // The conversation can point at a card: open it, unfold the agents, switch to the agents tab on a phone, scroll to it.
   const gatedRef = useRef(gated);
   gatedRef.current = gated;
-  const openTaskCard = useCallback((taskId: string) => {
-    setOpenTask(taskId);
-    setTab("agents");
-    const session = gatedRef.current.room.sessions.find((s) => s.task?.id === taskId);
-    if (session && !isActive(session, Date.now()) && !isToday(session.task?.endedAt ?? session.lastEventAt, Date.now())) setShowEarlier(true);
-    setTimeout(() => document.getElementById(`task-${taskId}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
-  }, []);
+  const openTaskCard = useCallback(
+    (taskId: string) => {
+      setOpenTask(taskId);
+      setTab("agents");
+      setLayout({ agents: "open" });
+      const session = gatedRef.current.room.sessions.find((s) => s.task?.id === taskId);
+      if (session && !isActive(session, Date.now()) && !isToday(session.task?.endedAt ?? session.lastEventAt, Date.now())) setShowEarlier(true);
+      setTimeout(() => document.getElementById(`task-${taskId}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    },
+    [setLayout],
+  );
 
   const live_ = state.sessions.filter((s) => isActive(s, now));
   const finishedToday = state.sessions.filter((s) => !isActive(s, now) && isToday(s.task?.endedAt ?? s.lastEventAt ?? s.startedAt, now));
@@ -143,7 +179,9 @@ export function Room({
   const stale = live_.length > 0 && lastEventAt !== undefined && now - new Date(lastEventAt).getTime() > STALE_MS;
   const sinceLabel = state.sinceChecked.done > 0 ? String(state.sinceChecked.done) : gated.plan === "free" ? "Pro" : null;
   const needsCount = state.inboxOpen + waiting.length;
-  const toolsPresent = [...new Set(live_.map((s) => s.tool))];
+  const agentsFolded = layout.agents === "rail";
+  const progressFolded = layout.progress === "closed";
+  const compact = layout.density === "compact";
 
   const switcher =
     projects.length > 1 ? (
@@ -175,11 +213,21 @@ export function Room({
       <a className="skip-link" href="#agents">
         Skip to what the agents are doing
       </a>
-      <main className="room" data-tab={tab}>
+      <main className="room" data-tab={tab} data-agents={layout.agents} data-progress={layout.progress} data-density={layout.density}>
         <header className="room-head">
           <div className="room-head-left">
+            <button
+              className="icon-button head-fold"
+              aria-label={agentsFolded ? "Show the agents" : "Fold the agents away"}
+              aria-pressed={!agentsFolded}
+              title={agentsFolded ? "Show the agents" : "Fold the agents away"}
+              onClick={() => setLayout({ agents: agentsFolded ? "open" : "rail" })}
+            >
+              <PanelLeft size={16} />
+            </button>
             <a className="brand" href="/">
-              {productName}
+              <Mark />
+              <span>{productName}</span>
             </a>
             <span className="crumb-sep" aria-hidden="true">
               /
@@ -187,7 +235,7 @@ export function Room({
             {switcher}
           </div>
           <div className="room-head-mid" aria-live="polite">
-            <span className="pill">
+            <span className="status-line">
               <span className="dot" data-on={live_.length > 0 ? "yes" : "no"} aria-hidden="true" />
               {live_.length === 0 ? "No agents working" : `${live_.length} agent${live_.length === 1 ? "" : "s"} working`}
             </span>
@@ -232,6 +280,15 @@ export function Room({
               <span className={live === "live" ? "dot live" : "dot"} aria-hidden="true" />
               {LIVE_TEXT[live]}
             </span>
+            <button
+              className="icon-button head-fold"
+              aria-label={progressFolded ? "Show progress" : "Fold progress away"}
+              aria-pressed={!progressFolded}
+              title={progressFolded ? "Show progress" : "Fold progress away"}
+              onClick={() => setLayout({ progress: progressFolded ? "open" : "closed" })}
+            >
+              <PanelRight size={16} />
+            </button>
           </nav>
         </header>
 
@@ -254,97 +311,143 @@ export function Room({
         </nav>
 
         <div className="room-grid">
-          <section className="room-col agents" id="agents" aria-label="Agents" data-active={tab === "agents"}>
-            <div className="col-head">
-              <h2 className="section-label">Agents</h2>
-              <span className="faint tiny">
-                {live_.length === 0 ? "None working" : toolsPresent.map((t) => TOOL_NAMES[t]).join(" · ")}
-              </span>
+          <aside className="room-col agents" id="agents" aria-label="Agents" data-active={tab === "agents"}>
+            {/* The folded column: one square per live agent, so a glance still says who is working and who needs you. */}
+            <div className="rail" aria-hidden={!agentsFolded}>
+              <button className="icon-button rail-open" aria-label="Show the agents" title="Show the agents" onClick={() => setLayout({ agents: "open" })}>
+                <PanelLeft size={16} />
+              </button>
+              {live_.map((s) => {
+                const st = statusOf(s.task);
+                return (
+                  <button
+                    key={s.id}
+                    className="rail-agent"
+                    data-status={st.cls}
+                    title={`${TOOL_NAMES[s.tool]}: ${st.text}`}
+                    aria-label={`${TOOL_NAMES[s.tool]}: ${st.text}. Show the agents`}
+                    onClick={() => openTaskCard(s.task?.id ?? s.id)}
+                  >
+                    <span className="tool-dot" style={{ background: TOOL_COLOURS[s.tool] }} aria-hidden="true" />
+                  </button>
+                );
+              })}
+              {live_.length === 0 && <span className="rail-none" title="No agents working" />}
             </div>
 
-            {gated.locked.reasons.length > 0 && (
-              <div className="notice dashed">
-                <Info />
-                <div className="notice-body">
-                  {gated.locked.agents > 0 && (
-                    <span>
-                      {gated.locked.agents} more agent{gated.locked.agents === 1 ? " is" : "s are"} running. {UPGRADE_REASONS.more_agents}
-                    </span>
-                  )}
-                  {gated.locked.history > 0 && (
-                    <span>
-                      {gated.locked.history} older session{gated.locked.history === 1 ? "" : "s"} hidden. {UPGRADE_REASONS.history}
-                    </span>
-                  )}
-                  <a className="link-accent link-underline" href="/account">
-                    See plans
-                  </a>
+            <div className="col-body">
+              <div className="col-head">
+                <h2 className="col-title">
+                  Agents
+                  {live_.length > 0 && <span className="count">{live_.length}</span>}
+                </h2>
+                <div className="col-tools">
+                  <button className="icon-button" aria-label={compact ? "Show full cards" : "Show compact cards"} aria-pressed={compact} title={compact ? "Show full cards" : "Show compact cards"} onClick={() => setLayout({ density: compact ? "comfortable" : "compact" })}>
+                    <Rows size={16} />
+                  </button>
                 </div>
               </div>
-            )}
 
-            {live_.length === 0 && finishedToday.length === 0 && (
-              <div className="empty">
-                <Screen size={22} className="empty-icon" />
-                <h2>No agents running.</h2>
-                <p>Start Claude Code, Codex or Cursor in this project and its card appears here within a second or two.</p>
-              </div>
-            )}
-
-            <div className="agents-list">
-              {live_.map((s) => (
-                <AgentCard key={s.id} session={s} now={now} mode="live" open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} />
-              ))}
-            </div>
-
-            {finishedToday.length > 0 && (
-              <>
-                <h3 className="section-label col-sub">Finished today</h3>
-                <div className="agents-list finished">
-                  {finishedToday.map((s) => (
-                    <AgentCard key={s.id} session={s} now={now} mode="finished" open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} />
-                  ))}
+              {gated.locked.reasons.length > 0 && (
+                <div className="notice dashed">
+                  <Info />
+                  <div className="notice-body">
+                    {gated.locked.agents > 0 && (
+                      <span>
+                        {gated.locked.agents} more agent{gated.locked.agents === 1 ? " is" : "s are"} running. {UPGRADE_REASONS.more_agents}
+                      </span>
+                    )}
+                    {gated.locked.history > 0 && (
+                      <span>
+                        {gated.locked.history} older session{gated.locked.history === 1 ? "" : "s"} hidden. {UPGRADE_REASONS.history}
+                      </span>
+                    )}
+                    <a className="link-accent link-underline" href="/account">
+                      See plans
+                    </a>
+                  </div>
                 </div>
-              </>
-            )}
+              )}
 
-            {earlier.length > 0 && (
-              <>
-                <button className="link-button small col-sub" aria-expanded={showEarlier} onClick={() => setShowEarlier((v) => !v)}>
-                  {showEarlier ? "Hide earlier" : `Show earlier (${earlier.length})`}
-                </button>
-                {showEarlier && (
+              {live_.length === 0 && finishedToday.length === 0 && (
+                <div className="empty">
+                  <Screen size={22} className="empty-icon" />
+                  <h2>No agents running.</h2>
+                  <p>Start Claude Code, Codex or Cursor in this project and its card appears here within a second or two.</p>
+                </div>
+              )}
+
+              <div className="agents-list">
+                {live_.map((s) => (
+                  <AgentCard key={s.id} session={s} now={now} mode="live" compact={compact} open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} />
+                ))}
+              </div>
+
+              {finishedToday.length > 0 && (
+                <>
+                  <h3 className="col-sub">Finished today</h3>
                   <div className="agents-list finished">
-                    {earlier.map((s) => (
+                    {finishedToday.map((s) => (
                       <AgentCard key={s.id} session={s} now={now} mode="finished" open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} />
                     ))}
                   </div>
-                )}
-              </>
-            )}
-          </section>
+                </>
+              )}
+
+              {earlier.length > 0 && (
+                <>
+                  <button className="link-button small col-sub" aria-expanded={showEarlier} onClick={() => setShowEarlier((v) => !v)}>
+                    {showEarlier ? "Hide earlier" : `Show earlier (${earlier.length})`}
+                  </button>
+                  {showEarlier && (
+                    <div className="agents-list finished">
+                      {earlier.map((s) => (
+                        <AgentCard key={s.id} session={s} now={now} mode="finished" open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </aside>
 
           <section className="room-col story" aria-label="The story" data-active={tab === "chat"}>
-            <div className="story-head">
-              <h1 className="story-title">{state.project.name}</h1>
-              <p className="story-sub">
-                {live_.length === 0 ? "Nothing running right now." : `${live_.length} agent${live_.length === 1 ? "" : "s"} working${waiting.length > 0 ? `, ${waiting.length} waiting for you` : ""}.`}
-                {state.areaMapSource ? ` Parts of your app named ${state.areaMapSource === "ai" ? "by AI" : "from folder names"}.` : ""}
-              </p>
-            </div>
-            <Conversation state={state} now={now} onOpenTask={openTaskCard} active={tab === "chat" || wide} intro={<Walkthrough state={state} welcome={welcome} />} />
+            <Conversation
+              state={state}
+              now={now}
+              onOpenTask={openTaskCard}
+              active={tab === "chat" || wide}
+              head={
+                <div className="story-head">
+                  <h1 className="story-title">{state.project.name}</h1>
+                  <p className="story-sub">
+                    {live_.length === 0 ? "Nothing running right now." : `${live_.length} agent${live_.length === 1 ? "" : "s"} working${waiting.length > 0 ? `, ${waiting.length} waiting for you` : ""}.`}
+                    {state.areaMapSource ? ` Parts of your app named ${state.areaMapSource === "ai" ? "by AI" : "from folder names"}.` : ""}
+                  </p>
+                </div>
+              }
+              intro={<Walkthrough state={state} welcome={welcome} />}
+            />
           </section>
 
-          <section className="room-col progress-col" aria-label="Progress" data-active={tab === "progress"}>
-            <Progress state={state} now={now} />
-            <div className="col-foot">
-              <span>Updated {new Date(state.generatedAt).toLocaleTimeString()}</span>
-              <span>
-                {state.sessions.length} session{state.sessions.length === 1 ? "" : "s"} shown
-              </span>
-              <ReportProblem projectId={projectId} />
+          <aside className="room-col progress-col" aria-label="Progress" data-active={tab === "progress"}>
+            <div className="col-body">
+              <div className="col-head">
+                <h2 className="col-title">Progress</h2>
+                <div className="col-tools">
+                  <span className="faint tiny">Last 7 days</span>
+                </div>
+              </div>
+              <Progress state={state} now={now} />
+              <div className="col-foot">
+                <span>Updated {new Date(state.generatedAt).toLocaleTimeString()}</span>
+                <span>
+                  {state.sessions.length} session{state.sessions.length === 1 ? "" : "s"} shown
+                </span>
+                <ReportProblem projectId={projectId} />
+              </div>
             </div>
-          </section>
+          </aside>
         </div>
       </main>
     </>

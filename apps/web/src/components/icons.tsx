@@ -125,3 +125,40 @@ export const Copy = (p: IconProps) => (
     <path d="M10.4 5.6V4a1.4 1.4 0 0 0-1.4-1.4H4a1.4 1.4 0 0 0-1.4 1.4v5a1.4 1.4 0 0 0 1.4 1.4h1.6" />
   </Icon>
 );
+
+/** The sidebar toggle: a window with its left pane. Pressed means "the pane is open". */
+export const PanelLeft = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="12" height="10" rx="2" />
+    <path d="M6 3v10" />
+  </Icon>
+);
+
+export const PanelRight = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="12" height="10" rx="2" />
+    <path d="M10 3v10" />
+  </Icon>
+);
+
+/** Two densities: comfortable rows, or tight rows. */
+export const Rows = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2" y="2.5" width="12" height="4.5" rx="1.5" />
+    <rect x="2" y="9" width="12" height="4.5" rx="1.5" />
+  </Icon>
+);
+
+export const Sparkle = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 2.5c.4 2.8 2.2 4.6 5 5-2.8.4-4.6 2.2-5 5-.4-2.8-2.2-4.6-5-5 2.8-.4 4.6-2.2 5-5Z" />
+  </Icon>
+);
+
+/** The product mark: a pane of glass with the one thing worth looking at inside it. */
+export const Mark = ({ size = 18, ...rest }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false" {...rest}>
+    <rect x="1.5" y="1.5" width="17" height="17" rx="5" stroke="currentColor" strokeWidth="1.5" />
+    <circle cx="10" cy="10" r="3" fill="var(--accent)" />
+  </svg>
+);
