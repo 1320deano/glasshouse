@@ -193,6 +193,7 @@ export function Conversation({
   onOpenTask,
   head,
   intro,
+  status,
   active = true,
 }: {
   state: RoomState;
@@ -200,6 +201,8 @@ export function Conversation({
   onOpenTask: (taskId: string) => void;
   head?: ReactNode;
   intro?: ReactNode;
+  /** What the agents are doing right now, shown on a card that rises out of the reply box. */
+  status?: ReactNode;
   active?: boolean;
 }) {
   const [chat, setChat] = useState<ChatLine[]>([]);
@@ -286,6 +289,11 @@ export function Conversation({
       </div>
 
       <div className="composer-wrap">
+        {status && (
+          <div className="composer-status" aria-live="polite">
+            {status}
+          </div>
+        )}
         <form
           className="composer"
           onSubmit={(e) => {
@@ -322,7 +330,6 @@ export function Conversation({
             </button>
           </div>
         </form>
-        <p className="composer-note">Answers come only from this task&apos;s own record. Nothing you type here reaches an agent.</p>
       </div>
     </section>
   );

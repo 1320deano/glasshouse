@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { UPGRADE_REASONS, type GatedRoom } from "@/lib/plan";
 import type { RoomState, SessionView } from "@/lib/store/types";
 import { AgentCard } from "./AgentCard";
 import { Conversation } from "./Conversation";
 import { Info, Mark, PanelLeft, PanelRight, Rows, Screen } from "./icons";
-import { TOOL_COLOURS, TOOL_NAMES, ago, statusOf } from "./labels";
 import { Progress } from "./Progress";
 import { ReportProblem } from "./ReportProblem";
 import { Walkthrough } from "./Walkthrough";
@@ -21,7 +20,6 @@ import { Walkthrough } from "./Walkthrough";
  */
 
 const ACTIVE_WINDOW_MS = 30 * 60 * 1000;
-const STALE_MS = 10 * 60 * 1000;
 const POLL_MS = 10000;
 const LAYOUT_KEY = "glasshouse.room.layout";
 
@@ -47,8 +45,23 @@ interface Layout {
   agents: "open" | "rail";
   progress: "open" | "closed";
   density: "comfortable" | "compact";
+  /** Dragged widths, in pixels. Unset means the design's own width. */
+  agentsWidth?: number;
+  progressWidth?: number;
 }
 const DEFAULT_LAYOUT: Layout = { agents: "open", progress: "open", density: "comfortable" };
+
+type Side = "agents" | "progress";
+
+/** A dragged column may not squeeze itself out of use, nor squeeze the story below reading width. */
+const COL_MIN = 240;
+const COL_MAX = 560;
+const STORY_MIN = 380;
+
+function clampWidth(side: Side, want: number, otherWidth: number): number {
+  const room = (typeof window === "undefined" ? 1440 : window.innerWidth) - otherWidth - STORY_MIN;
+  return Math.round(Math.max(COL_MIN, Math.min(want, COL_MAX, Math.max(COL_MIN, room))));
+}
 
 export interface RoomProject {
   id: string;
@@ -84,6 +97,12 @@ export function Room({
   // Wide screens show all three columns; the story is always visible there.
   const [wide, setWide] = useState(true);
   const [layout, setLayoutState] = useState<Layout>(DEFAULT_LAYOUT);
+  // The width being dragged right now. Committed to the remembered layout when the drag ends, so a
+  // drag writes to storage once rather than on every frame.
+  const [drag, setDrag] = useState<{ side: Side; width: number } | null>(null);
+  const dragWidth = useRef(0);
+  const agentsCol = useRef<HTMLElement | null>(null);
+  const progressCol = useRef<HTMLElement | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectId = initial.room.project.id;
 
@@ -175,13 +194,92 @@ export function Room({
   const earlier = state.sessions.filter((s) => !isActive(s, now) && !isToday(s.task?.endedAt ?? s.lastEventAt ?? s.startedAt, now));
   const waiting = live_.filter((s) => s.task?.stage === "waiting");
   const stuck = live_.filter((s) => s.task?.stage === "stuck");
-  const lastEventAt = state.sessions.map((s) => s.lastEventAt ?? s.startedAt).sort().at(-1);
-  const stale = live_.length > 0 && lastEventAt !== undefined && now - new Date(lastEventAt).getTime() > STALE_MS;
-  const sinceLabel = state.sinceChecked.done > 0 ? String(state.sinceChecked.done) : gated.plan === "free" ? "Pro" : null;
   const needsCount = state.inboxOpen + waiting.length;
   const agentsFolded = layout.agents === "rail";
   const progressFolded = layout.progress === "closed";
   const compact = layout.density === "compact";
+
+  const agentsWidth = drag?.side === "agents" ? drag.width : layout.agentsWidth;
+  const progressWidth = drag?.side === "progress" ? drag.width : layout.progressWidth;
+  const gridStyle: CSSProperties = {};
+  if (agentsWidth) (gridStyle as Record<string, string>)["--room-agents"] = `${agentsWidth}px`;
+  if (progressWidth) (gridStyle as Record<string, string>)["--room-progress"] = `${progressWidth}px`;
+
+  /** The width a column has on screen right now, dragged or not. */
+  const widthOf = useCallback((side: Side) => {
+    const el = side === "agents" ? agentsCol.current : progressCol.current;
+    return Math.round(el?.getBoundingClientRect().width ?? (side === "agents" ? 360 : 312));
+  }, []);
+
+  const commit = useCallback(
+    (side: Side, width: number) => setLayout(side === "agents" ? { agentsWidth: width } : { progressWidth: width }),
+    [setLayout],
+  );
+
+  const startResize = useCallback(
+    (side: Side) => (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const handle = e.currentTarget;
+      const startX = e.clientX;
+      const startWidth = widthOf(side);
+      const other = widthOf(side === "agents" ? "progress" : "agents");
+      dragWidth.current = startWidth;
+      handle.setPointerCapture(e.pointerId);
+      const move = (ev: PointerEvent) => {
+        const dx = ev.clientX - startX;
+        const width = clampWidth(side, side === "agents" ? startWidth + dx : startWidth - dx, other);
+        dragWidth.current = width;
+        setDrag({ side, width });
+      };
+      const end = () => {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+        setDrag(null);
+        commit(side, dragWidth.current);
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    },
+    [commit, widthOf],
+  );
+
+  /** The same drag from the keyboard: arrows nudge, Home puts the column back to its own width. */
+  const resizeKeys = useCallback(
+    (side: Side) => (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const step = e.shiftKey ? 48 : 16;
+      const grow = side === "agents" ? "ArrowRight" : "ArrowLeft";
+      const shrink = side === "agents" ? "ArrowLeft" : "ArrowRight";
+      if (e.key !== grow && e.key !== shrink && e.key !== "Home") return;
+      e.preventDefault();
+      if (e.key === "Home") {
+        setLayout(side === "agents" ? { agentsWidth: undefined } : { progressWidth: undefined });
+        return;
+      }
+      const other = widthOf(side === "agents" ? "progress" : "agents");
+      commit(side, clampWidth(side, widthOf(side) + (e.key === grow ? step : -step), other));
+    },
+    [commit, setLayout, widthOf],
+  );
+
+  const resizeHandle = (side: Side) => (
+    <div
+      className="col-resize"
+      role="separator"
+      tabIndex={0}
+      aria-orientation="vertical"
+      aria-label={side === "agents" ? "Width of the agents column" : "Width of the progress column"}
+      aria-valuenow={widthOf(side)}
+      aria-valuemin={COL_MIN}
+      aria-valuemax={COL_MAX}
+      title="Drag to resize. Double-click to put it back."
+      onPointerDown={startResize(side)}
+      onKeyDown={resizeKeys(side)}
+      onDoubleClick={() => setLayout(side === "agents" ? { agentsWidth: undefined } : { progressWidth: undefined })}
+    />
+  );
 
   const switcher =
     projects.length > 1 ? (
@@ -216,15 +314,6 @@ export function Room({
       <main className="room" data-tab={tab} data-agents={layout.agents} data-progress={layout.progress} data-density={layout.density}>
         <header className="room-head">
           <div className="room-head-left">
-            <button
-              className="icon-button head-fold"
-              aria-label={agentsFolded ? "Show the agents" : "Fold the agents away"}
-              aria-pressed={!agentsFolded}
-              title={agentsFolded ? "Show the agents" : "Fold the agents away"}
-              onClick={() => setLayout({ agents: agentsFolded ? "open" : "rail" })}
-            >
-              <PanelLeft size={16} />
-            </button>
             <a className="brand" href="/">
               <Mark />
               <span>{productName}</span>
@@ -234,38 +323,7 @@ export function Room({
             </span>
             {switcher}
           </div>
-          <div className="room-head-mid" aria-live="polite">
-            <span className="status-line">
-              <span className="dot" data-on={live_.length > 0 ? "yes" : "no"} aria-hidden="true" />
-              {live_.length === 0 ? "No agents working" : `${live_.length} agent${live_.length === 1 ? "" : "s"} working`}
-            </span>
-            {waiting.length > 0 && (
-              <span className="pill" data-tone="attention">
-                {waiting.length} waiting for you
-              </span>
-            )}
-            {stuck.length > 0 && (
-              <span className="pill" data-tone="critical">
-                {stuck.length} look{stuck.length === 1 ? "s" : ""} stuck
-              </span>
-            )}
-            <span className={`room-last${stale ? " stale" : ""}`} title={stale ? "Agents were working but nothing has arrived for a while. The connector may be off." : "When the most recent action reached the Room"}>
-              {lastEventAt ? `Last action ${ago(lastEventAt, now)}` : "No actions yet"}
-            </span>
-          </div>
           <nav className="room-nav" aria-label="This project">
-            <a className="nav-link" href={`/room/${projectId}/digest`} title={state.lastCheckedAt ? `Last checked ${new Date(state.lastCheckedAt).toLocaleString()}` : "Not checked yet"}>
-              Since you last checked
-              {sinceLabel && <span className="nav-count">{sinceLabel}</span>}
-            </a>
-            <a className={state.inboxOpen > 0 ? "nav-link lit" : "nav-link"} href={`/room/${projectId}/inbox`}>
-              Needs you
-              {state.inboxOpen > 0 ? <span className="nav-count">{state.inboxOpen}</span> : gated.plan === "free" ? <span className="nav-count">Pro</span> : null}
-            </a>
-            <a className="nav-link" href={`/room/${projectId}/areas`}>
-              Parts of your app
-              {state.areas.length > 0 && <span className="nav-count">{state.areas.length}</span>}
-            </a>
             {!viewer.local && (
               <a className="nav-link" href="/account">
                 {gated.plan === "pro" ? "Pro" : "Free"}
@@ -280,15 +338,6 @@ export function Room({
               <span className={live === "live" ? "dot live" : "dot"} aria-hidden="true" />
               {LIVE_TEXT[live]}
             </span>
-            <button
-              className="icon-button head-fold"
-              aria-label={progressFolded ? "Show progress" : "Fold progress away"}
-              aria-pressed={!progressFolded}
-              title={progressFolded ? "Show progress" : "Fold progress away"}
-              onClick={() => setLayout({ progress: progressFolded ? "open" : "closed" })}
-            >
-              <PanelRight size={16} />
-            </button>
           </nav>
         </header>
 
@@ -310,33 +359,21 @@ export function Room({
           </button>
         </nav>
 
-        <div className="room-grid">
-          <aside className="room-col agents" id="agents" aria-label="Agents" data-active={tab === "agents"}>
-            {/* The folded column: one square per live agent, so a glance still says who is working and who needs you. */}
+        <div className="room-grid" style={gridStyle} data-dragging={drag ? drag.side : undefined}>
+          <aside className="room-col agents" id="agents" aria-label="Agents" data-active={tab === "agents"} ref={agentsCol}>
+            {resizeHandle("agents")}
+            {/* Folded, the column narrows to nothing and only its toggle stays, where it already was. */}
             <div className="rail" aria-hidden={!agentsFolded}>
               <button className="icon-button rail-open" aria-label="Show the agents" title="Show the agents" onClick={() => setLayout({ agents: "open" })}>
                 <PanelLeft size={16} />
               </button>
-              {live_.map((s) => {
-                const st = statusOf(s.task);
-                return (
-                  <button
-                    key={s.id}
-                    className="rail-agent"
-                    data-status={st.cls}
-                    title={`${TOOL_NAMES[s.tool]}: ${st.text}`}
-                    aria-label={`${TOOL_NAMES[s.tool]}: ${st.text}. Show the agents`}
-                    onClick={() => openTaskCard(s.task?.id ?? s.id)}
-                  >
-                    <span className="tool-dot" style={{ background: TOOL_COLOURS[s.tool] }} aria-hidden="true" />
-                  </button>
-                );
-              })}
-              {live_.length === 0 && <span className="rail-none" title="No agents working" />}
             </div>
 
             <div className="col-body">
               <div className="col-head">
+                <button className="icon-button col-fold" aria-label="Fold the agents away" aria-pressed title="Fold the agents away" onClick={() => setLayout({ agents: "rail" })}>
+                  <PanelLeft size={16} />
+                </button>
                 <h2 className="col-title">
                   Agents
                   {live_.length > 0 && <span className="count">{live_.length}</span>}
@@ -417,6 +454,24 @@ export function Room({
               now={now}
               onOpenTask={openTaskCard}
               active={tab === "chat" || wide}
+              status={
+                <>
+                  <span className="status-line">
+                    <span className="dot" data-on={live_.length > 0 ? "yes" : "no"} aria-hidden="true" />
+                    {live_.length === 0 ? "No agents working" : `${live_.length} agent${live_.length === 1 ? "" : "s"} working`}
+                  </span>
+                  {waiting.length > 0 && (
+                    <span className="pill" data-tone="attention">
+                      {waiting.length} waiting for you
+                    </span>
+                  )}
+                  {stuck.length > 0 && (
+                    <span className="pill" data-tone="critical">
+                      {stuck.length} look{stuck.length === 1 ? "s" : ""} stuck
+                    </span>
+                  )}
+                </>
+              }
               head={
                 <div className="story-head">
                   <h1 className="story-title">{state.project.name}</h1>
@@ -430,12 +485,22 @@ export function Room({
             />
           </section>
 
-          <aside className="room-col progress-col" aria-label="Progress" data-active={tab === "progress"}>
+          <aside className="room-col progress-col" aria-label="Progress" data-active={tab === "progress"} ref={progressCol}>
+            {resizeHandle("progress")}
+            {/* Folded, the column narrows to a rail so the toggle stays exactly where it was. */}
+            <div className="rail" aria-hidden={!progressFolded}>
+              <button className="icon-button rail-open" aria-label="Show progress" title="Show progress" onClick={() => setLayout({ progress: "open" })}>
+                <PanelRight size={16} />
+              </button>
+            </div>
+
             <div className="col-body">
               <div className="col-head">
                 <h2 className="col-title">Progress</h2>
                 <div className="col-tools">
-                  <span className="faint tiny">Last 7 days</span>
+                  <button className="icon-button col-fold" aria-label="Fold progress away" aria-pressed title="Fold progress away" onClick={() => setLayout({ progress: "closed" })}>
+                    <PanelRight size={16} />
+                  </button>
                 </div>
               </div>
               <Progress state={state} now={now} />

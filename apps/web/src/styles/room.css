@@ -33,6 +33,7 @@
   align-items: center;
   gap: var(--space-1);
   min-width: 0;
+  flex: 1 1 0;
   font-size: var(--text-4);
 }
 
@@ -68,15 +69,6 @@
 }
 
 /* The three facts that matter, centred in whatever room the header has left. */
-.room-head-mid {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex-wrap: wrap;
-  min-width: 0;
-  margin: 0 auto;
-}
-
 .status-line {
   display: inline-flex;
   align-items: center;
@@ -94,22 +86,13 @@
   animation: pulse-ring 2s var(--ease-in-out) infinite;
 }
 
-.room-last {
-  color: var(--text-tertiary);
-  font-size: var(--text-2);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  padding-left: var(--space-05);
-}
-.room-last.stale {
-  color: var(--warn);
-}
-
 .room-nav {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 2px;
   flex-wrap: wrap;
+  flex: 1 1 0;
 }
 
 .nav-link {
@@ -340,28 +323,75 @@
 
 /* --- The three columns ----------------------------------------------------------------------- */
 .room-grid {
+  position: relative;
   --col-agents: var(--room-agents);
   --col-progress: var(--room-progress);
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--col-agents) minmax(0, 1fr) var(--col-progress);
+  grid-template-columns: minmax(0, var(--col-agents)) minmax(min(var(--room-story-min), 100%), 1fr) minmax(0, var(--col-progress));
 }
 .room[data-agents="rail"] .room-grid {
-  --col-agents: var(--room-agents-rail);
+  --col-agents: 0px;
 }
 .room[data-progress="closed"] .room-grid {
   --col-progress: 0px;
 }
-.room[data-progress="closed"] .progress-col {
-  display: none;
-}
 
 .room-col {
+  position: relative;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Drag the inner edge of a side column to give it more or less of the screen. Invisible until
+   pointed at, then one accent hairline on the edge itself. */
+.col-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  z-index: var(--z-sticky);
+  cursor: col-resize;
+  touch-action: none;
+}
+.agents .col-resize {
+  right: -4px;
+}
+.progress-col .col-resize {
+  left: -4px;
+}
+.col-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.col-resize:hover::after,
+.col-resize:focus-visible::after {
+  background: var(--accent);
+}
+.col-resize:focus-visible {
+  outline: none;
+}
+.room[data-dragging] {
+  cursor: col-resize;
+  user-select: none;
+}
+.room[data-dragging="agents"] .agents .col-resize::after,
+.room[data-dragging="progress"] .progress-col .col-resize::after {
+  background: var(--accent);
+}
+/* A folded column has no edge to drag. */
+.room[data-agents="rail"] .agents .col-resize,
+.room[data-progress="closed"] .progress-col .col-resize {
+  display: none;
 }
 .room-col.agents {
   border-right: 1px solid var(--line);
@@ -385,7 +415,6 @@
 .col-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-1);
   min-height: 28px;
 }
@@ -393,6 +422,7 @@
 .col-title {
   display: inline-flex;
   align-items: center;
+  margin-right: auto;
   gap: 6px;
   font-size: var(--text-3);
   font-weight: var(--weight-semibold);
@@ -419,8 +449,14 @@
   align-items: center;
   gap: var(--space-05);
 }
-.col-tools .icon-button[aria-pressed="true"] {
+.col-tools .icon-button[aria-pressed="true"]:not(.col-fold) {
   background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+.col-fold {
+  color: var(--text-tertiary);
+}
+.col-fold:hover {
   color: var(--text-primary);
 }
 
@@ -447,45 +483,9 @@
 /* The folded agents column: a rail of squares, one per live agent. Hidden until the column folds. */
 .rail {
   display: none;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-15) 0;
 }
 .rail-open {
   color: var(--text-tertiary);
-  margin-bottom: var(--space-05);
-}
-.rail-agent {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--line);
-  background: var(--bg-surface);
-  display: grid;
-  place-items: center;
-  transition:
-    border-color var(--duration-fast) var(--ease-standard),
-    background var(--duration-fast) var(--ease-standard);
-}
-.rail-agent:hover {
-  border-color: var(--line-strong);
-}
-.rail-agent[data-status="waiting"] {
-  border-color: var(--warn-line);
-  background: var(--warn-quiet);
-}
-.rail-agent[data-status="stuck"],
-.rail-agent[data-status="limit"] {
-  border-color: var(--danger-line);
-  background: var(--danger-quiet);
-}
-.rail-none {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--grey-500);
-  margin-top: var(--space-05);
 }
 
 /* On a wide screen the Room is the screen: each column scrolls on its own, like a control room
@@ -502,11 +502,50 @@
   .room-col.story {
     overflow: hidden;
   }
-  .room[data-agents="rail"] .agents .rail {
-    display: flex;
+  /* Folded: no column, no edge — only the toggle, left on the pixel it already occupied. */
+  .room[data-agents="rail"] .agents {
+    border-right: none;
+    overflow: visible;
   }
   .room[data-agents="rail"] .agents .col-body {
     display: none;
+  }
+  .room[data-agents="rail"] .agents .rail {
+    display: flex;
+    position: absolute;
+    top: var(--space-15);
+    left: 0;
+    /* The story column is painted after this one, so the toggle has to be lifted above it. */
+    z-index: var(--z-sticky);
+    padding: 0 0 0 var(--space-2);
+    pointer-events: none;
+  }
+  .room[data-agents="rail"] .agents .rail-open {
+    pointer-events: auto;
+  }
+  /* Folded: no column, no edge, no scrollbar — only the toggle, left on the pixel it already
+     occupied. It reserves a scrollbar gutter of its own (drawn transparent) because the open
+     column's scrollbar insets its head by the same amount. */
+  .room[data-progress="closed"] .progress-col {
+    border-left: none;
+    overflow: visible;
+  }
+  .room[data-progress="closed"] .progress-col .col-body {
+    display: none;
+  }
+  .room[data-progress="closed"] .progress-col .rail {
+    display: flex;
+    position: absolute;
+    top: var(--space-15);
+    right: 0;
+    padding: 0 var(--space-2) 0 0;
+    overflow-y: scroll;
+    scrollbar-color: transparent transparent;
+    /* Only the button itself is in the way of the story underneath. */
+    pointer-events: none;
+  }
+  .room[data-progress="closed"] .progress-col .rail-open {
+    pointer-events: auto;
   }
 }
 
@@ -525,11 +564,9 @@
     padding-bottom: var(--space-1);
     row-gap: var(--space-05);
   }
-  .room-head-mid {
-    order: 3;
-    width: 100%;
-    margin: 0;
-    padding-left: var(--space-05);
+  .room-head-left,
+  .room-nav {
+    flex: 0 1 auto;
   }
   .room-nav {
     margin-left: auto;
@@ -547,14 +584,14 @@
   .head-fold {
     display: none;
   }
-  .room-head-mid {
-    order: 3;
-    width: 100%;
-    margin: 0;
+  .room-head-left {
+    flex: 0 1 auto;
   }
   .room-nav {
     margin-left: 0;
     width: 100%;
+    flex: 0 0 100%;
+    justify-content: flex-start;
     order: 4;
   }
   .live-state {
@@ -568,8 +605,12 @@
   .room-grid {
     grid-template-columns: 1fr;
   }
-  .room[data-progress="closed"] .progress-col {
-    display: flex;
+  .rail {
+    display: none;
+  }
+  .col-resize,
+  .col-fold {
+    display: none;
   }
   .room-col[data-active="false"] {
     display: none;
@@ -1151,6 +1192,24 @@
   padding: var(--space-1) var(--space-3) var(--space-15);
 }
 
+/* What the agents are doing, on its own card in the reply box's materials: a narrower card that
+   rises from behind the box, its foot hidden by it. Two cards, not one. */
+.composer-status {
+  width: calc(100% - var(--space-8));
+  max-width: calc(var(--room-story-max) - var(--space-8));
+  margin: 0 auto calc(var(--radius-xl) * -1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  padding: var(--space-1) var(--space-2) calc(var(--space-1) + var(--radius-xl));
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--shadow-sm);
+}
+
 .composer {
   width: 100%;
   max-width: var(--room-story-max);
@@ -1268,14 +1327,6 @@
 .composer-send:disabled .spinner {
   border-color: var(--line-strong);
   border-top-color: var(--text-secondary);
-}
-
-.composer-note {
-  max-width: var(--room-story-max);
-  margin: var(--space-1) auto 0;
-  text-align: center;
-  font-size: var(--text-1);
-  color: var(--text-tertiary);
 }
 
 /* The first-session moment, inside the story. */

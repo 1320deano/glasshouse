@@ -54,10 +54,12 @@ a number typed in by hand.
 badges are borderless tints. Shadows exist in the tokens but are reserved for things that genuinely
 float, which in the Room is the reply box and an opened card.
 
-**The owner decides how much is on screen.** The agents column folds to a rail (one square per live
-agent, amber if it needs you), the progress column folds away, cards have a compact density, and each
-progress section folds on its own. Every fold is remembered in that browser (`glasshouse.room.*` in
-localStorage) and none of it is stored on the server or changes what the record says.
+**The owner decides how much is on screen.** Either side column folds away to nothing, leaving only its
+own toggle sitting on the exact pixel it occupied while the column was open; either can be widened or
+narrowed by dragging its inner edge (240-560px, and never squeezing the story below 380px); cards have a
+compact density; and each progress section folds on its own. Every fold and width is remembered in that
+browser (`glasshouse.room.*` in localStorage) and none of it is stored on the server or changes what the
+record says.
 
 **Motion says "this arrived" or "this opened", and nothing else.** Tiles rise in, panels expand, the
 working dot pulses, the chevron turns. All of it is switched off under `prefers-reduced-motion`.
