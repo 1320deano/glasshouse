@@ -257,14 +257,51 @@ describe("Phase 4 routes (local mode)", () => {
     }
   });
 
-  it("sign-in, checkout and portal say plainly why they do nothing in local mode", async () => {
+  it("sign-up and sign-in, checkout and portal say plainly why they do nothing in local mode", async () => {
     const { POST: signin } = await import("./auth/signin/route");
+    const { POST: signup } = await import("./auth/signup/route");
     const { POST: checkout } = await import("./billing/checkout/route");
     const { POST: webhook } = await import("./billing/webhook/route");
-    expect((await signin(json({ email: "chris@example.com" }))).status).toBe(400);
+    expect((await signin(json({ email: "chris@example.com", password: "a-good-password" }))).status).toBe(400);
+    const up = await signup(json({ email: "chris@example.com", password: "a-good-password" }));
+    expect(up.status).toBe(400);
+    expect(((await up.json()) as { error: string }).error).toContain("your own computer");
     const res = await checkout(new Request("http://x/", { method: "POST" }));
     expect(res.status).toBe(400);
     expect(((await res.json()) as { error: string }).error).toContain("your own computer");
     expect((await webhook(new Request("http://x/", { method: "POST", body: "{}" }))).status).toBe(503);
+  });
+  it("sign-up refuses a weak password, an account that exists is never hinted at, and the invite gate shuts first", async () => {
+    const { POST: signup } = await import("./auth/signup/route");
+    const { POST: signin } = await import("./auth/signin/route");
+    // Pretend this Room is the hosted one, with Supabase configured, so the checks past local mode run.
+    Object.defineProperty(store, "mode", { value: "supabase", configurable: true });
+    const env = { url: process.env.NEXT_PUBLIC_SUPABASE_URL, anon: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, service: process.env.SUPABASE_SERVICE_ROLE_KEY, invite: process.env.GLASSHOUSE_INVITE_ONLY };
+    try {
+      process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+      process.env.SUPABASE_SERVICE_ROLE_KEY = "service-key";
+      delete process.env.GLASSHOUSE_INVITE_ONLY;
+
+      // Nothing reaches Supabase: the shape of what was typed is refused here.
+      const short = await signup(json({ email: "chris@example.com", password: "short" }));
+      expect(short.status).toBe(400);
+      expect(((await short.json()) as { error: string }).error).toContain("8 characters");
+      expect((await signup(json({ email: "not-an-email", password: "a-good-password" }))).status).toBe(400);
+      expect((await signin(json({ email: "chris@example.com" }))).status).toBe(400);
+
+      // Invite-only: turned away before an account could ever be made.
+      process.env.GLASSHOUSE_INVITE_ONLY = "1";
+      const barred = await signup(json({ email: "stranger@example.com", password: "a-good-password" }));
+      expect(barred.status).toBe(403);
+      expect(((await barred.json()) as { error: string }).error).toContain("private test");
+      expect((await signin(json({ email: "stranger@example.com", password: "a-good-password" }))).status).toBe(403);
+    } finally {
+      Object.defineProperty(store, "mode", { value: "local", configurable: true });
+      for (const [k, v] of [["NEXT_PUBLIC_SUPABASE_URL", env.url], ["NEXT_PUBLIC_SUPABASE_ANON_KEY", env.anon], ["SUPABASE_SERVICE_ROLE_KEY", env.service], ["GLASSHOUSE_INVITE_ONLY", env.invite]] as const) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
   });
 });

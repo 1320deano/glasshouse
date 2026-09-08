@@ -96,8 +96,8 @@ diff of the files that task changed is also sent, once, and only for that card a
 
 ## Signing in while you test (the test account)
 
-Once the Room is using Supabase, it asks you to sign in, and normally that means waiting for an email. For testing
-there is a ready-made account that is already verified, so no email is ever needed:
+Once the Room is using Supabase, it asks you to sign in with an email and a password. Making an account takes one
+press of a button and sends no email. For testing there is a ready-made account, so you need not invent one:
 
 ```
 pnpm dev:account          make it (or repair it), on the Pro plan

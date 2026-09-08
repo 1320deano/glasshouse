@@ -57,8 +57,10 @@ In order of how much they unblock. Each item says what it is for, in plain words
   can be cut off, so a small always-on server (Railway, Fly, a VPS) is safer than Vercel for now (`docs/phase-2-findings.md`).
   **Leave the three `GLASSHOUSE_DEV_*` settings blank there.** They are the test account's one-click sign-in, meant for
   your computer only (`docs/running-the-room.md`); set on a public address, anyone could use them to get in.
-- **In the Supabase dashboard, turn on email sign-in (magic links)** and add `https://<your address>/auth/callback` to
-  the allowed redirect addresses. Optionally set a custom email sender so sign-in emails do not land in spam.
+- **In the Supabase dashboard, set the site URL** (Authentication -> URL configuration) to your public address. Email
+  sign-in is already on and sign-up needs nothing else: an account is made with an email and a password and works
+  immediately, so no email is ever sent and there is no link to come back from. Tidy-up, optional: Authentication ->
+  Providers -> Email -> turn "Confirm email" off, and in Authentication -> Users delete the leftover test accounts.
 - **Publish the connector to npm** so `npx … connect` works for testers. The package name depends on the name decision
   (`glasshouse` is taken; `glasshouse-connect` is free). Until then testers can run it from a copy of the repository,
   and `NEXT_PUBLIC_CONNECT_COMMAND` sets what the pages show.

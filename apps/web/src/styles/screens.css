@@ -1215,10 +1215,31 @@
   flex: 0 1 300px;
 }
 
+.signup .field-password {
+  min-width: 180px;
+  flex: 0 1 220px;
+}
+
+/* Too narrow for the row: email, password and button each take the whole width. */
+@media (max-width: 560px) {
+  .signup .field,
+  .signup .field-password,
+  .signup .button {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
+  }
+}
+
 .signup-note {
   font-size: var(--text-3);
   color: var(--text-tertiary);
   flex-basis: 100%;
+}
+
+/* A wrong password is the one thing on this form that must not read as a hint. */
+.signup-note.error-text {
+  color: var(--danger);
 }
 
 .landing-section {

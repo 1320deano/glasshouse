@@ -42,15 +42,28 @@ Edit the generated file in `supabase/migrations`, then `db push` (hosted) or `db
 | `20260905000000_phase3.sql` | Phase 3: report card words on `reports`, digest cache, feedback as shown, `last_checked_at` |
 | `20260906000000_phase4.sql` | Phase 4: `profiles` (plan, Stripe ids, created by trigger on sign-up), `link_codes`, `invites`, `tester_notes`, `metrics`, `projects.owner_id` index |
 
-## Sign-in (Phase 4)
+## Sign-up and sign-in (Phase 4)
 
-1. Authentication -> Providers: turn **Email** on, with magic links (OTP) allowed. Passwords are not used.
-2. Authentication -> URL configuration: set the site URL to the public address and add
-   `https://<your address>/auth/callback` (and `http://localhost:3000/auth/callback` for development) to the redirect list.
-3. Optional but recommended before testers: Authentication -> Email templates, and a custom SMTP sender, so sign-in emails
-   come from your domain and do not land in spam.
-4. The web app needs `NEXT_PUBLIC_SUPABASE_ANON_KEY` as well as the service-role key: the anon key is what the browser
-   session uses for identity; the service-role key is what the server uses for data.
+An email address and a password. Nothing is emailed, and there is nothing for a new person to confirm.
+
+1. Authentication -> Providers: turn **Email** on. Passwords are used; magic links are not.
+2. `/api/auth/signup` creates the account server-side with the service role and `email_confirm: true`, then signs that
+   browser in with the same password. That is why no confirmation email is ever sent, whatever
+   Authentication -> Providers -> Email -> "Confirm email" is set to. Turning that setting **off** as well is tidy but
+   not required by anything in the product.
+3. Authentication -> URL configuration: set the site URL to the public address. No callback URL is needed: there is no
+   link to redirect back from.
+4. No email templates or SMTP sender are needed for sign-in. They become necessary only if a "forgot my password" flow
+   is added later (not built).
+5. The web app needs `NEXT_PUBLIC_SUPABASE_ANON_KEY` as well as the service-role key: the anon key is what the browser
+   session uses for identity; the service-role key is what the server uses for data and for creating the account.
+6. Accounts made before this change that never confirmed their email cannot sign in. Confirm them once in
+   Authentication -> Users, or delete them.
+7. Recommended now that passwords are used: Authentication -> Passwords -> turn on **leaked password protection**
+   (it checks a chosen password against HaveIBeenPwned). Supabase's own advisor flags this while it is off.
+8. Rate limiting: sign-in goes through Supabase's `/token` endpoint and is rate limited by it. Sign-up creates the
+   account with the service role, so Supabase's sign-up limit does not cover it. `GLASSHOUSE_INVITE_ONLY=1` is the
+   control during the tester period; before a public launch add a rate limit or a captcha to `/api/auth/signup`.
 
 ## Stripe (Phase 4, optional until launch)
 

@@ -3,7 +3,7 @@
  *
  * - Local mode (no Supabase): it is your own machine. One implicit person, "local", on the Pro plan
  *   unless GLASSHOUSE_PLAN=free is set to preview the free tier. Every page is open.
- * - Supabase mode: sign-in through Supabase Auth (magic link). A person sees only the projects they
+ * - Supabase mode: sign-in through Supabase Auth with an email and a password. A person sees only the projects they
  *   connected. GLASSHOUSE_ADMIN_EMAILS lists who may open /admin. The setup secret still opens
  *   everything for scripts, and GLASSHOUSE_ALLOW_ANON_READ=1 keeps the Phase 1 behaviour if wanted.
  * - Connectors authenticate with a project token (bearer) in both modes.
@@ -101,8 +101,8 @@ export async function adminViewer(req: Request): Promise<Viewer | null> {
 }
 
 /**
- * The test account (scripts/dev-account.ts): a verified sign-in for trying the hosted Room on this
- * computer, with no email to wait for. Off unless the switch and both values are set.
+ * The test account (scripts/dev-account.ts): a ready-made sign-in for trying the hosted Room on
+ * this computer without typing anything. Off unless the switch and both values are set.
  */
 export function devLogin(): { email: string; password: string } | null {
   if (process.env.GLASSHOUSE_DEV_LOGIN !== "1") return null;
