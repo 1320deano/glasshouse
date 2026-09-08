@@ -180,8 +180,9 @@
      away; the story takes everything between them and is centred on its own measure. */
   --room-head: 52px;
   --room-agents: 360px;
-  --room-agents-rail: 56px;
   --room-progress: 312px;
+  /* The story never gets squeezed below this, whatever the side columns are set to. */
+  --room-story-min: 380px;
   --room-story-max: 760px;
   --room-pad: var(--space-2);
 
