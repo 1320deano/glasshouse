@@ -58,16 +58,14 @@ const KIND_TEXT: Record<HelperEvidence["kind"], string> = {
   owner: "Your own idea",
 };
 
-function nameFromWords(words: string): string {
-  const w = words
-    .replace(/[^a-zA-Z0-9 ]+/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter((x) => !/^(a|an|the|to|and|of|for|in|on|it|is|that|this|before|when|any|all|our|my|your|please|make|sure|should|be)$/i.test(x))
-    .slice(0, 3)
-    .join(" ");
-  const s = w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : "New helper";
-  return s.length > 40 ? `${s.slice(0, 40).trim()}` : s;
+/** A name for a draft typed without an AI key: the part of the app the words mention, or the plain fallback. The owner renames it on the sheet. */
+function nameFromWords(words: string, areas: Area[]): string {
+  const lower = words.toLowerCase();
+  const hit = areas
+    .filter((a) => a.name.length > 2 && lower.includes(a.name.toLowerCase()))
+    .sort((a, b) => lower.indexOf(a.name.toLowerCase()) - lower.indexOf(b.name.toLowerCase()))[0];
+  if (hit) return /\b(check|test|verify)/.test(lower) ? `${hit.name} checker` : /\b(never|guard|protect|keep out|don't touch|do not touch)/.test(lower) ? `${hit.name} guard` : `${hit.name} helper`;
+  return "New helper";
 }
 
 function stopAndAskOptions(areas: Area[]): string[] {
@@ -382,7 +380,7 @@ export function Shed({
     setJustGrown(null);
     const sensitive = view.areas.filter((a) => a.sensitive).map((a) => a.id);
     let d: Draft = {
-      name: nameFromWords(w),
+      name: nameFromWords(w, view.areas),
       brief: { job: w, mayTouch: [], mustNotTouch: sensitive, stopAndAsk: sensitive.length ? view.areas.filter((a) => a.sensitive).map((a) => `Before changing anything in ${a.name}`) : [], care: "balanced", rules: [], tools: [...TOOLS] },
       grownFrom: "owner",
       fromWords: w,
