@@ -15,7 +15,8 @@ button at the top-left of its header. Names live in `apps/web/src/lib/brand.ts`.
 Brief: `control-room-product-report.md`. Phased plan: `glasshouse-phased-plan.md`. Research: `docs/`.
 Phases 0 to 4 are built; findings per phase in `docs/phase-N-findings.md`. Phase 5 (the three-column Room) is in
 `docs/phase-5-findings.md`; Phase 6 (Deano and the Potting Shed) in `docs/phase-6-findings.md`. What only Christopher
-can do is listed in `docs/what-christopher-needs-to-do.md`.
+can do is listed in `docs/what-christopher-needs-to-do.md`. The competitive analysis and the moat plan (9 September 2026)
+are in `docs/competitive-analysis-and-moat.md`.
 
 ## Reporting to Christopher (every finished task)
 
