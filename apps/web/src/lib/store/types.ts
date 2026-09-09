@@ -332,10 +332,77 @@ export interface IngestResult {
   finishedTasks: string[];
 }
 
+// -- Phase 6: the Potting Shed -----------------------------------------------------------------
+
+/** How carefully a helper works: three stages, never a number. */
+export type HelperCare = "careful" | "balanced" | "quick";
+
+/** Where a rule or a suggestion came from in the record. Rule 3: every line links to the real moment. */
+export interface HelperEvidence {
+  kind: "asked" | "stuck" | "checks" | "sensitive" | "handoff" | "busy" | "owner";
+  /** Tasks the fact was computed from. */
+  taskIds: string[];
+  /** One plain sentence saying what happened and how often. */
+  text: string;
+}
+
+export interface HelperRule {
+  text: string;
+  evidence?: HelperEvidence;
+}
+
+/** The words of a helper. Files for each tool are compiled from these at read time (lib/shed/compile.ts). */
+export interface HelperBrief {
+  /** One or two plain sentences: the job. */
+  job: string;
+  /** Area ids the helper may work in. Empty means anywhere that is not forbidden. */
+  mayTouch: string[];
+  /** Area ids the helper must never change. */
+  mustNotTouch: string[];
+  /** Moments at which it must stop and ask the owner. */
+  stopAndAsk: string[];
+  care: HelperCare;
+  /** Things it should already know: the owner's standing answers. */
+  rules: HelperRule[];
+  /** Which tools it is written for. */
+  tools: AgentTool[];
+}
+
+export interface HelperRecord {
+  id: string;
+  projectId: string;
+  ownerId?: string | null;
+  /** File-safe name, e.g. "checkout-checker". Unique within a project. */
+  slug: string;
+  /** What the owner calls it, e.g. "Checkout checker". */
+  name: string;
+  brief: HelperBrief;
+  /** The suggestion it was grown from, or "owner" when typed from scratch. */
+  grownFrom: string;
+  createdAt: string;
+  updatedAt: string;
+  /** When `glasshouse helpers` last wrote this helper into the folder. */
+  placedAt?: string;
+}
+
+/** One time a helper actually ran, as the record shows it (a sub-agent start with this helper's name). */
+export interface HelperRun {
+  taskId: string;
+  tool: AgentTool;
+  agentId?: string;
+  agentType: string;
+  startedAt: string;
+  endedAt?: string;
+  /** Files edited by that sub-agent, when the tool told us which agent edited them. */
+  changedPaths: string[];
+  /** True when the tool does not say which agent made which edit; the check then uses the whole task. */
+  taskWide: boolean;
+}
+
 export interface AiCallLog {
   projectId: string;
   taskId?: string;
-  purpose: "headline" | "why" | "report" | "digest" | "area_map" | "ask" | "file_descriptions";
+  purpose: "headline" | "why" | "report" | "digest" | "area_map" | "ask" | "file_descriptions" | "helper";
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -404,4 +471,15 @@ export interface Store {
   metricCounts(days: number, now?: string): Promise<MetricCounts>;
   /** Per-person activity for the tester dashboard: projects, sessions, last event. */
   ownerActivity(ownerId: string): Promise<{ projects: number; sessions: number; tasks: number; lastEventAt?: string }>;
+
+  // -- Phase 6: the Potting Shed ------------------------------------------------------------------
+  listHelpers(projectId: string): Promise<HelperRecord[]>;
+  getHelper(id: string): Promise<HelperRecord | null>;
+  /** Create or update. The slug must be unique within the project; the store renames on collision. */
+  saveHelper(record: Omit<HelperRecord, "createdAt" | "updatedAt"> & { createdAt?: string }): Promise<HelperRecord>;
+  deleteHelper(id: string): Promise<void>;
+  /** The connector pulled every helper of the project into the folder. */
+  markHelpersPlaced(projectId: string, at: string): Promise<void>;
+  /** Every time a sub-agent started in this project, newest first, with what it changed. */
+  helperRuns(projectId: string, opts: { since: string }): Promise<HelperRun[]>;
 }

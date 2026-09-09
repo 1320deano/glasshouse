@@ -12,7 +12,7 @@ import type { RoomState, SessionView } from "@/lib/store/types";
 
 export type Plan = "free" | "pro";
 
-export type GatedFeature = "second_project" | "history" | "digest" | "inbox" | "ask" | "more_agents";
+export type GatedFeature = "second_project" | "history" | "digest" | "inbox" | "ask" | "more_agents" | "helpers";
 
 export interface PlanLimits {
   projects: number;
@@ -23,13 +23,15 @@ export interface PlanLimits {
   digest: boolean;
   inbox: boolean;
   ask: boolean;
+  /** Helpers grown in the Potting Shed, per project. */
+  helpers: number;
 }
 
 const DAY = 24 * 3600 * 1000;
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
-  free: { projects: 1, agentsAtOnce: 1, historyMs: DAY, digest: false, inbox: false, ask: false },
-  pro: { projects: Number.POSITIVE_INFINITY, agentsAtOnce: Number.POSITIVE_INFINITY, historyMs: Number.POSITIVE_INFINITY, digest: true, inbox: true, ask: true },
+  free: { projects: 1, agentsAtOnce: 1, historyMs: DAY, digest: false, inbox: false, ask: false, helpers: 2 },
+  pro: { projects: Number.POSITIVE_INFINITY, agentsAtOnce: Number.POSITIVE_INFINITY, historyMs: Number.POSITIVE_INFINITY, digest: true, inbox: true, ask: true, helpers: Number.POSITIVE_INFINITY },
 };
 
 export const PRO_PRICE_GBP = Number(process.env.NEXT_PUBLIC_PRO_PRICE_GBP?.trim() || "15");
@@ -42,6 +44,7 @@ export const UPGRADE_REASONS: Record<GatedFeature, string> = {
   inbox: "The needs-you inbox is part of Pro.",
   ask: "Asking questions about a task is part of Pro.",
   more_agents: "Free shows one agent at a time. Pro shows all of them side by side.",
+  helpers: "Free grows two helpers per project. Pro grows as many as you like.",
 };
 
 export function limitsFor(plan: Plan): PlanLimits {
@@ -50,6 +53,10 @@ export function limitsFor(plan: Plan): PlanLimits {
 
 export function canCreateProject(plan: Plan, existing: number): boolean {
   return existing < PLAN_LIMITS[plan].projects;
+}
+
+export function canGrowHelper(plan: Plan, existing: number): boolean {
+  return existing < PLAN_LIMITS[plan].helpers;
 }
 
 export function featureAllowed(plan: Plan, feature: "digest" | "inbox" | "ask"): boolean {

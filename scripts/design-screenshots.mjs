@@ -90,11 +90,53 @@ async function main() {
   const { projects } = await json("/api/projects/link");
   const busy = projects.find((p) => p.name === "storyboard") ?? projects[0];
   const quiet = projects.find((p) => p.name === "marketing-site") ?? projects[0];
+  const shop = projects.find((p) => p.name === "shop");
 
   /** name -> { path, prepare?, act?, full? } */
   const screens = [
     { name: "landing", path: "/landing", full: true },
-    { name: "projects", path: "/" },
+    // Deano's front door: the two products side by side.
+    { name: "picker", path: "/" },
+    { name: "projects", path: "/glasshouse" },
+    // The Potting Shed: the builder before anything is typed, with a sheet open, and with a helper's details.
+    { name: "shed", path: `/shed/${busy.id}`, full: true },
+    {
+      name: "shed-sheet",
+      path: `/shed/${busy.id}`,
+      full: true,
+      act: async (page) => {
+        if (page.viewportSize().width < 960) await pickTab(page, /from your project/i);
+        await page.getByRole("button", { name: /grow this/i }).first().click();
+        await page.waitForTimeout(900);
+      },
+    },
+    {
+      name: "shed-words",
+      path: `/shed/${busy.id}`,
+      full: true,
+      act: async (page) => {
+        await page.getByLabel(/what should this helper do/i).fill("Check the checkout still works before anything is called finished, and never touch payments without asking");
+        await page.getByRole("button", { name: /start a helper/i }).click();
+        await page.waitForTimeout(1500);
+      },
+    },
+    {
+      name: "shed-details",
+      path: `/shed/${busy.id}`,
+      full: true,
+      act: async (page) => {
+        if (page.viewportSize().width < 960) await pickTab(page, /helpers/i);
+        const details = page.getByRole("button", { name: /^details$/i }).first();
+        if (await details.count()) await details.click();
+        await page.waitForTimeout(700);
+      },
+    },
+    { name: "shed-empty", path: `/shed/${quiet.id}` },
+    // A project whose helper has actually run: the card carries the after-the-fact check.
+    ...(shop ? [{ name: "shed-checked", path: `/shed/${shop.id}`, full: true, act: async (page) => { if (page.viewportSize().width < 960) await pickTab(page, /helpers/i); await page.getByRole("button", { name: /^details$/i }).first().click(); await page.waitForTimeout(700); } }] : []),
+    { name: "shed-phone-helpers", path: `/shed/${busy.id}`, only: "390", full: true, act: (page) => pickTab(page, /helpers/i) },
+    { name: "shed-phone-grown", path: `/shed/${busy.id}`, only: "390", full: true, act: (page) => pickTab(page, /from your project/i) },
+    { name: "shed-projects", path: "/shed" },
     { name: "room", path: `/room/${busy.id}`, full: true },
     {
       name: "room-expanded",

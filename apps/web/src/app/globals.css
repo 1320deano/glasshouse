@@ -4,9 +4,11 @@
      components  buttons, fields, badges, cards, notices, empty states, skeletons, tables
      screens     the pages around the Room, composed from the layers above
      room        the Room itself: three columns, cards, the story, progress
+     deano       the front door (the product picker) and the Potting Shed, composed from the Room's own parts
    Nothing below tokens.css may hard-code a colour, a size or a duration. */
 @import "../styles/tokens.css";
 @import "../styles/base.css";
 @import "../styles/components.css";
 @import "../styles/screens.css";
 @import "../styles/room.css";
+@import "../styles/deano.css";

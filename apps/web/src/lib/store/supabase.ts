@@ -33,7 +33,9 @@ import {
 import { WEEK_MS, activityFrom, areaProgress } from "../progress";
 import { storyFrom } from "../story";
 import { newLinkCode, normaliseCode } from "./memory";
-import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
+import { helperRunsFrom } from "../shed/runs";
+import { sameBrief, uniqueSlug } from "../shed/slug";
+import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, HelperBrief, HelperRecord, HelperRun, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
 
 interface TaskRow {
   id: string;
@@ -725,6 +727,78 @@ export class SupabaseStore implements Store {
     ]);
     return { projects: ids.length, sessions: sessions ?? 0, tasks: tasks ?? 0, lastEventAt: (last?.ts as string | undefined) ?? undefined };
   }
+
+  // -- Phase 6: the Potting Shed ------------------------------------------------------------------
+  async listHelpers(projectId: string): Promise<HelperRecord[]> {
+    const { data, error } = await this.db.from("helpers").select(HELPER_COLUMNS).eq("project_id", projectId).order("updated_at", { ascending: false });
+    if (error) throw error;
+    return ((data ?? []) as unknown as HelperRow[]).map(toHelper);
+  }
+
+  async getHelper(id: string): Promise<HelperRecord | null> {
+    const { data } = await this.db.from("helpers").select(HELPER_COLUMNS).eq("id", id).maybeSingle();
+    return data ? toHelper(data as unknown as HelperRow) : null;
+  }
+
+  async saveHelper(record: Omit<HelperRecord, "createdAt" | "updatedAt"> & { createdAt?: string }): Promise<HelperRecord> {
+    const existing = await this.getHelper(record.id);
+    const { data: others } = await this.db.from("helpers").select("slug").eq("project_id", record.projectId).neq("id", record.id);
+    const slug = uniqueSlug(record.slug, new Set(((others ?? []) as { slug: string }[]).map((o) => o.slug)));
+    const now = new Date().toISOString();
+    const row = {
+      id: record.id,
+      project_id: record.projectId,
+      owner_id: record.ownerId ?? null,
+      slug,
+      name: record.name,
+      brief: record.brief,
+      grown_from: record.grownFrom,
+      created_at: existing?.createdAt ?? record.createdAt ?? now,
+      updated_at: now,
+      placed_at: existing && sameBrief(existing, record) ? (existing.placedAt ?? null) : null,
+    };
+    const { data, error } = await this.db.from("helpers").upsert(row, { onConflict: "id" }).select(HELPER_COLUMNS).single();
+    if (error) throw error;
+    return toHelper(data as unknown as HelperRow);
+  }
+
+  async deleteHelper(id: string) {
+    await this.db.from("helpers").delete().eq("id", id);
+  }
+
+  async markHelpersPlaced(projectId: string, at: string) {
+    await this.db.from("helpers").update({ placed_at: at }).eq("project_id", projectId);
+  }
+
+  async helperRuns(projectId: string, opts: { since: string }): Promise<HelperRun[]> {
+    const { data, error } = await this.db
+      .from("events")
+      .select("id,kind,tool,ts,agent_id,task_id,paths,summary,raw")
+      .eq("project_id", projectId)
+      .gte("ts", opts.since)
+      .in("kind", ["subagent_start", "subagent_stop", "edit"])
+      .order("ts", { ascending: true })
+      .limit(5000);
+    if (error) throw error;
+    const rows = ((data ?? []) as unknown as Array<{ id: string; kind: EventView["kind"]; tool: AgentTool | null; ts: string; agent_id: string | null; task_id: string | null; paths: string[] | null; summary: string; raw: unknown }>).map((e) => ({
+      id: e.id,
+      kind: e.kind,
+      tool: e.tool ?? "claude-code",
+      ts: e.ts,
+      agentId: e.agent_id ?? undefined,
+      taskId: e.task_id ?? undefined,
+      paths: e.paths ?? [],
+      summary: e.summary,
+      raw: e.raw ?? undefined,
+    }));
+    const taskIds = [...new Set(rows.filter((r) => r.kind === "subagent_start" && r.taskId).map((r) => r.taskId!))];
+    const changed = new Map<string, string[]>();
+    if (taskIds.length > 0) {
+      const { data: tasks } = await this.db.from("tasks").select("id,state").in("id", taskIds);
+      for (const t of (tasks ?? []) as Array<{ id: string; state: Partial<TaskState> | null }>) changed.set(t.id, t.state?.changedPaths ?? []);
+    }
+    return helperRunsFrom(rows, (taskId) => changed.get(taskId) ?? []);
+  }
 }
 
 function toReport(r: ReportRow): ReportRecord {
@@ -815,5 +889,35 @@ function toEventRow(e: EventRow): Omit<EventView, "plain" | "areaId" | "areaName
     agentId: e.agent_id ?? undefined,
     success: e.success ?? undefined,
     raw: e.raw ?? undefined,
+  };
+}
+
+interface HelperRow {
+  id: string;
+  project_id: string;
+  owner_id: string | null;
+  slug: string;
+  name: string;
+  brief: HelperBrief;
+  grown_from: string | null;
+  created_at: string;
+  updated_at: string;
+  placed_at: string | null;
+}
+
+const HELPER_COLUMNS = "id,project_id,owner_id,slug,name,brief,grown_from,created_at,updated_at,placed_at";
+
+function toHelper(r: HelperRow): HelperRecord {
+  return {
+    id: r.id,
+    projectId: r.project_id,
+    ownerId: r.owner_id,
+    slug: r.slug,
+    name: r.name,
+    brief: r.brief,
+    grownFrom: r.grown_from ?? "owner",
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    placedAt: r.placed_at ?? undefined,
   };
 }

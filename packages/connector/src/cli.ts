@@ -17,6 +17,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONNECTOR_VERSION, codexHome, cursorHome, findProject, homeDir, log, readProjects, spoolDir, writeProjects, type LinkedProject } from "./config.js";
+import { placeHelpers, pullHelpers, reportPlaced } from "./helpers.js";
 import { payloadCwd, readStdin, runHook } from "./hook.js";
 import { recordHook } from "./record.js";
 import {
@@ -163,6 +164,32 @@ async function map() {
   console.log(await refreshTree(project, projects));
 }
 
+/** Put the helpers grown in the Potting Shed into this folder (see helpers.ts). */
+async function helpers() {
+  const projects = await readProjects();
+  const project = findProject(projects, process.cwd());
+  if (!project) {
+    console.error("This folder is not connected. Run `glasshouse connect` first.");
+    process.exitCode = 1;
+    return;
+  }
+  const res = await pullHelpers(project);
+  if (!res.ok || !res.body?.helpers) {
+    console.error(res.body?.error ?? (res.status ? `The Shed said no (${res.status}).` : `Could not reach ${project.server}.`));
+    process.exitCode = 1;
+    return;
+  }
+  const list = res.body.helpers;
+  const placed = await placeHelpers(project.root, project.projectId, list);
+  if (list.length === 0) console.log(`No helpers grown for "${project.name}" yet. Open ${project.server}/shed/${project.projectId} to grow one.`);
+  else console.log(`Placed ${list.length} helper${list.length === 1 ? "" : "s"} in ${project.root}: ${list.map((h) => h.name).join(", ")}.`);
+  for (const f of placed.written) console.log(`  wrote   ${f}`);
+  if (placed.sections.length) console.log(`  merged  AGENTS.md (${placed.sections.length} section${placed.sections.length === 1 ? "" : "s"} for Codex)`);
+  for (const f of placed.removed) console.log(`  removed ${f}`);
+  if (list.length > 0) console.log(await reportPlaced(project) ? "The Shed knows they are in place." : "Could not tell the Shed they are in place; it will still show them as not placed.");
+  if (list.some((h) => h.tools.includes("claude-code"))) console.log("Claude Code picks up new helpers when you next start it in this folder.");
+}
+
 async function status() {
   const projects = await readProjects();
   console.log(`glasshouse ${CONNECTOR_VERSION} · home ${homeDir()}`);
@@ -249,6 +276,8 @@ async function main() {
       return watch();
     case "status":
       return status();
+    case "helpers":
+      return helpers();
     case "disconnect":
       return disconnect();
     case "record": {
@@ -260,7 +289,7 @@ async function main() {
       console.log(CONNECTOR_VERSION);
       return;
     default:
-      console.log("usage: glasshouse <connect [--code XXXX-XXXX] [--server URL] [--name NAME] [--project] [--tools claude-code,codex,cursor] | map | watch [--no-folders] | status | disconnect | hook <tool> <event> | record <tool> <event>>");
+      console.log("usage: glasshouse <connect [--code XXXX-XXXX] [--server URL] [--name NAME] [--project] [--tools claude-code,codex,cursor] | map | helpers | watch [--no-folders] | status | disconnect | hook <tool> <event> | record <tool> <event>>");
   }
 }
 

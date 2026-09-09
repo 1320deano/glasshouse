@@ -24,4 +24,4 @@ export function getStore(): Store {
   return store;
 }
 
-export type { AiCallLog, AreaTouched, ChangeLine, EventView, IngestResult, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, ViewDepth } from "./types";
+export type { AiCallLog, AreaTouched, ChangeLine, EventView, HelperBrief, HelperRecord, HelperRun, IngestResult, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, ViewDepth } from "./types";

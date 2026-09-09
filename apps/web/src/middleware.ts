@@ -5,7 +5,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PRIVATE = [/^\/room(\/|$)/, /^\/connect(\/|$)/, /^\/account(\/|$)/, /^\/admin(\/|$)/];
+const PRIVATE = [/^\/room(\/|$)/, /^\/glasshouse(\/|$)/, /^\/shed(\/|$)/, /^\/connect(\/|$)/, /^\/account(\/|$)/, /^\/admin(\/|$)/];
 
 export async function middleware(req: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -36,5 +36,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/ingest|api/projects/tree|api/projects/link$|api/billing/webhook|api/live).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/ingest|api/projects/tree|api/projects/link$|api/billing/webhook|api/live|api/shed/pull).*)"],
 };

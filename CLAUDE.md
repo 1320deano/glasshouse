@@ -1,14 +1,21 @@
-# Glasshouse
+# Deano
 
-A watch-only control room for AI coding agents. It shows, in plain English, what every agent
-is doing right now, which part of the user's app it is touching, and why, across Claude Code,
-Codex, Cursor and anything that saves to GitHub. It keeps one continuous story of the project
-when the user switches tools.
+Deano is the website. Two products live inside it, on one record of the project:
+
+- **Glasshouse**, the watch-only control room (the Room). It shows, in plain English, what every agent is doing right
+  now, which part of the user's app it is touching, and why, across Claude Code, Codex, Cursor and anything that saves
+  to GitHub. It keeps one continuous story of the project when the user switches tools.
+- **Potting Shed**, the agent builder. The owner raises "helpers" (agents and sub-agents) for their project by answering
+  a few plain questions; every helper is proposed from what the record shows actually happened, compiled to the real
+  file each tool reads, placed with one command, and checked afterwards against the files its runs changed.
+
+After sign-in the owner lands on the front door (`/`), picks a product, and can always leave a product by the grid
+button at the top-left of its header. Names live in `apps/web/src/lib/brand.ts`.
 
 Brief: `control-room-product-report.md`. Phased plan: `glasshouse-phased-plan.md`. Research: `docs/`.
 Phases 0 to 4 are built; findings per phase in `docs/phase-N-findings.md`. Phase 5 (the three-column Room) is in
-`docs/phase-5-findings.md`. What only Christopher can do is listed in
-`docs/what-christopher-needs-to-do.md`.
+`docs/phase-5-findings.md`; Phase 6 (Deano and the Potting Shed) in `docs/phase-6-findings.md`. What only Christopher
+can do is listed in `docs/what-christopher-needs-to-do.md`.
 
 ## Reporting to Christopher (every finished task)
 
@@ -65,6 +72,23 @@ Then explain what was done in plain, non-technical language, leaving nothing out
 - "Stuck" is detected (same error three times, nothing for minutes), never declared.
 - "Waiting for you" is the one badge allowed to light up.
 
+## Design rules for the Potting Shed
+
+- The same chrome as the Room: the same header, grid, columns, tabs and reply box classes (`styles/deano.css` adds only
+  the helper card, the suggestion card, the sheet and the chips). Helpers on the left, the builder in the middle, "From
+  your project" on the right; three tabs below 960px.
+- The owner never writes a prompt. One sentence in the reply box, or "Grow this" on a suggestion, opens one sheet with
+  six questions in a fixed order: what it does, where it may work, when it must stop and ask, how carefully (three
+  stages, never a number), things it should already know, which tools.
+- Every suggestion is computed from the record (`lib/shed/suggest.ts`) and carries its count and the tasks behind it.
+  Starters with no record say so. Nothing is generated or guessed.
+- Only words are stored (`HelperBrief`). The files each tool reads are compiled at read time from the current area map
+  (`lib/shed/compile.ts`), so a renamed part is right in every helper at once. "Details" always shows the real files.
+- "Kept to its patch" is computed from the files a helper's runs changed (`lib/shed/verify.ts`), never from what it said;
+  "unclear" when the tool did not say which agent edited what.
+- The Shed writes nothing into a project folder. The owner runs `glasshouse helpers`; the connector writes the files and
+  prints every one. Rule 4 holds on the agents' side.
+
 ## Stack
 
 - pnpm monorepo, TypeScript everywhere. Node 20+.
@@ -76,6 +100,8 @@ Then explain what was done in plain, non-technical language, leaving nothing out
 - **Supabase for all backend needs**: Postgres, Auth, Realtime, Storage. Migrations in `supabase/migrations`.
   Do not introduce other databases, auth providers or realtime layers.
 - Store layer in `apps/web/src/lib/store`: `MemoryStore` (local file) or `SupabaseStore`, chosen by env. Same behaviour; task/stage derivation lives in `derive.ts` and is shared.
+- Helpers (Phase 6) are rows of words in `helpers`; their runs are read from `events` (sub-agent starts and the edits
+  that carry the same agent id), never stored. Free grows two helpers per project; the gate is in `lib/plan.ts`.
 - The connector has no daemon for hooks: each hook spools one event file and flushes the spool. See `docs/phase-1-findings.md`.
   `glasshouse watch` is the one long-running process, only for sources without hooks (folder saves, git, Codex logs).
 - Plain-English lines, location, risk and "not touched" are computed at read time from the current area map
@@ -85,12 +111,13 @@ Then explain what was done in plain, non-technical language, leaving nothing out
   never lower it, and may not name a part the changed-files list does not. The digest is built the same way
   (`digest.ts`); the AI only adds an opening summary.
 - Claude API for the expensive calls only: headline on meaning change, area map, file descriptions, one report card
-  per finished task, one digest opening per window while the facts change, and Ask. All through
+  per finished task, one digest opening per window while the facts change, Ask, and the Shed's one tidy-up of the
+  owner's sentence into a first draft (`lib/ai/helper.ts`). All through
   `apps/web/src/lib/ai/client.ts`, which logs every call to `ai_calls`.
   Without `ANTHROPIC_API_KEY` everything must still work from templates and folder names.
 - Codex and Cursor normalisers were written from documented shapes; their fixtures are `-synthetic`. Replace them
   with real recordings before trusting a field name. See `docs/phase-2-findings.md`.
-- The design system is `apps/web/src/styles/{tokens,base,components,screens,room}.css`, in that order, imported by
+- The design system is `apps/web/src/styles/{tokens,base,components,screens,room,deano}.css`, in that order, imported by
   `globals.css`. Light only. One accent colour, status colour only where it carries a fact, an 8pt grid, AA contrast
   everywhere, motion only to say "this arrived" or "this opened". Rules and the QA loop: `docs/design-system.md`.
 - The Room's story, progress rows and activity counts are computed at read time in both stores (`getRoom`), from the
@@ -112,6 +139,7 @@ pnpm room          # web app, production build + start (or double-click start-ro
 pnpm connector:build                          # bundle the connector to packages/connector/dist/cli.js
 node packages/connector/dist/cli.js connect   # link the current folder, register hooks (Claude Code, Codex, Cursor), send the file map
 node packages/connector/dist/cli.js map       # resend the file map
+node packages/connector/dist/cli.js helpers   # put the helpers grown in the Potting Shed into this folder
 node packages/connector/dist/cli.js watch     # follow saves, commits and Codex logs (long-running)
 node packages/connector/dist/cli.js status
 

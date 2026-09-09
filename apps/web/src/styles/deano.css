@@ -1,0 +1,666 @@
+/* ============================================================================================
+   Deano: the front door and the Potting Shed, composed from the Room's own parts.
+     picker   the two products side by side, in the Room's chrome, each with one live fact
+     shed     three columns like the Room: helpers on the left, the builder in the middle, what the
+              project has taught us on the right
+   Composes tokens, base, components and room. Nothing here invents a value.
+   ============================================================================================ */
+
+/* --- The way out of a product: sits before the brand in the header ------------------------- */
+.head-out {
+  color: var(--text-tertiary);
+  margin-right: calc(-1 * var(--space-05));
+}
+.head-out:hover {
+  color: var(--text-primary);
+}
+
+/* --- The picker ----------------------------------------------------------------------------- */
+.picker-body {
+  flex: 1;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--page-pad-x) var(--space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.picker-head {
+  max-width: 56ch;
+}
+
+.picker-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-2);
+}
+
+.picker .story-title {
+  font-size: clamp(28px, 3.2vw, 38px);
+}
+
+.products {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: var(--space-2);
+}
+.products.two-up {
+  margin-top: var(--space-3);
+}
+
+.product-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
+  min-height: 240px;
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  color: var(--text-primary);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+a.product-card:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.product-card.static {
+  min-height: 0;
+}
+
+.product-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  color: var(--text-primary);
+}
+.product-card[data-product="shed"] .product-icon,
+.product-card:hover .product-icon {
+  color: var(--accent);
+}
+
+.product-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+.product-name {
+  font-size: var(--text-8);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+.product-tag {
+  font-size: var(--text-5);
+  color: var(--text-secondary);
+}
+.product-blurb {
+  font-size: var(--text-4);
+  line-height: var(--leading-normal);
+  color: var(--text-tertiary);
+  max-width: 44ch;
+}
+.product-fact {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  padding-top: var(--space-15);
+  border-top: 1px solid var(--line-subtle);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+.product-fact .dot {
+  color: var(--grey-500);
+}
+.product-fact .dot[data-on="yes"] {
+  color: var(--warn);
+}
+.product-open {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+.product-open svg {
+  transition: transform var(--duration-base) var(--ease-out);
+}
+a.product-card:hover .product-open svg {
+  transform: translateX(2px);
+}
+
+@media (max-width: 959px) {
+  .picker-body {
+    padding-top: var(--space-4);
+  }
+  .product-card {
+    min-height: 0;
+    padding-bottom: var(--space-6);
+  }
+}
+
+/* --- The Shed --------------------------------------------------------------------------------
+   Reuses the Room's grid, header, columns, tabs, composer and message links. What is new is the
+   helper card, the suggestion card, the sheet, and the chips. */
+
+.shed .room-head .brand svg {
+  color: var(--accent);
+}
+
+.helper-card,
+.suggest-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  animation: rise var(--duration-slow) var(--ease-out) both;
+}
+.helper-card.open {
+  box-shadow: var(--shadow-md);
+}
+
+.helper-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  min-height: 22px;
+}
+.helper-tools {
+  font-size: var(--text-2);
+  color: var(--text-tertiary);
+}
+.helper-name,
+.suggest-name {
+  font-size: var(--text-6);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-snug);
+  line-height: var(--leading-snug);
+  color: var(--text-primary);
+}
+.helper-job,
+.suggest-summary {
+  font-size: var(--text-4);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+.helper-job {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.helper-card.open .helper-job {
+  display: block;
+}
+
+.helper-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  margin: 0;
+  font-size: var(--text-3);
+}
+.helper-facts > div {
+  display: flex;
+  gap: var(--space-1);
+  align-items: baseline;
+}
+.helper-facts dt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  flex: none;
+  width: 118px;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-medium);
+}
+.helper-facts dd {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* The fact that matters: did it keep to its patch. Green only when verified, red only when it strayed. */
+.helper-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-05);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--line-subtle);
+}
+.helper-check[data-tone="positive"] {
+  color: var(--positive);
+}
+.helper-check[data-tone="attention"] {
+  color: var(--warn);
+}
+.helper-check[data-tone="critical"] {
+  color: var(--danger);
+}
+.pill[data-tone="positive"] {
+  background: var(--positive-quiet);
+  color: var(--positive);
+}
+
+.helper-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-05) var(--space-15);
+}
+.msg-link.danger {
+  color: var(--danger);
+}
+.msg-link.danger:hover {
+  background: var(--danger-quiet);
+}
+.confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-3);
+  color: var(--text-secondary);
+}
+
+.helper-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  padding-top: var(--space-1);
+  animation: rise var(--duration-base) var(--ease-out) both;
+}
+.helper-rules ul,
+.helper-runs ul {
+  margin: var(--space-05) 0 0;
+  padding: 0 0 0 var(--space-2);
+  font-size: var(--text-3);
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+}
+.helper-runs ul {
+  list-style: none;
+  padding: 0;
+}
+.helper-runs li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-05) var(--space-1);
+  padding: var(--space-05) 0;
+  border-bottom: 1px solid var(--line-subtle);
+}
+.helper-runs li[data-verdict="kept"] span:nth-child(2) {
+  color: var(--positive);
+}
+.helper-runs li[data-verdict="strayed"] span:nth-child(2) {
+  color: var(--danger);
+}
+.helper-runs li[data-verdict="unclear"] span:nth-child(2) {
+  color: var(--warn);
+}
+
+.command-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-05);
+}
+.command-row code {
+  padding: 4px var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--bg-inset);
+  font-family: var(--font-mono);
+  font-size: var(--text-3);
+  color: var(--text-primary);
+}
+
+.files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.file {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-inset);
+}
+.file-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-15);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-surface);
+  font-size: var(--text-2);
+}
+.file-tool {
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+.file-path {
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+  margin-right: auto;
+}
+.file-body {
+  margin: 0;
+  padding: var(--space-15);
+  max-height: 320px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-2);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.evidence {
+  display: flex;
+  gap: var(--space-05);
+  align-items: flex-start;
+  font-size: var(--text-2);
+  line-height: var(--leading-normal);
+  color: var(--text-tertiary);
+}
+.evidence svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--accent);
+}
+
+.suggest-kind {
+  font-size: var(--text-2);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+}
+.suggest-card .button {
+  align-self: flex-start;
+  margin-top: var(--space-05);
+}
+
+/* --- The sheet: one place to answer the few questions ---------------------------------------- */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  animation: rise var(--duration-slow) var(--ease-out) both;
+}
+.sheet.intro {
+  gap: var(--space-2);
+}
+.sheet-title {
+  font-size: var(--text-7);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-snug);
+}
+.steps {
+  margin: 0;
+  padding: 0 0 0 var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-4);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+.steps strong {
+  color: var(--text-primary);
+}
+
+.sheet-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.sheet-name {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: var(--space-05) 0;
+  background: transparent;
+  font-family: var(--font-serif);
+  font-size: var(--text-9);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-snug);
+  color: var(--text-primary);
+}
+.sheet-name:focus-visible {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+.sheet-name::placeholder {
+  color: var(--grey-400);
+}
+
+.sheet-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line-subtle);
+}
+.sheet-section h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-5);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-2);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.sheet-hint {
+  font-size: var(--text-3);
+  line-height: var(--leading-normal);
+  color: var(--text-tertiary);
+}
+.sheet-text {
+  height: auto;
+  min-height: 96px;
+  padding: var(--space-15);
+  font-size: var(--text-5);
+  line-height: var(--leading-normal);
+  resize: vertical;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  height: var(--control-height-sm);
+  padding: 0 var(--space-15);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.chip:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-raised);
+}
+.chip[data-state="may"] {
+  background: var(--positive-quiet);
+  border-color: transparent;
+  color: var(--positive);
+}
+.chip[data-state="not"] {
+  background: var(--danger-quiet);
+  border-color: transparent;
+  color: var(--danger);
+}
+.chip-note {
+  font-size: var(--text-1);
+  font-weight: var(--weight-normal);
+  color: var(--text-tertiary);
+}
+.chip[data-state="not"] .chip-note,
+.chip[data-state="may"] .chip-note {
+  color: inherit;
+}
+
+.chips-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-2);
+  color: var(--text-tertiary);
+}
+.chips-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+}
+.chips-legend span::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--bg-surface);
+}
+.chips-legend span[data-state="may"]::before {
+  background: var(--positive-quiet);
+  border-color: var(--positive);
+}
+.chips-legend span[data-state="not"]::before {
+  background: var(--danger-quiet);
+  border-color: var(--danger);
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  font-size: var(--text-4);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.check-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.rule-row,
+.add-line {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+.rule-row .field,
+.add-line .field {
+  flex: 1;
+  min-width: 0;
+}
+.add-line .button {
+  flex: none;
+}
+
+.sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-15);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line-subtle);
+}
+
+.composer-note {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-2);
+  color: var(--text-tertiary);
+  padding-left: var(--space-05);
+}
+
+@media (max-width: 959px) {
+  .sheet {
+    padding: var(--space-2);
+    border-radius: var(--radius-lg);
+  }
+  .helper-facts dt {
+    width: 110px;
+  }
+}

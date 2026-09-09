@@ -5,7 +5,7 @@ import { UPGRADE_REASONS, type GatedRoom } from "@/lib/plan";
 import type { RoomState, SessionView } from "@/lib/store/types";
 import { AgentCard } from "./AgentCard";
 import { Conversation } from "./Conversation";
-import { Info, Mark, PanelLeft, PanelRight, Rows, Screen } from "./icons";
+import { Grid, Info, Mark, PanelLeft, PanelRight, Rows, Screen } from "./icons";
 import { Progress } from "./Progress";
 import { ReportProblem } from "./ReportProblem";
 import { Walkthrough } from "./Walkthrough";
@@ -72,6 +72,7 @@ export function Room({
   initial,
   mode,
   productName,
+  siteName,
   welcome = false,
   viewer,
   projects,
@@ -79,6 +80,8 @@ export function Room({
   initial: GatedRoom;
   mode: "local" | "supabase";
   productName: string;
+  /** The website the product sits inside; the way out of the Room goes back to its front door. */
+  siteName: string;
   welcome?: boolean;
   viewer: { email?: string; admin: boolean; local: boolean };
   projects: RoomProject[];
@@ -314,7 +317,10 @@ export function Room({
       <main className="room" data-tab={tab} data-agents={layout.agents} data-progress={layout.progress} data-density={layout.density}>
         <header className="room-head">
           <div className="room-head-left">
-            <a className="brand" href="/">
+            <a className="icon-button head-out" href="/" aria-label={`Leave ${productName} and choose a product`} title={`Back to ${siteName}: choose a product`}>
+              <Grid size={16} />
+            </a>
+            <a className="brand" href="/glasshouse">
               <Mark />
               <span>{productName}</span>
             </a>

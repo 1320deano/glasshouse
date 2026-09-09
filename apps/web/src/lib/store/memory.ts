@@ -28,7 +28,9 @@ import {
 } from "./derive";
 import { WEEK_MS, activityFrom, areaProgress } from "../progress";
 import { storyFrom } from "../story";
-import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
+import { helperRunsFrom } from "../shed/runs";
+import { sameBrief, uniqueSlug } from "../shed/slug";
+import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, HelperRecord, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
 
 type ProjectRow = ProjectSummary;
 interface SessionRow {
@@ -79,6 +81,8 @@ interface Db {
   invites: Record<string, Invite>; // lower-case email
   testerNotes: TesterNote[];
   metrics: Array<{ event: MetricEvent; visitorId: string; at: string }>;
+  // Phase 6
+  helpers: Record<string, HelperRecord>;
 }
 
 const emptyDb = (): Db => ({
@@ -100,6 +104,7 @@ const emptyDb = (): Db => ({
   invites: {},
   testerNotes: [],
   metrics: [],
+  helpers: {},
 });
 
 /** In local mode there is one person: whoever owns the machine. */
@@ -674,6 +679,43 @@ export class MemoryStore implements Store {
     const tasks = Object.values(this.db.tasks).filter((t) => ids.has(t.projectId));
     const lastEventAt = sessions.map((s) => s.lastEventAt ?? s.startedAt).sort().pop();
     return { projects: projects.length, sessions: sessions.length, tasks: tasks.length, lastEventAt };
+  }
+
+  // -- Phase 6: the Potting Shed ------------------------------------------------------------------
+  async listHelpers(projectId: string) {
+    return Object.values(this.db.helpers)
+      .filter((h) => h.projectId === projectId)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  async getHelper(id: string) {
+    return this.db.helpers[id] ?? null;
+  }
+
+  async saveHelper(record: Omit<HelperRecord, "createdAt" | "updatedAt"> & { createdAt?: string }) {
+    const existing = this.db.helpers[record.id];
+    const taken = new Set(Object.values(this.db.helpers).filter((h) => h.projectId === record.projectId && h.id !== record.id).map((h) => h.slug));
+    const slug = uniqueSlug(record.slug, taken);
+    const now = this.now();
+    const saved: HelperRecord = { ...record, slug, createdAt: existing?.createdAt ?? record.createdAt ?? now, updatedAt: now, placedAt: existing && sameBrief(existing, record) ? existing.placedAt : undefined };
+    this.db.helpers[saved.id] = saved;
+    this.scheduleSave();
+    return saved;
+  }
+
+  async deleteHelper(id: string) {
+    delete this.db.helpers[id];
+    this.scheduleSave();
+  }
+
+  async markHelpersPlaced(projectId: string, at: string) {
+    for (const h of Object.values(this.db.helpers)) if (h.projectId === projectId) h.placedAt = at;
+    this.scheduleSave();
+  }
+
+  async helperRuns(projectId: string, opts: { since: string }) {
+    const rows = this.db.events.filter((e) => e.projectId === projectId && e.ts >= opts.since && (e.kind === "subagent_start" || e.kind === "subagent_stop" || e.kind === "edit"));
+    return helperRunsFrom(rows, (taskId) => this.db.tasks[taskId]?.state.changedPaths ?? []);
   }
 }
 

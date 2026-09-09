@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Room } from "@/components/Room";
 import { currentViewer } from "@/lib/auth";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { PRODUCT_NAME, SITE_NAME } from "@/lib/brand";
 import { roomForViewer } from "@/lib/room";
 import { getStore } from "@/lib/store";
 
@@ -21,5 +21,5 @@ export default async function RoomPage({ params, searchParams }: { params: Promi
   // The header's project switcher: the viewer's own projects (every project in local mode).
   const mine = await store.listProjects(viewer.local ? undefined : viewer.id);
   const projects = (mine.some((p) => p.id === projectId) ? mine : [project, ...mine]).map((p) => ({ id: p.id, name: p.name }));
-  return <Room initial={initial} mode={store.mode} productName={PRODUCT_NAME} welcome={welcome === "1"} viewer={{ email: viewer.email, admin: viewer.admin, local: viewer.local }} projects={projects} />;
+  return <Room initial={initial} mode={store.mode} productName={PRODUCT_NAME} siteName={SITE_NAME} welcome={welcome === "1"} viewer={{ email: viewer.email, admin: viewer.admin, local: viewer.local }} projects={projects} />;
 }
