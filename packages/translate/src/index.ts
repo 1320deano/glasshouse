@@ -80,3 +80,4 @@ export {
   type DigestWindow,
   type DigestWindowKind,
 } from "./digest.js";
+export { codexMarkers, mergeSection, removeSection, sectionSlugs, type CompiledFile, type HelperTool } from "./helper-files.js";

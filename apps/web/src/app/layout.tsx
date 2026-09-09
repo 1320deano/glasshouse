@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Source_Serif_4 } from "next/font/google";
 import type { ReactNode } from "react";
-import { PRODUCT_NAME, TAGLINE } from "@/lib/brand";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/brand";
 import "./globals.css";
 
 /**
@@ -15,8 +15,8 @@ const sans = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swa
 const serif = Source_Serif_4({ subsets: ["latin"], variable: "--font-source-serif", display: "swap", weight: ["400", "500"], style: ["normal", "italic"] });
 
 export const metadata: Metadata = {
-  title: PRODUCT_NAME,
-  description: TAGLINE,
+  title: SITE_NAME,
+  description: SITE_TAGLINE,
 };
 
 export const viewport: Viewport = {

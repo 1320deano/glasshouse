@@ -1,11 +1,11 @@
 # What Christopher needs to do
 
-Everything built in Phases 0 to 4 that is waiting on a decision, an account, a key or a real session from you.
+Everything built in Phases 0 to 6 that is waiting on a decision, an account, a key or a real session from you.
 In order of how much they unblock. Each item says what it is for, in plain words, and where the instructions are.
 
 ## The three things that unblock the most
 
-1. **Create the hosted Supabase project and apply the four migrations.** Supabase is the database, sign-in and
+1. **Create the hosted Supabase project and apply the five migrations.** Supabase is the database, sign-in and
    live-update service the hosted product runs on. Nothing hosted (sign-in, testers, plans, the landing page for real
    visitors) works without it, and the Supabase side of the code has never been run against a real database.
    Instructions: `docs/supabase-setup.md`. Then, before anything else, run the recorded sessions into it and open the
@@ -78,3 +78,22 @@ In order of how much they unblock. Each item says what it is for, in plain words
 - The connector's hook commands on a Windows machine without Git Bash (Phase 0 open question; matters for testers).
 - Whether a Cursor session shows up twice when Cursor reads Claude Code's settings (Phase 2 note). If it does, connect
   with `--tools claude-code` only.
+
+## Phase 6 (Deano and the Potting Shed)
+
+- **Say yes or no to the names.** The website is Deano, as you asked. The agent builder is called the **Potting Shed**
+  (the place beside a glasshouse where you raise young plants before planting them out). Agents and sub-agents are
+  called **helpers** everywhere the owner looks. All three are one setting each (`NEXT_PUBLIC_SITE_NAME`,
+  `NEXT_PUBLIC_SHED_NAME`, and "helper" in the UI copy). `docs/phase-6-findings.md` says why.
+- **Apply the fifth migration** (`supabase/migrations/20260909000000_phase6.sql`) when you set up Supabase. It adds the
+  table that stores helpers and an index the "checked afterwards" line needs.
+- **Grow one real helper and run it.** Open the Shed for a real project, take the first suggestion (or type one
+  sentence), press Grow it, run `npx glasshouse helpers` in the project folder, then start Claude Code and ask it to use
+  the helper by name. The helper's card should say "Ran once; kept to its patch" within a minute of it finishing. That is
+  the Phase 6 exit test: the first time the check says something you did not already know.
+- **Decide whether placing should ever be automatic.** Today the owner runs one command. The `watch` process could pull
+  helpers itself, but that means an agent's instructions can change without your hand on it; the findings say why it was
+  left out. Your call.
+- **Decide the AI key question for the Shed.** Without a key, your typed sentence is used as-is. With a key, one call
+  tidies it into a name, a clearer job and first-guess boundaries. It costs one short call per helper started, logged
+  like every other call.

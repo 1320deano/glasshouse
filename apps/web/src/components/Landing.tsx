@@ -4,26 +4,26 @@ import { useEffect } from "react";
 import type { DemoFrame } from "@/lib/demo";
 import { visitorId } from "@/lib/visitor";
 import { AuthForm } from "./AuthForm";
-import { Check } from "./icons";
+import { Check, Screen, Sprout } from "./icons";
 import { MockTile } from "./MockTile";
 
 const FREE = ["1 project", "1 agent at a time", "The live Room and report cards", "Last 24 hours of history"];
 const PRO = ["Unlimited projects and agents", "Full history", "Daily and weekly digests", "The needs-you inbox", "Ask questions about any task"];
 
-export function Landing({ frames, productName, priceGbp, local, connectCommand }: { frames: DemoFrame[]; productName: string; priceGbp: number; local: boolean; connectCommand: string }) {
+export function Landing({ frames, siteName, productName, shedName, priceGbp, local, connectCommand }: { frames: DemoFrame[]; siteName: string; productName: string; shedName: string; priceGbp: number; local: boolean; connectCommand: string }) {
   useEffect(() => {
     void fetch("/api/metrics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ event: "landing_view", visitorId: visitorId() }) }).catch(() => undefined);
   }, []);
   return (
     <main className="landing">
       <header className="landing-head">
-        <strong className="page-title">{productName}</strong>
+        <strong className="page-title">{siteName}</strong>
         <nav>
           <a className="nav-link" href="#price">
             Price
           </a>
           <a className="nav-link" href={local ? "/" : "/signin"}>
-            {local ? "Open the Room" : "Sign in"}
+            {local ? `Open ${siteName}` : "Sign in"}
           </a>
         </nav>
       </header>
@@ -127,13 +127,47 @@ export function Landing({ frames, productName, priceGbp, local, connectCommand }
         </div>
       </section>
 
+      <section className="landing-section two-products" aria-labelledby="two-products">
+        <div className="landing-section-head">
+          <h2 id="two-products">Two products, one record</h2>
+          <p>
+            {siteName} is the website. {productName} is where you watch. {shedName} is where you raise helpers for your agents, grown from what {productName} has seen them do, and checked against
+            the record afterwards. Nothing you build in one is lost in the other.
+          </p>
+        </div>
+        <ul className="products two-up">
+          <li>
+            <div className="product-card static">
+              <span className="product-icon" aria-hidden="true">
+                <Screen size={22} />
+              </span>
+              <span className="product-main">
+                <span className="product-name">{productName}</span>
+                <span className="product-blurb">What every agent is doing right now, which part of your app it is touching, and why. Watch-only: nothing here can steer an agent.</span>
+              </span>
+            </div>
+          </li>
+          <li>
+            <div className="product-card static">
+              <span className="product-icon" aria-hidden="true">
+                <Sprout size={22} />
+              </span>
+              <span className="product-main">
+                <span className="product-name">{shedName}</span>
+                <span className="product-blurb">Helpers for Claude Code, Codex and Cursor, built by answering a few plain questions. Each one is proposed from what your project has actually needed.</span>
+              </span>
+            </div>
+          </li>
+        </ul>
+      </section>
+
       <section className="cta">
         <h2>Two tools. One story. You never opened the code.</h2>
         <AuthForm local={local} label="Get started free" />
       </section>
 
       <footer className="landing-foot">
-        {productName} is watch-only by design. Built for people who run AI coding agents and would rather understand than supervise.
+        {siteName} is watch-only by design. Built for people who run AI coding agents and would rather understand than supervise.
       </footer>
     </main>
   );
