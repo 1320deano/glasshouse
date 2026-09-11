@@ -9,8 +9,9 @@ Deano is the website. Two products live inside it, on one record of the project:
   a few plain questions; every helper is proposed from what the record shows actually happened, compiled to the real
   file each tool reads, placed with one command, and checked afterwards against the files its runs changed.
 
-After sign-in the owner lands on the front door (`/`), picks a product, and can always leave a product by the grid
-button at the top-left of its header. Names live in `apps/web/src/lib/brand.ts`.
+After sign-in the owner lands on the front door (`/`), picks a product, and can always leave a product by the
+"Products" link at the top-left of its header; the front door's own "Landing page" link goes back out to the landing
+page. Names live in `apps/web/src/lib/brand.ts`.
 
 Brief: `control-room-product-report.md`. Phased plan: `glasshouse-phased-plan.md`. Research: `docs/`.
 Phases 0 to 4 are built; findings per phase in `docs/phase-N-findings.md`. Phase 5 (the three-column Room) is in

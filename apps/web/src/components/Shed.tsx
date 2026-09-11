@@ -7,7 +7,7 @@ import type { HelperSuggestion } from "@/lib/shed/suggest";
 import type { HelperView, ShedView } from "@/lib/shed/view";
 import type { HelperBrief, HelperCare, HelperEvidence, HelperRule } from "@/lib/store/types";
 import type { Area, AgentTool } from "@glasshouse/schema";
-import { ArrowUp, Book, Check, ChevronRight, Copy, Fence, Grid, Hand, Info, PanelLeft, PanelRight, Plus, Screen, Sparkle, Sprout, Trash } from "./icons";
+import { ArrowLeft, ArrowUp, Book, Check, ChevronRight, Copy, Fence, Hand, Info, PanelLeft, PanelRight, Plus, Screen, Sparkle, Sprout, Trash } from "./icons";
 import { TOOL_NAMES, ago } from "./labels";
 
 /**
@@ -500,9 +500,13 @@ export function Shed({
       <main className="room shed" data-tab={tab} data-agents={layout.helpers} data-progress={layout.grown}>
         <header className="room-head">
           <div className="room-head-left">
-            <a className="icon-button head-out" href="/" aria-label={`Leave ${shedName} and choose a product`} title={`Back to ${siteName}: choose a product`}>
-              <Grid size={16} />
+            <a className="back-link head-back" href="/" title={`Leave ${shedName} and go back to ${siteName}'s two products`}>
+              <ArrowLeft />
+              <span>Products</span>
             </a>
+            <span className="crumb-sep" aria-hidden="true">
+              /
+            </span>
             <a className="brand" href="/shed">
               <Sprout size={18} />
               <span>{shedName}</span>

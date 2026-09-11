@@ -5,7 +5,7 @@ import { UPGRADE_REASONS, type GatedRoom } from "@/lib/plan";
 import type { RoomState, SessionView } from "@/lib/store/types";
 import { AgentCard } from "./AgentCard";
 import { Conversation } from "./Conversation";
-import { Grid, Info, Mark, PanelLeft, PanelRight, Rows, Screen } from "./icons";
+import { ArrowLeft, Info, Mark, PanelLeft, PanelRight, Rows, Screen } from "./icons";
 import { Progress } from "./Progress";
 import { ReportProblem } from "./ReportProblem";
 import { Walkthrough } from "./Walkthrough";
@@ -317,9 +317,13 @@ export function Room({
       <main className="room" data-tab={tab} data-agents={layout.agents} data-progress={layout.progress} data-density={layout.density}>
         <header className="room-head">
           <div className="room-head-left">
-            <a className="icon-button head-out" href="/" aria-label={`Leave ${productName} and choose a product`} title={`Back to ${siteName}: choose a product`}>
-              <Grid size={16} />
+            <a className="back-link head-back" href="/" title={`Leave ${productName} and go back to ${siteName}'s two products`}>
+              <ArrowLeft />
+              <span>Products</span>
             </a>
+            <span className="crumb-sep" aria-hidden="true">
+              /
+            </span>
             <a className="brand" href="/glasshouse">
               <Mark />
               <span>{productName}</span>

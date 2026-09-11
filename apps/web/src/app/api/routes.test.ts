@@ -11,6 +11,9 @@ import { POST as postAsk } from "./ask/route";
 import { POST as postFeedback } from "./feedback/route";
 import { GET as getFeedback } from "./feedback/[projectId]/route";
 
+/** Two days ago, so a sample task always sits inside the digest's week however long after writing this runs. */
+const at = (offsetSeconds: number) => new Date(Date.now() - 2 * 24 * 3600 * 1000 + offsetSeconds * 1000).toISOString();
+
 const TREE = { paths: ["package.json", "src/auth/session.ts", "src/auth/login.ts", "src/payments/stripe.ts", "src/storyboard/scenes.ts"], scannedAt: "2026-09-04T09:00:00.000Z" };
 const json = (body: unknown, token?: string) => new Request("http://x/", { method: "POST", headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
 const patch = (body: unknown) => new Request("http://x/", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -73,8 +76,8 @@ describe("GET /api/task/[taskId]", () => {
   it("returns the expanded view for a task after ingest, translated with the map", async () => {
     await postTree(json(TREE, token));
     const events = [
-      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a51", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "prompt", ts: "2026-09-04T09:00:00.000Z", paths: [], prompt: "fix the login bug", summary: "fix the login bug", sourceEvent: "UserPromptSubmit", raw: {} },
-      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a52", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "edit", ts: "2026-09-04T09:00:05.000Z", paths: ["src/auth/session.ts"], summary: "Changed src/auth/session.ts", sourceEvent: "PostToolUse", sourceTool: "Edit", raw: { tool_name: "Edit" } },
+      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a51", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "prompt", ts: at(0), paths: [], prompt: "fix the login bug", summary: "fix the login bug", sourceEvent: "UserPromptSubmit", raw: {} },
+      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a52", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "edit", ts: at(5), paths: ["src/auth/session.ts"], summary: "Changed src/auth/session.ts", sourceEvent: "PostToolUse", sourceTool: "Edit", raw: { tool_name: "Edit" } },
     ];
     const res = await ingest(json({ connectorVersion: "0.2.0", events }, token));
     expect(await res.json()).toEqual({ inserted: 2, duplicates: 0 });
@@ -96,9 +99,9 @@ describe("Phase 3 routes", () => {
   async function finishedTask() {
     await postTree(json(TREE, token));
     const events = [
-      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a61", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "prompt", ts: "2026-09-04T09:00:00.000Z", paths: [], prompt: "fix the login bug", summary: "fix the login bug", sourceEvent: "UserPromptSubmit", raw: {} },
-      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a62", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "edit", ts: "2026-09-04T09:00:05.000Z", paths: ["src/auth/session.ts"], summary: "Changed src/auth/session.ts", sourceEvent: "PostToolUse", sourceTool: "Edit", raw: { tool_name: "Edit" } },
-      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a63", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "stop", ts: "2026-09-04T09:00:09.000Z", paths: [], summary: "Done. Should I also update the mobile app?", text: "Done. Should I also update the mobile app?", sourceEvent: "Stop", raw: {} },
+      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a61", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "prompt", ts: at(0), paths: [], prompt: "fix the login bug", summary: "fix the login bug", sourceEvent: "UserPromptSubmit", raw: {} },
+      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a62", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "edit", ts: at(5), paths: ["src/auth/session.ts"], summary: "Changed src/auth/session.ts", sourceEvent: "PostToolUse", sourceTool: "Edit", raw: { tool_name: "Edit" } },
+      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a63", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "stop", ts: at(9), paths: [], summary: "Done. Should I also update the mobile app?", text: "Done. Should I also update the mobile app?", sourceEvent: "Stop", raw: {} },
     ];
     await ingest(json({ connectorVersion: "0.2.0", events }, token));
     const room = await store.getRoom(projectId);
@@ -192,8 +195,8 @@ describe("Phase 4 routes (local mode)", () => {
     const { POST: postAsk } = await import("./ask/route");
     await postTree(json(TREE, token));
     const events = [
-      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a71", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "prompt", ts: "2026-09-04T09:00:00.000Z", paths: [], prompt: "fix login", summary: "fix login", sourceEvent: "UserPromptSubmit", raw: {} },
-      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a72", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "stop", ts: "2026-09-04T09:00:09.000Z", paths: [], summary: "Done", sourceEvent: "Stop", raw: {} },
+      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a71", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "prompt", ts: at(0), paths: [], prompt: "fix login", summary: "fix login", sourceEvent: "UserPromptSubmit", raw: {} },
+      { id: "0b3a0d4e-1e2f-4c5d-8a9b-0c1d2e3f4a72", projectId, sessionId: "s1", taskKey: "p1", tool: "claude-code", kind: "stop", ts: at(9), paths: [], summary: "Done", sourceEvent: "Stop", raw: {} },
     ];
     await ingest(json({ connectorVersion: "0.2.0", events }, token));
     const pro = (await (await getRoom(new Request("http://x/"), params({ projectId }))).json()) as { plan: string; locked: { reasons: string[] }; room: { sessions: unknown[] } };
