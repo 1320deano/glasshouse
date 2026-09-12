@@ -13,8 +13,14 @@ export const TOOL_NAMES: Record<AgentTool, string> = {
  * One muted hue per tool, used only for the 7px dot on a tile. Never for text, never for a fill:
  * these say "which agent", they are not part of the palette.
  */
+/**
+ * One hue per tool, read wherever a tool is named: the mark beside the tool's name on an agent
+ * card, the tool mix bar and its key in the progress column. Claude Code is Claude's own blue
+ * (`--blue` in the tokens), the secondary accent of the Claude and Claude Code apps, so the
+ * progress column stays in one cool family rather than the accent's terracotta.
+ */
 export const TOOL_COLOURS: Record<AgentTool, string> = {
-  "claude-code": "#c2410c",
+  "claude-code": "#6a9bcc",
   codex: "#0f766e",
   cursor: "#6d28d9",
   watcher: "#64748b",

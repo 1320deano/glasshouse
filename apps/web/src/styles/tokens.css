@@ -8,7 +8,8 @@
    Shape of the system
      Colour   warm and neutral-heavy, the way the Claude app is: an ivory page, white surfaces,
               warm greys for lines and quiet text, and one terracotta accent spent only on the
-              primary action and the thing the eye must land on first. Amber, green and red are
+              primary action and the thing the eye must land on first. Claude's blue is the
+              colour of counts and stages in the progress column. Amber, green and red are
               *status*: they carry a fact ("waiting for you", "verified", "an error"), never
               decoration. Every text colour below passes WCAG AA (4.5:1) on its own surface.
      Type     Geist for everything (the open face closest to Anthropic Sans), one serif for the
@@ -71,11 +72,20 @@
   --accent-ink: #9e4627;
   --accent-quiet: rgba(201, 100, 66, 0.12);
   --accent-line: rgba(201, 100, 66, 0.4);
-  /* The activity heatmap's ramp, from "one action" to "the busiest hour of the week". */
-  --accent-1: #f1dcd2;
-  --accent-2: #e3b6a3;
-  --accent-3: #d08a6d;
-  --accent-4: var(--accent);
+
+  /* --- Colour: the progress blue --------------------------------------------------------
+     Claude's blue (#6a9bcc, the secondary accent of the Claude and Claude Code apps). It is the
+     colour of *counts and stages* on the right of the Room: the activity heatmap, the stage bar
+     under each part, and Claude Code's share of the tool mix. Cooler and quieter than the
+     terracotta, so the progress column reads as information, not as a row of warnings.
+     --blue-1 to --blue-4 climb from "one action" to "the busiest hour of the week"; --blue-deep
+     is the top of the ramp and the "finished" segment of a stage bar. */
+  --blue: #6a9bcc;
+  --blue-deep: #4a7fb2;
+  --blue-1: #dfe8f2;
+  --blue-2: #bdd2e7;
+  --blue-3: #94b8db;
+  --blue-4: var(--blue);
 
   /* --- Colour: status. A fact, never a mood. -------------------------------------------- */
   --warn: #8a5200; /* waiting for you, medium risk, a decision to make: 5.3:1 on its tint */

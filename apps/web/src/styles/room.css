@@ -1449,7 +1449,7 @@
   font-weight: var(--weight-semibold);
 }
 
-/* The heatmap: seven rows of two-hour cells. Level 0 is the empty cell; 1 to 4 climb the accent. */
+/* The heatmap: seven rows of two-hour cells. Level 0 is the empty cell; 1 to 4 climb the blue. */
 .heat {
   display: flex;
   flex-direction: column;
@@ -1478,16 +1478,16 @@
   min-width: 10px;
 }
 .heat-cell[data-level="1"] {
-  background: var(--accent-1);
+  background: var(--blue-1);
 }
 .heat-cell[data-level="2"] {
-  background: var(--accent-2);
+  background: var(--blue-2);
 }
 .heat-cell[data-level="3"] {
-  background: var(--accent-3);
+  background: var(--blue-3);
 }
 .heat-cell[data-level="4"] {
-  background: var(--accent-4);
+  background: var(--blue-4);
 }
 .heat-hours .heat-hour {
   font-size: var(--text-1);
@@ -1602,7 +1602,9 @@
 }
 
 /* Five segments, one per stage: looking, planning, building, testing, finished. A filled
-   segment is a stage reached. Nothing here is a percentage. */
+   segment is a stage reached, in the progress blue; the last one, "finished", is the deep end of
+   the same ramp. Amber and red stay for the two facts the owner must catch from across the room:
+   waiting for you, and stuck. Nothing here is a percentage. */
 .part-bar {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -1614,16 +1616,16 @@
   background: var(--bg-subtle);
 }
 .part-bar span[data-on="yes"] {
-  background: var(--accent);
+  background: var(--blue);
+}
+.part-bar span:last-child[data-on="yes"] {
+  background: var(--blue-deep);
 }
 .part[data-attention="waiting"] .part-bar span[data-on="yes"] {
   background: var(--warn);
 }
 .part[data-attention="stuck"] .part-bar span[data-on="yes"] {
   background: var(--danger);
-}
-.part-bar span:last-child[data-on="yes"] {
-  background: var(--positive);
 }
 
 .part-meta {
