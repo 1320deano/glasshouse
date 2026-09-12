@@ -362,8 +362,8 @@ select.field {
 }
 
 .badge.attention {
-  background: var(--warn-quiet);
-  color: var(--warn);
+  background: var(--attention-quiet);
+  color: var(--attention-ink);
 }
 
 .badge.critical {
@@ -434,13 +434,13 @@ select.field {
 }
 
 .notice.attention {
-  border-color: var(--warn-line);
-  background: var(--warn-quiet);
-  color: var(--warn);
+  border-color: var(--attention-line);
+  background: var(--attention-quiet);
+  color: var(--attention-ink);
 }
 .notice.attention > svg,
 .notice.attention strong {
-  color: var(--warn);
+  color: var(--attention-ink);
 }
 
 .notice.critical {

@@ -377,13 +377,13 @@
 
 .needs-you[data-need="decision"],
 .needs-you[data-need="blocked"] {
-  border-color: var(--warn-line);
-  background: var(--warn-quiet);
-  color: var(--warn);
+  border-color: var(--attention-line);
+  background: var(--attention-quiet);
+  color: var(--attention-ink);
 }
 .needs-you[data-need="decision"] strong,
 .needs-you[data-need="blocked"] strong {
-  color: var(--warn);
+  color: var(--attention-ink);
 }
 
 .needs-badge {
@@ -405,8 +405,8 @@
 }
 .needs-badge[data-need="decision"],
 .needs-badge[data-need="blocked"] {
-  color: var(--warn);
-  background: var(--warn-quiet);
+  color: var(--attention-ink);
+  background: var(--attention-quiet);
 }
 
 .report-source {

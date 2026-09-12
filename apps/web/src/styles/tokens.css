@@ -87,6 +87,16 @@
   --danger-quiet: rgba(171, 43, 63, 0.09);
   --danger-line: rgba(171, 43, 63, 0.4);
 
+  /* --- Colour: "needs you", as a block behind text --------------------------------------
+     A decision, a question, a medium risk: the fact is in the words, so the block behind them
+     is the warm grey of your own messages, never a colour. The amber above stays for the
+     *signals* the eye is meant to catch from across the room and nowhere else: the waiting
+     status word, the edge of the card it belongs to, the stage bar. Ink is the darkest text we
+     have (14.8:1 on the grey) so a needs-you chip still reads as the loudest of the quiet ones. */
+  --attention-quiet: var(--grey-800);
+  --attention-ink: var(--text-primary);
+  --attention-line: var(--grey-600);
+
   --focus-ring: var(--accent);
 
   /* --- Type -----------------------------------------------------------------------------
