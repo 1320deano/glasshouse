@@ -74,6 +74,14 @@ working dot pulses, the chevron turns. All of it is switched off under `prefers-
 **Icons, never emoji.** `apps/web/src/components/icons.tsx` is the whole set: line icons on a 16px
 grid, inheriting `currentColor`. An icon appears only where a word would otherwise be repeated.
 
+**One exception: the tool marks.** `apps/web/src/components/ToolLogo.tsx` holds the mark of each tool
+an agent can run in — Claude's burst, Codex's knot, Cursor's cube, a folder for the watcher — drawn on
+the same 16px grid but in that tool's own hue from `TOOL_COLOURS`, not `currentColor`. They stand
+beside the tool's name on an agent card, where a plain coloured dot used to, so the tool is recognised
+from two metres. The name is always written beside the mark, so the mark is `aria-hidden` and never
+carries a fact on its own. The tool mix bar and its key on the right keep the dot, because there the
+colour is the thing being read.
+
 **Keyboard first.** One focus ring (`:focus-visible`), always visible on both the page and a filled
 button. Every page starts with a skip link. Icon-only controls carry an `aria-label`; every input
 has a label, visible or `.visually-hidden`.
