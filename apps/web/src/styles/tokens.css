@@ -79,9 +79,14 @@
      under each part, and Claude Code's share of the tool mix. Cooler and quieter than the
      terracotta, so the progress column reads as information, not as a row of warnings.
      --blue-1 to --blue-4 climb from "one action" to "the busiest hour of the week"; --blue-deep
-     is the top of the ramp and the "finished" segment of a stage bar. */
+     is the top of the ramp and the "finished" segment of a stage bar. --blue-ink is the one of
+     these dark enough to be *text* (6.2:1 on a white card, 5.6:1 on the page), and it is what the
+     progress column writes a part's stage in - including "waiting for you" and "looks stuck",
+     which say it in words there. The amber and red those two used to borrow stay on the agent
+     card, where the eye is meant to land; the right-hand column keeps one cool family. */
   --blue: #6a9bcc;
   --blue-deep: #4a7fb2;
+  --blue-ink: #356490;
   --blue-1: #dfe8f2;
   --blue-2: #bdd2e7;
   --blue-3: #94b8db;

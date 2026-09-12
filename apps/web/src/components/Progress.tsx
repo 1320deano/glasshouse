@@ -125,7 +125,11 @@ function AreaRow({ p, now }: { p: AreaProgress; now: number }) {
       {p.stage ? (
         <div className="part-meta">
           <span>{bits.join(" · ") || "Only looked at"}</span>
-          {checks && <span className={p.checks?.failed ? "error-text" : "positive-text"}>{checks}</span>}
+          {checks && (
+            <span className="part-checks" data-failed={p.checks?.failed ? "yes" : "no"}>
+              {checks}
+            </span>
+          )}
           <span className="faint">{p.lastTouchedAt ? ago(p.lastTouchedAt, now) : ""}</span>
         </div>
       ) : (
