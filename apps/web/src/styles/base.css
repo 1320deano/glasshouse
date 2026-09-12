@@ -242,12 +242,14 @@ hr {
   }
 }
 
-@keyframes shimmer {
+@keyframes settle {
   from {
-    background-position: 200% 0;
+    opacity: 0;
+    transform: scale(0.88);
   }
   to {
-    background-position: -200% 0;
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -265,6 +267,77 @@ hr {
   animation: fade var(--duration-base) var(--ease-standard) both;
 }
 
+/* --- Entrance -----------------------------------------------------------------------------
+   `.enter` (app/template.tsx) is around every page. While a page is still on its way the only
+   thing inside it is the wheel (`.loading`, components.css). When the real page replaces the
+   wheel, its parts rise in: the header first, then the columns left to right, then the first
+   cards inside each column one after another. Each rule fires the moment its element mounts, so
+   the same handful of rules cover the Room, the Shed, the front door and the plain pages, and a
+   card that arrives later (a new agent, a new helper) still rises on its own. Every delay is
+   short: the whole entrance is over well inside half a second, and nothing is waited for. */
+.enter .room-head,
+.enter .page-head,
+.enter .landing-head {
+  animation: rise var(--duration-slow) var(--ease-out) both;
+}
+.enter .room-tabs,
+.enter .page-intro,
+.enter .picker-head,
+.enter .hero {
+  animation: rise var(--duration-slow) var(--ease-out) both;
+  animation-delay: 60ms;
+}
+.enter .room-col.agents,
+.enter .room-col.story,
+.enter .room-col.progress-col,
+.enter .picker-body .products,
+.enter .page > .projects,
+.enter .page > .panel,
+.enter .page > form,
+.enter .page > section,
+.enter .landing-section,
+.enter .cta {
+  animation: rise var(--duration-slower) var(--ease-out) both;
+  animation-delay: 100ms;
+}
+.enter .room-col.story {
+  animation-delay: 160ms;
+}
+.enter .room-col.progress-col {
+  animation-delay: 220ms;
+}
+/* The first cards in a column, one after another. Cards past the sixth arrive with the column. */
+.enter .products .product-card,
+.enter .projects .project-card {
+  animation: rise var(--duration-slow) var(--ease-out) both;
+}
+.enter .agents-list > .agent:nth-child(1),
+.enter .products > li:nth-child(1) .product-card,
+.enter .projects > li:nth-child(1) .project-card {
+  animation-delay: 140ms;
+}
+.enter .agents-list > .agent:nth-child(2),
+.enter .products > li:nth-child(2) .product-card,
+.enter .projects > li:nth-child(2) .project-card {
+  animation-delay: 190ms;
+}
+.enter .agents-list > .agent:nth-child(3),
+.enter .projects > li:nth-child(3) .project-card {
+  animation-delay: 240ms;
+}
+.enter .agents-list > .agent:nth-child(4),
+.enter .projects > li:nth-child(4) .project-card {
+  animation-delay: 290ms;
+}
+.enter .agents-list > .agent:nth-child(5),
+.enter .projects > li:nth-child(5) .project-card {
+  animation-delay: 340ms;
+}
+.enter .agents-list > .agent:nth-child(6),
+.enter .projects > li:nth-child(6) .project-card {
+  animation-delay: 390ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -273,6 +346,7 @@ hr {
   *::before,
   *::after {
     animation-duration: 1ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
     scroll-behavior: auto !important;

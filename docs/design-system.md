@@ -7,7 +7,7 @@ invents a value.
 | --- | --- | --- |
 | tokens | `apps/web/src/styles/tokens.css` | colour, type scale, spacing, radii, shadow, motion, layout |
 | base | `apps/web/src/styles/base.css` | reset, typographic defaults, links, the focus ring, the motion contract |
-| components | `apps/web/src/styles/components.css` | buttons, fields, badges, cards, notices, empty states, skeletons, tables, page shell |
+| components | `apps/web/src/styles/components.css` | buttons, fields, badges, cards, notices, empty states, the loading wheel, tables, page shell |
 | screens | `apps/web/src/styles/screens.css` | the report card, the task panel, digest, inbox, areas, landing, admin |
 | room | `apps/web/src/styles/room.css` | the Room: header, three columns, agent cards, the story, progress |
 | deano | `apps/web/src/styles/deano.css` | the front door (the product picker) and the Potting Shed, composed from the Room's own parts: the way-out button, product cards, helper and suggestion cards, the sheet, chips |
@@ -70,6 +70,14 @@ record says.
 
 **Motion says "this arrived" or "this opened", and nothing else.** Tiles rise in, panels expand, the
 working dot pulses, the chevron turns. All of it is switched off under `prefers-reduced-motion`.
+
+**One wheel while anything is on its way, never a skeleton.** A skeleton guesses the shape of what is
+coming, and the shape is not knowable up front: the Room's folds live in the browser, and the Shed, the
+front door and the plain pages are all different shapes. `components/Loading.tsx` is the one loading
+state, inline or as a whole page (`app/loading.tsx`); it waits a beat before showing so a fast answer never
+flashes it. When the real page replaces it, its parts rise in through `.enter` (base.css): the header
+first, then the columns left to right, then the first cards in each column one after another, the whole
+entrance over inside half a second. Delays are zeroed under `prefers-reduced-motion` too.
 
 **Icons, never emoji.** `apps/web/src/components/icons.tsx` is the whole set: line icons on a 16px
 grid, inheriting `currentColor`. An icon appears only where a word would otherwise be repeated.

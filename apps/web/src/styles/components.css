@@ -1,6 +1,6 @@
 /* ============================================================================================
    Components: the small, reusable pieces every screen is built from.
-   Buttons, fields, badges, cards, notices, empty states, skeletons, tables, the page shell.
+   Buttons, fields, badges, cards, notices, empty states, the loading wheel, tables, the page shell.
    Screens compose these; they do not restyle them.
    ============================================================================================ */
 
@@ -512,25 +512,12 @@ select.field {
   color: var(--text-primary);
 }
 
-/* --- Loading -------------------------------------------------------------------------------- */
-.skeleton {
-  border-radius: var(--radius-xs);
-  background: linear-gradient(90deg, var(--grey-850) 25%, var(--grey-800) 37%, var(--grey-850) 63%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s linear infinite;
-}
-
-.skeleton-line {
-  height: 12px;
-  margin-bottom: var(--space-1);
-}
-
-.skeleton-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
+/* --- Loading --------------------------------------------------------------------------------
+   One wheel for everything that is on its way, inline or as a whole page. Never a skeleton: a
+   skeleton guesses the shape of what is coming, and the shape here is not knowable up front (the
+   Room's folds live in the browser; the Shed, the front door and the plain pages are all
+   different shapes). The wheel promises nothing about layout; the real screen then rises in
+   (`.enter`, base.css). It waits a beat before showing, so a fast answer never flashes it. */
 .spinner {
   width: 14px;
   height: 14px;
@@ -539,6 +526,38 @@ select.field {
   border-radius: var(--radius-full);
   animation: spin 700ms linear infinite;
   flex: none;
+}
+
+.spinner.large {
+  width: 36px;
+  height: 36px;
+  border-width: 3px;
+  border-color: var(--line);
+  border-top-color: var(--accent);
+  animation: spin 800ms linear infinite;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-15);
+  width: 100%;
+  padding: var(--space-4) var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-4);
+  animation: settle var(--duration-slow) var(--ease-out) both;
+  animation-delay: 160ms;
+}
+
+.page-loading {
+  min-height: 100dvh;
+  padding: var(--space-4);
+}
+
+.loading-label {
+  letter-spacing: 0.01em;
 }
 
 .loading-row {

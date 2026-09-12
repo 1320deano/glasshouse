@@ -17,6 +17,7 @@ function diffLines(events: readonly EventView[]): { added: number; removed: numb
 }
 import { Alert, Check, ThumbsDown } from "./icons";
 import { RISK_TEXT, TOOL_NAMES, ago, latencyOf } from "./labels";
+import { Loading } from "./Loading";
 import { ReportCard } from "./ReportCard";
 
 /**
@@ -75,24 +76,6 @@ export function Dislike({ eventId, projectId }: { eventId: string; projectId: st
   );
 }
 
-/** While the task's full record is on its way. Shows the shape of what is coming, not a spinner alone. */
-function PanelSkeleton() {
-  return (
-    <div className="panel" aria-busy="true">
-      <span className="visually-hidden">Loading this task</span>
-      <div className="panel-grid">
-        {[0, 1, 2].map((i) => (
-          <div className="panel-section" key={i}>
-            <div className="skeleton skeleton-line" style={{ width: "38%", height: 9 }} />
-            <div className="skeleton skeleton-line" style={{ width: "92%" }} />
-            <div className="skeleton skeleton-line" style={{ width: "74%" }} />
-            <div className="skeleton skeleton-line" style={{ width: "58%" }} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export function TaskPanel({ session, now }: { session: SessionView; now: number }) {
   const taskId = session.task?.id;
@@ -150,7 +133,7 @@ export function TaskPanel({ session, now }: { session: SessionView; now: number 
         </div>
       </div>
     );
-  if (!detail) return <PanelSkeleton />;
+  if (!detail) return <Loading label="Loading this task" />;
 
   const helpers = new Set(detail.events.filter((e) => e.agentId).map((e) => e.agentId));
   const diff = technical ? diffLines(detail.events) : null;

@@ -4,29 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { InboxItem, ProjectSummary } from "@/lib/store/types";
 import { Alert, Check } from "./icons";
 import { NEEDS_YOU_TEXT, RISK_TEXT, TOOL_NAMES, ago } from "./labels";
+import { Loading } from "./Loading";
 import { PageHeader } from "./PageHeader";
 
 interface InboxState {
   open: InboxItem[];
   cleared: InboxItem[];
   days: number;
-}
-
-function InboxSkeleton() {
-  return (
-    <ul className="inbox" aria-busy="true">
-      <li className="visually-hidden">Loading the inbox</li>
-      {[0, 1, 2].map((i) => (
-        <li className="inbox-item" key={i}>
-          <div className="inbox-main" style={{ width: "100%" }}>
-            <div className="skeleton" style={{ width: 120, height: 20, borderRadius: 999 }} />
-            <div className="skeleton skeleton-line" style={{ width: "48%", height: 16 }} />
-            <div className="skeleton skeleton-line" style={{ width: "30%" }} />
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 export function Inbox({ project }: { project: ProjectSummary }) {
@@ -111,7 +95,7 @@ export function Inbox({ project }: { project: ProjectSummary }) {
           </div>
         </div>
       )}
-      {!state && !error && <InboxSkeleton />}
+      {!state && !error && <Loading label="Loading the inbox" />}
 
       {state && (
         <>
