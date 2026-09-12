@@ -6,6 +6,9 @@ Everything runs on your own machine for now. Nothing leaves it unless you add an
 
 1. Double-click `start-room.cmd` in the project folder. A black window opens and stays open; your browser opens
    the Room at http://localhost:3000. Put that tab on your second monitor.
+   The window spends a few seconds saying "Getting Deano ready" first. That step rebuilds the Room from the
+   current code every time it starts, so after an update you are never shown yesterday's version of the product
+   by mistake. If your browser opens before the Room is up, wait a moment and reload the page.
 2. Use Claude Code, Codex or Cursor as normal, in any folder you have connected.
 3. Optional: in a second terminal run `node .../packages/connector/dist/cli.js watch`. This one process notices
    plain file saves, commits, and Codex's own logs (which is how Codex usage limits are seen). Ctrl+C stops it.

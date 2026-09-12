@@ -105,6 +105,12 @@ Then explain what was done in plain, non-technical language, leaving nothing out
   that carry the same agent id), never stored. Free grows two helpers per project; the gate is in `lib/plan.ts`.
 - The connector has no daemon for hooks: each hook spools one event file and flushes the spool. See `docs/phase-1-findings.md`.
   `glasshouse watch` is the one long-running process, only for sources without hooks (folder saves, git, Codex logs).
+- Nothing in the browser calls `res.json()` on a reply from our own server. It calls `readAnswer`/`askServer`
+  (`lib/answer.ts`), which turns a reply that is not an answer — the not-found page after an update, a host's
+  error page, an empty body from a route that stopped — into one plain-English line. A browser's own words
+  ("Unexpected token '<' … is not valid JSON") must never reach the owner. Rule 5.
+- Signing in never fails over bookkeeping. By the time the profile row is written the cookie is already on the
+  browser, so `rememberProfile` logs a database failure and steps over it, and the plan falls back to Free.
 - Plain-English lines, location, risk and "not touched" are computed at read time from the current area map
   (`derive.ts`), never stored, so a renamed area is right everywhere at once. Task facts live in one `state` object.
 - Report cards store words only (headline, before/after, the AI's reasons, needs-you and its question). Touched, not

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Area, AreaMap } from "@glasshouse/schema";
+import { askServer } from "@/lib/answer";
 import type { ProjectSummary } from "@/lib/store/types";
 import { Alert, Layers } from "./icons";
 import { PageHeader } from "./PageHeader";
@@ -19,16 +20,13 @@ export function AreasEditor({ project, initial, files, scannedAt, aiEnabled }: {
   async function send(body: Record<string, unknown>, label: string) {
     setBusy(label);
     setError(null);
-    try {
-      const res = await fetch(`/api/areas/${project.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-      const data = (await res.json()) as { map?: AreaMap; error?: string };
-      if (!res.ok || !data.map) throw new Error(data.error ?? `${res.status}`);
-      setMap(data.map);
-    } catch (err) {
-      setError(String(err instanceof Error ? err.message : err));
-    } finally {
-      setBusy(null);
-    }
+    const { data, problem } = await askServer<{ map?: AreaMap; error?: string }>(
+      () => fetch(`/api/areas/${project.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+      "That change was not saved.",
+    );
+    if (problem || !data?.map) setError(problem ?? "That change was not saved.");
+    else setMap(data.map);
+    setBusy(null);
   }
 
   return (

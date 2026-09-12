@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { askServer } from "@/lib/answer";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { Alert, Check } from "./icons";
 import { PageHeader } from "./PageHeader";
@@ -12,15 +13,13 @@ export function Account({ productName, email, plan, priceGbp, billing, local, su
   async function go(path: string) {
     setBusy(true);
     setError(null);
-    try {
-      const res = await fetch(path, { method: "POST" });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Not available.");
-      window.location.href = data.url;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Not available.");
+    const { data, problem } = await askServer<{ url?: string; error?: string }>(() => fetch(path, { method: "POST" }), "Not available just now.");
+    if (problem || !data?.url) {
+      setError(problem ?? "Not available just now.");
       setBusy(false);
+      return;
     }
+    window.location.href = data.url;
   }
 
   const free = [`${PLAN_LIMITS.free.projects} project`, `${PLAN_LIMITS.free.agentsAtOnce} agent at a time`, "The live Room and report cards", "Last 24 hours of history"];

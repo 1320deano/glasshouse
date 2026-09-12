@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { askServer } from "@/lib/answer";
 import { Alert, Check, Copy } from "./icons";
 import { PageHeader } from "./PageHeader";
 
@@ -22,19 +23,14 @@ export function Connect({ productName, connectCommand, server, local, plan, proj
 
   const getCode = useCallback(async () => {
     setError(null);
-    try {
-      const res = await fetch("/api/projects/link-code", { method: "POST" });
-      const data = (await res.json()) as CodeState & { error?: string; upgrade?: string };
-      if (res.status === 402) {
-        setUpgrade(true);
-        setError(data.error ?? null);
-        return;
-      }
-      if (!res.ok) throw new Error(data.error ?? `${res.status}`);
-      setCode(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not get a code.");
+    const { data, problem, status } = await askServer<CodeState & { error?: string; upgrade?: string }>(() => fetch("/api/projects/link-code", { method: "POST" }), "Could not get a code.");
+    if (status === 402) {
+      setUpgrade(true);
+      setError(data?.error ?? null);
+      return;
     }
+    if (problem || !data) setError(problem ?? "Could not get a code.");
+    else setCode(data);
   }, []);
 
   useEffect(() => {

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { type NormalisedEvent, RecordedHook } from "@glasshouse/schema";
 import { buildHeuristicAreaMap, normaliseClaudeCode } from "@glasshouse/translate";
+import { rememberProfile } from "./auth";
 import { planChangeFrom } from "./billing";
 import { demoFrames } from "./demo";
 import { firstMoment } from "./moment";
@@ -162,5 +163,34 @@ describe("billing", () => {
     expect(planChangeFrom({ type: "customer.subscription.deleted", data: { object: { id: "sub_1", customer: "cus_1", metadata: { userId: "u1" } } } })).toEqual({ userId: "u1", customerId: "cus_1", subscriptionId: "sub_1", status: "canceled" });
     expect(planChangeFrom({ type: "customer.subscription.updated", data: { object: { id: "sub_1", customer: "cus_1", status: "past_due", metadata: {} } } })).toEqual({ userId: undefined, customerId: "cus_1", subscriptionId: "sub_1", status: "past_due" });
     expect(planChangeFrom({ type: "invoice.paid", data: { object: {} } })).toBeNull();
+  });
+});
+
+describe("the profile row never stands between a person and the door", () => {
+  afterEach(() => {
+    globalThis.__glasshouseStore = undefined;
+  });
+
+  it("writes the row when the database is there", async () => {
+    const store = new MemoryStore();
+    globalThis.__glasshouseStore = store;
+    const written = await rememberProfile("person-1", "chris@example.com");
+    expect(written?.email).toBe("chris@example.com");
+    expect((await store.getProfile("person-1"))?.email).toBe("chris@example.com");
+  });
+
+  /**
+   * A hosted project whose migrations have not been applied has no `profiles` table, so the write
+   * fails. It used to throw out of the sign-up and sign-in routes, and Next.js answered the form
+   * with an error page instead of an answer — which is what put "Unexpected token ... is not valid
+   * JSON" in front of the owner every time they pressed Get started. The write is bookkeeping: by
+   * the time it runs the person is already signed in, so a failure is logged and stepped over.
+   */
+  it("steps over a database that cannot take the row, and falls back to Free", async () => {
+    const store = new MemoryStore();
+    store.upsertProfile = () => Promise.reject(new Error('relation "public.profiles" does not exist'));
+    store.getProfile = () => Promise.reject(new Error('relation "public.profiles" does not exist'));
+    globalThis.__glasshouseStore = store;
+    await expect(rememberProfile("person-2", "chris@example.com")).resolves.toBeNull();
   });
 });

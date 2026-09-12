@@ -1,4 +1,4 @@
-import { signInAllowed } from "@/lib/auth";
+import { rememberProfile, signInAllowed } from "@/lib/auth";
 import { Credentials, safePath } from "@/lib/credentials";
 import { getStore } from "@/lib/store";
 import { supabaseConfigured, supabaseServer } from "@/lib/supabase/server";
@@ -23,8 +23,10 @@ export async function POST(req: Request) {
   if (error || !data.user) return Response.json({ error: "That email address and password do not go together. Check them and try again." }, { status: 401 });
 
   const user = data.user;
-  const existing = await store.getProfile(user.id);
-  if (!existing || existing.email !== email) await store.upsertProfile({ userId: user.id, email });
+  // Bookkeeping, never a reason to refuse someone who has just proved who they are: the cookie is
+  // already set, so a database problem here is logged and stepped over rather than thrown.
+  const existing = await store.getProfile(user.id).catch(() => null);
+  if (!existing || existing.email !== email) await rememberProfile(user.id, email);
   void store.markInviteAccepted(email, new Date().toISOString()).catch(() => undefined);
 
   return Response.json({ ok: true, next: safePath(parsed.data.next) });
