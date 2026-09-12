@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert } from "@/components/icons";
+import { SITE_NAME } from "@/lib/brand";
 
 /**
  * Something in the Room itself broke. Watch-only means never losing the owner's place: say what
@@ -15,17 +16,17 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
 
   return (
     <main className="page narrow">
-      <PageHeader brand="Glasshouse" title="Something went wrong" />
+      <PageHeader brand={SITE_NAME} title="Something went wrong" />
       <div className="empty">
         <Alert size={22} className="empty-icon" />
         <h2>This page could not be drawn.</h2>
-        <p>Nothing your agents did was affected — Glasshouse only ever watches. Try again, and if it keeps happening use “Something’s wrong” at the bottom of the Room.</p>
+        <p>Nothing your agents did was affected — {SITE_NAME} only ever watches. Try again, and if it keeps happening use “Something’s wrong” at the bottom of the Room.</p>
         <div className="toolbar">
           <button className="button primary" onClick={reset}>
             Try again
           </button>
           <a className="button subtle" href="/">
-            Back to your projects
+            Back to {SITE_NAME}
           </a>
         </div>
         {error.digest && <p className="faint tiny mono">Reference: {error.digest}</p>}

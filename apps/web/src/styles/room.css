@@ -120,8 +120,8 @@
   color: var(--warn);
 }
 .nav-link.lit:hover {
-  background: var(--warn-quiet);
-  color: var(--warn);
+  background: var(--attention-quiet);
+  color: var(--attention-ink);
 }
 
 .nav-count {
@@ -140,8 +140,8 @@
 }
 .nav-link.lit .nav-count,
 .nav-count.lit {
-  background: var(--warn-quiet);
-  color: var(--warn);
+  background: var(--attention-quiet);
+  color: var(--attention-ink);
 }
 
 .live-state {
@@ -186,8 +186,8 @@
 .pill[data-tone="attention"],
 .pill[data-need="decision"],
 .pill[data-need="blocked"] {
-  background: var(--warn-quiet);
-  color: var(--warn);
+  background: var(--attention-quiet);
+  color: var(--attention-ink);
 }
 .pill[data-tone="critical"] {
   background: var(--danger-quiet);
@@ -241,8 +241,8 @@
   white-space: nowrap;
 }
 .risk[data-level="medium"] {
-  background: var(--warn-quiet);
-  color: var(--warn);
+  background: var(--attention-quiet);
+  color: var(--attention-ink);
 }
 .risk[data-level="high"] {
   background: var(--danger-quiet);
@@ -254,6 +254,13 @@
   height: 8px;
   border-radius: var(--radius-full);
   flex: none;
+}
+
+/* The tool's own mark, where a card names the tool. Drawn in that tool's hue, so it says the same
+   thing the dot used to say and a little more: which tool, recognised by its logo. */
+.tool-logo {
+  flex: none;
+  display: block;
 }
 
 /* --- Chips: a part of the app, or (behind the toggle) a file ------------------------------- */
@@ -760,8 +767,8 @@
   color: var(--danger);
 }
 .agent-alert[data-tone="attention"] {
-  background: var(--warn-quiet);
-  color: var(--warn);
+  background: var(--attention-quiet);
+  color: var(--attention-ink);
 }
 .agent-alert[data-tone="info"] {
   background: var(--accent-quiet);
@@ -1071,9 +1078,9 @@
 .msg-question {
   font-size: var(--text-4);
   line-height: var(--leading-normal);
-  color: var(--warn);
+  color: var(--attention-ink);
   padding: var(--space-1) var(--space-15);
-  background: var(--warn-quiet);
+  background: var(--attention-quiet);
   border-radius: var(--radius-md);
   max-width: var(--measure);
 }
@@ -1335,13 +1342,13 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-1);
-  background: var(--warn-quiet);
+  background: var(--attention-quiet);
   border-radius: var(--radius-lg);
   padding: var(--space-2) var(--space-3);
   animation: rise var(--duration-slower) var(--ease-out) both;
 }
 .moment-label {
-  color: var(--warn);
+  color: var(--attention-ink);
   font-size: var(--text-2);
   font-weight: var(--weight-semibold);
 }

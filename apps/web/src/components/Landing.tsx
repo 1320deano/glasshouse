@@ -35,7 +35,7 @@ export function Landing({ frames, siteName, productName, shedName, priceGbp, loc
         </p>
         <h1>See what your AI coding agents are doing. In plain English.</h1>
         <p className="lede">
-          You prompt on one screen. On the other, {productName} narrates: what each agent is doing this second, which part of your app that is, whether it is stuck or waiting for you. When it
+          You prompt on one screen. On the other, {siteName} narrates: what each agent is doing this second, which part of your app that is, whether it is stuck or waiting for you. When it
           finishes, its card turns into a report card. When your credits run out and you switch tools, the story carries on.
         </p>
         <AuthForm local={local} label="Get started free" />
