@@ -11,6 +11,7 @@
 import { getStore } from "./store";
 import { LOCAL_OWNER } from "./store/memory";
 import type { Plan } from "./plan";
+import type { Profile } from "./store/types";
 import { supabaseConfigured, supabaseServer } from "./supabase/server";
 
 export interface Viewer {
@@ -57,6 +58,27 @@ function localViewer(): Viewer {
   return { id: LOCAL_OWNER, plan, admin: true, local: true };
 }
 
+/**
+ * Keep the person's profile row up to date, but never let a database problem stand between them
+ * and the door. By the time this runs the sign-in cookie is already on the browser: the row is
+ * bookkeeping (which plan they are on, when they were last seen), not permission to be here.
+ *
+ * So a failure here is swallowed and logged for the server's own records, and the caller carries
+ * on without a row. The plan then falls back to Free, which is the safe direction: a database we
+ * cannot read must never hand out something that was not paid for. This is what a hosted project
+ * whose migrations have not been applied yet looks like from the outside — the `profiles` table is
+ * missing, the write fails, and before this the whole route stopped dead and the browser was left
+ * trying to read an error page as an answer.
+ */
+export async function rememberProfile(userId: string, email?: string): Promise<Profile | null> {
+  try {
+    return await getStore().upsertProfile({ userId, email });
+  } catch (err) {
+    console.error("[auth] could not write the profile row for", userId, err);
+    return null;
+  }
+}
+
 /** The signed-in person, with their plan. Null when nobody is signed in (Supabase mode only). */
 export async function currentViewer(): Promise<Viewer | null> {
   const store = getStore();
@@ -67,10 +89,10 @@ export async function currentViewer(): Promise<Viewer | null> {
   const user = data.user;
   if (!user) return null;
   const email = user.email?.toLowerCase();
-  let profile = await store.getProfile(user.id);
-  if (!profile) profile = await store.upsertProfile({ userId: user.id, email });
-  else if (email && profile.email !== email) profile = await store.upsertProfile({ userId: user.id, email });
-  return { id: user.id, email, plan: profile.plan, admin: email ? adminEmails().includes(email) : false, local: false };
+  let profile = await store.getProfile(user.id).catch(() => null);
+  if (!profile) profile = await rememberProfile(user.id, email);
+  else if (email && profile.email !== email) profile = (await rememberProfile(user.id, email)) ?? profile;
+  return { id: user.id, email, plan: profile?.plan ?? "free", admin: email ? adminEmails().includes(email) : false, local: false };
 }
 
 /** May this request read the project? Owner, admin, setup secret, or the open-read switch. */

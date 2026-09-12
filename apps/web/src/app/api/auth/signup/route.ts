@@ -1,4 +1,4 @@
-import { signInAllowed } from "@/lib/auth";
+import { rememberProfile, signInAllowed } from "@/lib/auth";
 import { Credentials, MIN_PASSWORD, safePath } from "@/lib/credentials";
 import { getStore } from "@/lib/store";
 import { supabaseAdmin, supabaseAdminConfigured } from "@/lib/supabase/admin";
@@ -46,10 +46,12 @@ export async function POST(req: Request) {
   if (signInError) return Response.json({ error: "Your account was made, but signing in did not work. Try signing in." }, { status: 502 });
 
   const user = created.user;
-  // The database makes the profile row on sign-up; this is the belt to that pair of braces.
-  const existing = await store.getProfile(user.id);
-  if (!existing) await store.upsertProfile({ userId: user.id, email });
-  else if (existing.email !== email) await store.upsertProfile({ userId: user.id, email });
+  // The database makes the profile row on sign-up; this is the belt to that pair of braces. It is
+  // deliberately not allowed to fail the request: the cookie is already on the browser, so a
+  // database that cannot take the row (migrations not applied yet, for one) must not leave the
+  // person outside with an error page the form cannot read.
+  const existing = await store.getProfile(user.id).catch(() => null);
+  if (!existing || existing.email !== email) await rememberProfile(user.id, email);
   void store.markInviteAccepted(email, new Date().toISOString()).catch(() => undefined);
   void store.recordMetric("signup_completed", visitorId ?? user.id).catch(() => undefined);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { askServer } from "@/lib/answer";
 import { MIN_PASSWORD, PASSWORD_RULE } from "@/lib/credentials";
 import { visitorId } from "@/lib/visitor";
 
@@ -35,20 +36,25 @@ export function AuthForm({ mode = "signup", next = "/", label, local = false }: 
         e.preventDefault();
         setState("working");
         setMessage(null);
-        try {
-          const res = await fetch(signingUp ? "/api/auth/signup" : "/api/auth/signin", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ email, password, next, visitorId: visitorId() }),
-          });
-          const data = (await res.json()) as { error?: string; next?: string };
-          if (!res.ok) throw new Error(data.error ?? (signingUp ? "Could not make the account." : "Could not sign in."));
-          // The session cookie is on this browser now; a full load picks it up everywhere.
-          window.location.href = data.next ?? next;
-        } catch (err) {
+        const fallback = signingUp ? "Could not make the account." : "Could not sign in.";
+        // readAnswer, never res.json(): when something other than the route answers, the owner
+        // must hear what happened, not the browser's word for the shape of the reply.
+        const { data, problem } = await askServer<{ error?: string; next?: string }>(
+          () =>
+            fetch(signingUp ? "/api/auth/signup" : "/api/auth/signin", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ email, password, next, visitorId: visitorId() }),
+            }),
+          fallback,
+        );
+        if (problem) {
           setState("error");
-          setMessage(err instanceof Error ? err.message : signingUp ? "Could not make the account." : "Could not sign in.");
+          setMessage(problem);
+          return;
         }
+        // The session cookie is on this browser now; a full load picks it up everywhere.
+        window.location.href = data?.next ?? next;
       }}
     >
       <label className="visually-hidden" htmlFor={`${mode}-email`}>
