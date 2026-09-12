@@ -11,9 +11,15 @@ declare global {
 /**
  * One store per server process. Supabase when credentials are configured, otherwise the local
  * file-backed store. Kept on globalThis so Next.js hot reloads do not create a second one.
+ *
+ * A cached store is only reused while it is an instance of the classes this module currently holds.
+ * When the store code itself changes, development hot-reload gives us new classes, and the old
+ * instance would be missing whatever the change added: `instanceof` catches that and rebuilds,
+ * instead of leaving the server with a store from before the change.
  */
 export function getStore(): Store {
-  if (globalThis.__glasshouseStore) return globalThis.__glasshouseStore;
+  const cached = globalThis.__glasshouseStore;
+  if (cached && (cached instanceof SupabaseStore || cached instanceof MemoryStore)) return cached;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const store: Store =
