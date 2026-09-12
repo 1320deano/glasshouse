@@ -75,12 +75,20 @@ working dot pulses, the chevron turns. All of it is switched off under `prefers-
 grid, inheriting `currentColor`. An icon appears only where a word would otherwise be repeated.
 
 **One exception: the tool marks.** `apps/web/src/components/ToolLogo.tsx` holds the mark of each tool
-an agent can run in — Claude's burst, Codex's knot, Cursor's cube, a folder for the watcher — drawn on
-the same 16px grid but in that tool's own hue from `TOOL_COLOURS`, not `currentColor`. They stand
-beside the tool's name on an agent card, where a plain coloured dot used to, so the tool is recognised
-from two metres. The name is always written beside the mark, so the mark is `aria-hidden` and never
-carries a fact on its own. The tool mix bar and its key on the right keep the dot, because there the
-colour is the thing being read.
+an agent can run in — Claude's burst, the OpenAI blossom for Codex, Cursor's cube, a folder for the
+watcher. These are the makers' real logos, never a drawing of one: each is the official single-path
+mark, taken from what the maker publishes (Claude from `claude.ai/favicon.svg`, Cursor from
+`cursor.sh/favicon.svg`, the OpenAI blossom as OpenAI publishes it) and kept at that mark's own
+viewBox. A logo is either the right one or it is wrong, so redrawing one by hand is not allowed; to
+refresh one, replace its `d` with the maker's current published path. Only the watcher's folder is
+drawn here, because a folder watcher is not a product and has no mark to be right about.
+
+They are filled in that tool's own hue from `TOOL_COLOURS`, not `currentColor` and not the maker's
+brand colour, so the Room's colour coding keeps saying one thing and every mark sits on the ivory at
+the same weight. They stand beside the tool's name on an agent card, where a plain coloured dot used
+to, so the tool is recognised from two metres. The name is always written beside the mark, so the
+mark is `aria-hidden` and never carries a fact on its own. The tool mix bar and its key on the right
+keep the dot, because there the colour is the thing being read.
 
 **Keyboard first.** One focus ring (`:focus-visible`), always visible on both the page and a filled
 button. Every page starts with a skip link. Icon-only controls carry an `aria-label`; every input
