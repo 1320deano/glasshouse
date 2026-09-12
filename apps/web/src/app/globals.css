@@ -1,7 +1,7 @@
 /* The whole stylesheet, in four layers, in this order:
      tokens      the design system: colour, type, space, line, radius, shadow, motion
      base        the reset, typographic defaults, the focus ring, the motion contract
-     components  buttons, fields, badges, cards, notices, empty states, skeletons, tables
+     components  buttons, fields, badges, cards, notices, empty states, the loading wheel, tables
      screens     the pages around the Room, composed from the layers above
      room        the Room itself: three columns, cards, the story, progress
      deano       the front door (the product picker) and the Potting Shed, composed from the Room's own parts

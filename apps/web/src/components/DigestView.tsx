@@ -5,6 +5,7 @@ import type { Digest, DigestWindowKind } from "@glasshouse/translate";
 import type { ProjectSummary } from "@/lib/store/types";
 import { Alert } from "./icons";
 import { NEEDS_YOU_TEXT, RISK_TEXT, STAGE_TEXT, TOOL_NAMES, ago } from "./labels";
+import { Loading } from "./Loading";
 import { PageHeader } from "./PageHeader";
 
 const WINDOWS: Array<{ kind: DigestWindowKind; label: string }> = [
@@ -15,29 +16,6 @@ const WINDOWS: Array<{ kind: DigestWindowKind; label: string }> = [
 
 /** Opening the digest counts as checking, once you have had it open for a moment. */
 const MARK_AFTER_MS = 12_000;
-
-function DigestSkeleton() {
-  return (
-    <div className="digest" aria-busy="true">
-      <span className="visually-hidden">Loading the digest</span>
-      <div className="skeleton" style={{ width: "min(100%, 520px)", height: 30, borderRadius: 6 }} />
-      <div className="digest-section">
-        <div className="skeleton skeleton-line" style={{ width: 90, height: 9 }} />
-        <div className="skeleton skeleton-line" style={{ width: "62%", height: 15 }} />
-        <div className="skeleton skeleton-line" style={{ width: "44%" }} />
-      </div>
-      <div className="digest-grid">
-        {[0, 1].map((i) => (
-          <div className="digest-section" key={i}>
-            <div className="skeleton skeleton-line" style={{ width: 70, height: 9 }} />
-            <div className="skeleton skeleton-line" style={{ width: "80%", height: 15 }} />
-            <div className="skeleton skeleton-line" style={{ width: "55%" }} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export function DigestView({ project }: { project: ProjectSummary }) {
   const [kind, setKind] = useState<DigestWindowKind>("since-checked");
@@ -113,7 +91,7 @@ export function DigestView({ project }: { project: ProjectSummary }) {
           </div>
         </div>
       )}
-      {!digest && !error && <DigestSkeleton />}
+      {!digest && !error && <Loading label="Loading the digest" />}
 
       {digest && (
         <div className="digest">
