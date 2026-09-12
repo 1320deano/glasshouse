@@ -2,6 +2,7 @@ import type { Area } from "@glasshouse/schema";
 import { describe, expect, it } from "vitest";
 import { MemoryStore } from "../store/memory";
 import type { HelperRecord, HelperRun, TaskView } from "../store/types";
+import { briefFromChoices, choicesForKind, choicesFromBrief, describeChoices, DUTIES, jobFrom, nameFor, VOICES } from "./build";
 import { compileHelper, emptyBrief, instructions, mergeSection, removeSection } from "./compile";
 import { agentTypeOf, helperRunsFrom } from "./runs";
 import { sameBrief, slugify, uniqueSlug } from "./slug";
@@ -92,6 +93,61 @@ describe("compile", () => {
     expect(twice.split(section.marker!.start)).toHaveLength(2);
     expect(twice).toContain("Run ALL the checks");
     expect(removeSection(twice, helper.slug)).toBe("# My project\n\nBe nice.\n");
+  });
+});
+
+describe("build", () => {
+  it("starts a kind with its usual ticks, and keeps every sensitive part off limits", () => {
+    const c = choicesForKind("checker", AREAS);
+    expect(c.duties).toEqual(["run-checks", "stop-on-repeat", "no-done-while-failing"]);
+    expect(c.mustNotTouch).toEqual(["payments", "login"]);
+    expect(c.stops).toEqual(["Before changing anything in Payments", "Before changing anything in Login", "When the same check fails twice"]);
+    expect(c.care).toBe("careful");
+    expect(nameFor(c, AREAS)).toBe("Checker");
+    expect(nameFor({ ...c, mayTouch: ["checkout"] }, AREAS)).toBe("Checkout checker");
+    expect(nameFor(choicesForKind("guard", AREAS), AREAS)).toBe("Payments guard");
+    expect(nameFor(choicesForKind("rules", AREAS), AREAS)).toBe("House rules");
+  });
+
+  it("stores exactly the ticked sentences and the owner's own words, and nothing else", () => {
+    const c = { ...choicesForKind("specialist", AREAS), mayTouch: ["checkout"], ownWords: "Our customers are schools.", knows: [{ text: "Prices are in pounds." }] };
+    const b = briefFromChoices(c);
+    expect(b.job).toBe(`${DUTIES[3]!.sentence}\n${DUTIES[4]!.sentence}\nOur customers are schools.`);
+    expect(b.mustNotTouch).toEqual(["payments", "login"]);
+    expect(b.rules.map((r) => r.text)).toEqual([VOICES[0]!.sentence, VOICES[3]!.sentence, "Prices are in pounds."]);
+    expect(b.tools).toEqual(["claude-code", "codex", "cursor"]);
+  });
+
+  it("comes back with the same boxes ticked, exactly, and never guesses at words it did not write", () => {
+    const c = { ...choicesForKind("checker", AREAS), mayTouch: ["checkout"], voices: ["short" as const], ownWords: "Also keep an eye on the basket.", knows: [{ text: "Asked before: refunds go to the card." }] };
+    const back = choicesFromBrief(briefFromChoices(c), "kind:checker");
+    expect(back).toEqual({ ...c, mustNotTouch: ["payments", "login"] });
+    // A helper written before the builder existed: its prose is the owner's own words, its kind is read from the ticks or is "own".
+    const old = choicesFromBrief({ ...helper.brief, job: "Run the checks before anything in Checkout is called finished." }, "owner");
+    expect(old.kind).toBe("own");
+    expect(old.duties).toEqual([]);
+    expect(old.ownWords).toBe("Run the checks before anything in Checkout is called finished.");
+    expect(old.knows).toEqual([{ text: "Prices are shown in pounds, never pence." }]);
+    expect(choicesFromBrief({ ...helper.brief, job: jobFrom(["ask-before-off-limits"]) }, "owner").kind).toBe("guard");
+    expect(choicesFromBrief(helper.brief, "stuck:checkout").kind).toBe("checker");
+  });
+
+  it("describes the helper in the owner's words, one fact per line", () => {
+    const lines = describeChoices({ ...choicesForKind("guard", AREAS), voices: ["plain"] }, AREAS);
+    expect(lines).toEqual([
+      "Asks before changing anything it has been told is off limits",
+      "Never changes Payments and Login",
+      "Stops to ask you before changing anything in Payments and before changing anything in Login",
+      "Careful: reads before it changes anything, runs the checks after every change, and stops if the same check fails twice.",
+      "Talks this way: plain English, no code words or file names",
+    ]);
+    expect(describeChoices(choicesForKind("own", AREAS), AREAS)).toContain("May work anywhere in your app");
+  });
+
+  it("writes every suggestion from the same sentences, so it opens as ticked boxes", () => {
+    const s = suggestHelpers([], AREAS);
+    expect(choicesFromBrief(s[0]!.brief, s[0]!.id)).toMatchObject({ kind: "checker", duties: ["run-checks", "stop-on-repeat"], ownWords: "" });
+    expect(choicesFromBrief(s[1]!.brief, s[1]!.id)).toMatchObject({ kind: "guard", duties: ["ask-before-off-limits"], mustNotTouch: ["payments", "login"] });
   });
 });
 

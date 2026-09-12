@@ -1,8 +1,8 @@
 /* ============================================================================================
    Deano: the front door and the Potting Shed, composed from the Room's own parts.
      picker   the two products side by side, in the Room's chrome, each with one live fact
-     shed     three columns like the Room: helpers on the left, the builder in the middle, what the
-              project has taught us on the right
+     shed     one page built around one card: pick a kind of helper, tick boxes, watch the helper
+              take shape in plain English beside them, grow it. Your helpers sit below in a grid.
    Composes tokens, base, components and room. Nothing here invents a value.
    ============================================================================================ */
 
@@ -180,11 +180,594 @@ a.product-card:hover .product-open svg {
 }
 
 /* --- The Shed --------------------------------------------------------------------------------
-   Reuses the Room's grid, header, columns, tabs, composer and message links. What is new is the
-   helper card, the suggestion card, the sheet, and the chips. */
+   Deliberately not the Room. The Room is three columns watched from two metres; the Shed is one
+   page leaned into, built around one card. It keeps the Room's header (the way out, the product,
+   the project) and its materials (ivory page, white cards, hairlines, one accent) and nothing of
+   its grid, tabs or reply box. */
 
-.shed .room-head .brand svg {
+.shed-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg-canvas);
+}
+.shed-page .room-head .brand svg {
   color: var(--accent);
+}
+
+.shed-body {
+  flex: 1;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--page-pad-x) var(--space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Entrance: the hero first, then the card, then the helpers, each rising on its own. */
+.enter .shed-hero {
+  animation: rise var(--duration-slow) var(--ease-out) both;
+  animation-delay: 60ms;
+}
+.enter .builder,
+.enter .shed-body > .notice {
+  animation: rise var(--duration-slower) var(--ease-out) both;
+  animation-delay: 100ms;
+}
+.enter .shed-section {
+  animation: rise var(--duration-slower) var(--ease-out) both;
+  animation-delay: 180ms;
+}
+
+.shed-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.shed-hero-text {
+  max-width: 64ch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+}
+.shed-hero .story-title {
+  font-size: clamp(28px, 3.2vw, 38px);
+}
+.shed-hero .switch {
+  margin-top: var(--space-1);
+}
+
+/* --- The one card ------------------------------------------------------------------------- */
+.builder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.builder-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.builder-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  max-width: 60ch;
+}
+.builder-title {
+  font-size: var(--text-8);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+}
+.builder-sub {
+  font-size: var(--text-4);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+
+/* Kinds: six tiles, one tap each. The accent is spent on the hover, because the tap is the primary action. */
+.kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: var(--space-15);
+}
+.kind {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-05);
+  min-height: 132px;
+  padding: var(--space-2);
+  text-align: left;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+.kind:hover:not(:disabled) {
+  border-color: var(--accent-line);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.kind:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.kind-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: var(--space-05);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+.kind:hover:not(:disabled) .kind-icon {
+  color: var(--accent);
+}
+.kind-name {
+  font-size: var(--text-6);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-snug);
+}
+.kind-blurb {
+  font-size: var(--text-3);
+  line-height: var(--leading-normal);
+  color: var(--text-tertiary);
+  padding-right: var(--space-2);
+}
+.kind-go {
+  position: absolute;
+  right: var(--space-15);
+  bottom: var(--space-15);
+  color: var(--text-tertiary);
+  transition: transform var(--duration-base) var(--ease-out);
+}
+.kind:hover:not(:disabled) .kind-go {
+  transform: translateX(2px);
+  color: var(--accent);
+}
+
+/* From your project: the suggestions, under the tiles, each with the count it rests on. */
+.from-project {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-subtle);
+}
+.from-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+}
+.from-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-6);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-snug);
+}
+.from-title svg {
+  color: var(--accent);
+}
+.suggest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-15);
+}
+
+/* Describe it: one box, one button. */
+.describe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+}
+.describe-field {
+  min-height: 112px;
+  font-size: var(--text-5);
+  padding: var(--space-15) var(--space-2);
+  border-radius: var(--radius-md);
+}
+.describe-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.describe-row > span {
+  flex: 1 1 280px;
+  max-width: 64ch;
+}
+
+/* The steps on the left, the helper taking shape on the right. */
+.builder-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--space-4);
+  align-items: start;
+}
+.builder-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.bstep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-subtle);
+}
+.bstep:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+.bstep h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-6);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-snug);
+  color: var(--text-primary);
+}
+.step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-2);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.sheet-hint {
+  font-size: var(--text-3);
+  line-height: var(--leading-normal);
+  color: var(--text-tertiary);
+  max-width: 64ch;
+}
+.own-words h3 svg {
+  color: var(--accent);
+}
+.own-field {
+  min-height: 84px;
+  font-size: var(--text-4);
+}
+
+/* Boxes to tick: each a small card so it reads at a glance and takes a whole thumb. */
+.ticks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: var(--space-1);
+}
+.tick {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-15);
+  padding: var(--space-15) var(--space-2);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+.tick:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-surface);
+}
+.tick[data-on="yes"] {
+  background: var(--bg-surface);
+  border-color: var(--accent-line);
+}
+.tick input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.tick-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  min-width: 0;
+}
+.tick-label {
+  font-size: var(--text-4);
+  line-height: var(--leading-snug);
+  color: var(--text-primary);
+}
+.tick-sentence {
+  font-size: var(--text-2);
+  line-height: var(--leading-normal);
+  color: var(--text-tertiary);
+}
+
+/* Where: two questions, two rows of chips. */
+.where {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+}
+.where-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.where-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  height: var(--control-height);
+  padding: 0 var(--space-15);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.chip:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-raised);
+}
+.chip[data-state="may"] {
+  background: var(--positive-quiet);
+  border-color: transparent;
+  color: var(--positive);
+}
+.chip[data-state="not"] {
+  background: var(--danger-quiet);
+  border-color: transparent;
+  color: var(--danger);
+}
+.chip-note {
+  font-size: var(--text-1);
+  font-weight: var(--weight-normal);
+  color: var(--text-tertiary);
+}
+.chip[data-state="not"] .chip-note,
+.chip[data-state="may"] .chip-note {
+  color: inherit;
+}
+.tool-chip svg {
+  flex: none;
+}
+
+.rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.rule-row,
+.add-line {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+.rule-row .field,
+.add-line .field {
+  flex: 1;
+  min-width: 0;
+}
+.add-line .button {
+  flex: none;
+}
+
+/* Your helper so far: the whole helper in the owner's words, and the one primary button. */
+.builder-preview {
+  position: sticky;
+  top: calc(var(--room-head) + var(--space-2));
+  min-width: 0;
+}
+.preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  padding: var(--space-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.preview-name {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: var(--space-05) 0;
+  background: transparent;
+  font-family: var(--font-serif);
+  font-size: var(--text-8);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-snug);
+  color: var(--text-primary);
+}
+.preview-name:focus-visible {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+.preview-name::placeholder {
+  color: var(--text-secondary);
+}
+.preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-4);
+  line-height: var(--leading-snug);
+  color: var(--text-secondary);
+}
+.preview-list li {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-start;
+  animation: rise var(--duration-base) var(--ease-out) both;
+}
+.preview-list svg {
+  flex: none;
+  margin-top: 4px;
+  color: var(--positive);
+}
+.preview-tools {
+  font-size: var(--text-3);
+  color: var(--text-tertiary);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--line-subtle);
+}
+.preview-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-secondary);
+}
+.preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+}
+.preview-next {
+  margin: 0;
+  padding: var(--space-15) 0 0 var(--space-2);
+  border-top: 1px solid var(--line-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  font-size: var(--text-2);
+  line-height: var(--leading-normal);
+  color: var(--text-tertiary);
+}
+.preview-next strong {
+  color: var(--text-secondary);
+  font-weight: var(--weight-medium);
+}
+.preview-files summary {
+  cursor: pointer;
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+.preview-files .files {
+  margin-top: var(--space-1);
+}
+
+/* The phone bar: hidden on a wide screen, where the preview card sits beside the boxes. */
+.build-bar {
+  display: none;
+}
+
+/* --- Your helpers: a grid of tiles under the card ------------------------------------------- */
+.shed-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-7);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-snug);
+}
+.section-title .count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-2);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+.helpers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: var(--space-2);
+  align-items: start;
+}
+.helpers-grid .helper-card.open {
+  grid-column: 1 / -1;
+}
+.shed-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-05) var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line-subtle);
+  font-size: var(--text-2);
+  color: var(--text-tertiary);
 }
 
 .helper-card,
@@ -198,6 +781,9 @@ a.product-card:hover .product-open svg {
   border-radius: var(--radius-lg);
   animation: rise var(--duration-slow) var(--ease-out) both;
 }
+.suggest-card {
+  background: var(--bg-raised);
+}
 .helper-card.open {
   box-shadow: var(--shadow-md);
 }
@@ -210,8 +796,12 @@ a.product-card:hover .product-open svg {
   min-height: 22px;
 }
 .helper-tools {
-  font-size: var(--text-2);
-  color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+}
+.helper-tool {
+  display: inline-flex;
 }
 .helper-name,
 .suggest-name {
@@ -221,20 +811,28 @@ a.product-card:hover .product-open svg {
   line-height: var(--leading-snug);
   color: var(--text-primary);
 }
-.helper-job,
 .suggest-summary {
   font-size: var(--text-4);
   line-height: var(--leading-normal);
   color: var(--text-secondary);
 }
-.helper-job {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.helper-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-3);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
 }
-.helper-card.open .helper-job {
-  display: block;
+.helper-lines li::before {
+  content: "· ";
+  color: var(--text-tertiary);
+}
+.helper-lines li.faint {
+  color: var(--text-tertiary);
 }
 
 .helper-facts {
@@ -254,7 +852,7 @@ a.product-card:hover .product-open svg {
   align-items: center;
   gap: var(--space-05);
   flex: none;
-  width: 118px;
+  width: 110px;
   color: var(--text-tertiary);
   font-weight: var(--weight-medium);
 }
@@ -425,254 +1023,70 @@ a.product-card:hover .product-open svg {
 }
 .suggest-card .button {
   align-self: flex-start;
-  margin-top: var(--space-05);
+  margin-top: auto;
 }
 
-/* --- The sheet: one place to answer the few questions ---------------------------------------- */
-.sheet {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-  padding: var(--space-3);
-  background: var(--bg-surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sm);
-  animation: rise var(--duration-slow) var(--ease-out) both;
-}
-.sheet.intro {
-  gap: var(--space-2);
-}
-.sheet-title {
-  font-size: var(--text-7);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-snug);
-}
-.steps {
-  margin: 0;
-  padding: 0 0 0 var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--text-4);
-  line-height: var(--leading-normal);
-  color: var(--text-secondary);
-}
-.steps strong {
-  color: var(--text-primary);
-}
-
-.sheet-head {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-.sheet-name {
-  width: 100%;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  padding: var(--space-05) 0;
-  background: transparent;
-  font-family: var(--font-serif);
-  font-size: var(--text-9);
-  line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-snug);
-  color: var(--text-primary);
-}
-.sheet-name:focus-visible {
-  outline: none;
-  border-bottom-color: var(--accent);
-}
-.sheet-name::placeholder {
-  color: var(--grey-400);
-}
-
-.sheet-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--line-subtle);
-}
-.sheet-section h3 {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-5);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-}
-.step {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-full);
-  background: var(--bg-subtle);
-  color: var(--text-secondary);
-  font-size: var(--text-2);
-  font-weight: var(--weight-semibold);
-  font-variant-numeric: tabular-nums;
-}
-.sheet-hint {
-  font-size: var(--text-3);
-  line-height: var(--leading-normal);
-  color: var(--text-tertiary);
-}
-.sheet-text {
-  height: auto;
-  min-height: 96px;
-  padding: var(--space-15);
-  font-size: var(--text-5);
-  line-height: var(--leading-normal);
-  resize: vertical;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-05);
-  height: var(--control-height-sm);
-  padding: 0 var(--space-15);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--line);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  font-size: var(--text-3);
-  font-weight: var(--weight-medium);
-  transition:
-    background var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
-}
-.chip:hover {
-  border-color: var(--line-strong);
-  background: var(--bg-raised);
-}
-.chip[data-state="may"] {
-  background: var(--positive-quiet);
-  border-color: transparent;
-  color: var(--positive);
-}
-.chip[data-state="not"] {
-  background: var(--danger-quiet);
-  border-color: transparent;
-  color: var(--danger);
-}
-.chip-note {
-  font-size: var(--text-1);
-  font-weight: var(--weight-normal);
-  color: var(--text-tertiary);
-}
-.chip[data-state="not"] .chip-note,
-.chip[data-state="may"] .chip-note {
-  color: inherit;
-}
-
-.chips-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  font-size: var(--text-2);
-  color: var(--text-tertiary);
-}
-.chips-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-05);
-}
-.chips-legend span::before {
-  content: "";
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--line);
-  background: var(--bg-surface);
-}
-.chips-legend span[data-state="may"]::before {
-  background: var(--positive-quiet);
-  border-color: var(--positive);
-}
-.chips-legend span[data-state="not"]::before {
-  background: var(--danger-quiet);
-  border-color: var(--danger);
-}
-
-.checks {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-05);
-}
-.check-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 28px;
-  font-size: var(--text-4);
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-.check-row input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent);
-}
-
-.rules {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-.rule-row,
-.add-line {
-  display: flex;
-  gap: var(--space-1);
-  align-items: center;
-}
-.rule-row .field,
-.add-line .field {
-  flex: 1;
-  min-width: 0;
-}
-.add-line .button {
-  flex: none;
-}
-
-.sheet-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-15);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--line-subtle);
-}
-
-.composer-note {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-2);
-  color: var(--text-tertiary);
-  padding-left: var(--space-05);
+/* --- Narrower windows and phones ------------------------------------------------------------- */
+@media (max-width: 1099px) {
+  .builder-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--space-3);
+  }
 }
 
 @media (max-width: 959px) {
-  .sheet {
+  .shed-body {
+    padding-top: var(--space-3);
+    gap: var(--space-2);
+  }
+  .builder {
     padding: var(--space-2);
     border-radius: var(--radius-lg);
   }
+  /* One column: the steps, then the helper so far with its button under them. */
+  .builder-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .builder-preview {
+    position: static;
+  }
+  .build-bar {
+    position: sticky;
+    bottom: var(--space-1);
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+    background: var(--bg-surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+  }
+  .build-bar-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    font-size: var(--text-2);
+    color: var(--text-tertiary);
+  }
+  .build-bar-text strong {
+    font-size: var(--text-4);
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .build-bar .button {
+    flex: none;
+  }
+  .kind {
+    min-height: 0;
+  }
   .helper-facts dt {
-    width: 110px;
+    width: 100px;
   }
 }
 

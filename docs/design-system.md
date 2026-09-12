@@ -10,7 +10,7 @@ invents a value.
 | components | `apps/web/src/styles/components.css` | buttons, fields, badges, cards, notices, empty states, the loading wheel, tables, page shell |
 | screens | `apps/web/src/styles/screens.css` | the report card, the task panel, digest, inbox, areas, landing, admin |
 | room | `apps/web/src/styles/room.css` | the Room: header, three columns, agent cards, the story, progress |
-| deano | `apps/web/src/styles/deano.css` | the front door (the product picker) and the Potting Shed, composed from the Room's own parts: the way-out button, product cards, helper and suggestion cards, the sheet, chips |
+| deano | `apps/web/src/styles/deano.css` | the front door (the product picker) and the Potting Shed: the way-out button, product cards, the one builder card (kind tiles, boxes to tick, the helper-so-far card, the phone bar), helper and suggestion cards, chips |
 
 `apps/web/src/app/globals.css` is six `@import` lines and nothing else.
 
@@ -29,8 +29,9 @@ passes AA. Links are neutral by default; `.link-accent` opts one in.
 
 **Status colour carries a fact.** In the Shed, the green "In your project" pill and the green "kept to its patch" line
 are computed (from the connector's report and from the files a run changed); a red "went outside its patch" is the same
-computation the other way; amber "unclear" means the tool did not say which agent made an edit. The chips on the sheet
-use the same three: green may work here, red must never change, neutral no rule.
+computation the other way; amber "unclear" means the tool did not say which agent made an edit. The chips in the builder
+use the same three: green works here, red must never change, neutral no rule. The ticks in the "Your helper so far" card
+are green because each one is a sentence that will be in the file, verbatim.
 
  Amber (`--warn`) means the owner is the blocker: waiting for you,
 a decision needed, a part that counts as high risk. Green (`--positive`) means verified: "not
@@ -56,7 +57,7 @@ credits Geist's designers); Next bundles it at build time (`app/layout.tsx`), so
 offline and falls back to the system stack only if that bundle is missing. Source Serif 4 is the one
 serif, and it is used for one kind of thing: the greeting-style title at the top of a column, set the way
 Claude sets its greeting. That is the project's name at the top of the Room's story and the Shed's builder, the
-greeting on Deano's front door, and the name of the helper being written on the Shed's sheet. Sizes are absolute. The only two clamps are `--text-headline` (the Room's
+greeting on Deano's front door, and the name of the helper taking shape in the Shed's builder. Sizes are absolute. The only two clamps are `--text-headline` (the Room's
 tile headline) and `--text-display` (the landing hero), because those two are read from across a desk.
 Labels are sentence case. Nothing in the Room is uppercase, tracked or set in the mono face except
 paths behind the technical toggle.

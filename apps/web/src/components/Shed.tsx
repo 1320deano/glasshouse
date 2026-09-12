@@ -1,50 +1,49 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement, type ReactNode } from "react";
+import { askServer } from "@/lib/answer";
 import { UPGRADE_REASONS } from "@/lib/plan";
-import { CARE_TEXT } from "@/lib/shed/compile";
+import { briefFromChoices, CARE_IDS, choicesForKind, choicesFromBrief, describeChoices, DUTIES, HELPER_TOOL_IDS, KIND_BY_ID, KINDS, nameFor, stopOptionsFor, VOICES, type Choices, type HelperToolId, type KindId } from "@/lib/shed/build";
+import { CARE_TEXT, compileHelper, type CompiledFile } from "@/lib/shed/compile";
+import { slugify } from "@/lib/shed/slug";
 import type { HelperSuggestion } from "@/lib/shed/suggest";
 import type { HelperView, ShedView } from "@/lib/shed/view";
-import type { HelperBrief, HelperCare, HelperEvidence, HelperRule } from "@/lib/store/types";
-import type { Area, AgentTool } from "@glasshouse/schema";
-import { ArrowLeft, ArrowUp, Book, Check, ChevronRight, Copy, Fence, Hand, Info, PanelLeft, PanelRight, Plus, Screen, Sparkle, Sprout, Trash } from "./icons";
+import type { HelperCare, HelperEvidence, HelperRule } from "@/lib/store/types";
+import type { Area } from "@glasshouse/schema";
+import { ArrowLeft, Book, Check, ChevronRight, Copy, Fence, Hand, Handoff, Info, Plus, Screen, Sparkle, Sprout, Trash } from "./icons";
 import { TOOL_NAMES, ago } from "./labels";
+import { ToolLogo } from "./ToolLogo";
 
 /**
- * The Potting Shed: three columns, laid out exactly like the Room so the two products feel like
- * one place.
- *   left    your helpers: one card each, with the fact of whether it kept to its patch
- *   middle  the builder: say what you need in the box at the bottom, then answer a few plain
- *           questions on one sheet. No prompt writing, no file names, no settings.
- *   right   what the record suggests growing next, each with the count it rests on
+ * The Potting Shed: one page, built around one card.
+ *
+ *   Get started   pick what kind of helper you need (six tiles), or take one your project suggests
+ *                 from what actually happened. Then tick boxes: what it does, where it may work,
+ *                 when it must stop and ask you, how carefully, how it talks, what it already
+ *                 knows, which tools. Every tick is one plain sentence; the preview beside the
+ *                 boxes is the helper in your own words, and "Grow it" stores exactly that.
+ *   Describe it   the same card for people who would rather say it in a sentence. The words are
+ *                 kept as typed (tidied into a first draft when there is an AI key) and land in
+ *                 the same boxes, so nothing is hidden in a prompt.
+ *   Your helpers  below the card: one tile each, with the fact of whether it kept to its patch.
+ *
  * Nothing typed here reaches an agent. The Shed writes nothing into the project folder itself;
  * the owner runs one command, and the files appear.
  */
 
-const LAYOUT_KEY = "deano.shed.layout";
 const POLL_MS = 30000;
 
-type Tab = "helpers" | "build" | "grown";
-type HelperToolId = Exclude<AgentTool, "watcher">;
-const TOOLS: HelperToolId[] = ["claude-code", "codex", "cursor"];
-const CARES: HelperCare[] = ["careful", "balanced", "quick"];
+type Mode = "tick" | "describe";
 
-interface Layout {
-  helpers: "open" | "rail";
-  grown: "open" | "closed";
-}
-const DEFAULT_LAYOUT: Layout = { helpers: "open", grown: "open" };
-
-/** A helper being written or changed. Words only. */
-interface Draft {
+/** A helper being made or changed. Words only: the ticks, and anything typed. */
+interface Build {
   id?: string;
+  /** The name as typed, or "" to use the one made from the choices. */
   name: string;
-  brief: HelperBrief;
+  choices: Choices;
   grownFrom: string;
   evidence?: HelperEvidence;
-  /** The words the owner typed, kept so the sheet can say where the draft came from. */
-  fromWords?: string;
-  /** What the AI did with those words, if anything. */
+  /** What the AI did with the owner's words, if anything. */
   aiNote?: string;
 }
 
@@ -58,20 +57,23 @@ const KIND_TEXT: Record<HelperEvidence["kind"], string> = {
   owner: "Your own idea",
 };
 
-/** A name for a draft typed without an AI key: the part of the app the words mention, or the plain fallback. The owner renames it on the sheet. */
+const KIND_ICON: Record<KindId, (p: { size?: number }) => ReactElement> = {
+  checker: (p) => <Check {...p} />,
+  guard: (p) => <Hand {...p} />,
+  specialist: (p) => <Fence {...p} />,
+  rules: (p) => <Book {...p} />,
+  handover: (p) => <Handoff {...p} />,
+  own: (p) => <Sparkle {...p} />,
+};
+
+/** A name for words typed without an AI key: the part of the app the words mention, or the plain fallback. */
 function nameFromWords(words: string, areas: Area[]): string {
   const lower = words.toLowerCase();
   const hit = areas
     .filter((a) => a.name.length > 2 && lower.includes(a.name.toLowerCase()))
     .sort((a, b) => lower.indexOf(a.name.toLowerCase()) - lower.indexOf(b.name.toLowerCase()))[0];
   if (hit) return /\b(check|test|verify)/.test(lower) ? `${hit.name} checker` : /\b(never|guard|protect|keep out|don't touch|do not touch)/.test(lower) ? `${hit.name} guard` : `${hit.name} helper`;
-  return "New helper";
-}
-
-function stopAndAskOptions(areas: Area[]): string[] {
-  const base = ["Before installing anything new", "Before deleting files", "When the same check fails twice", "Before changing how the app looks to customers"];
-  const sensitive = areas.filter((a) => a.sensitive).map((a) => `Before changing anything in ${a.name}`);
-  return [...sensitive, ...base];
+  return "";
 }
 
 function CopyButton({ text, label = "Copy", done: doneLabel = "Copied", className = "button sm" }: { text: string; label?: string; done?: string; className?: string }) {
@@ -97,10 +99,10 @@ function CopyButton({ text, label = "Copy", done: doneLabel = "Copied", classNam
 }
 
 /** The technical truth behind a helper: the very files a tool will read. */
-function Files({ helper }: { helper: HelperView }) {
+function Files({ files }: { files: CompiledFile[] }) {
   return (
     <div className="files">
-      {helper.files.map((f) => (
+      {files.map((f) => (
         <div className="file" key={f.path}>
           <div className="file-head">
             <span className="file-tool">{TOOL_NAMES[f.tool]}</span>
@@ -134,6 +136,31 @@ function Evidence({ e, projectId }: { e: HelperEvidence; projectId: string }) {
   );
 }
 
+/** One box to tick: a label the owner reads, and (behind the toggle) the sentence it becomes. */
+function Tick({ on, label, sentence, technical, onChange }: { on: boolean; label: string; sentence?: string; technical?: boolean; onChange: () => void }) {
+  return (
+    <label className="tick" data-on={on ? "yes" : "no"}>
+      <input type="checkbox" checked={on} onChange={onChange} />
+      <span className="tick-body">
+        <span className="tick-label">{label}</span>
+        {technical && sentence && <span className="tick-sentence">“{sentence}”</span>}
+      </span>
+    </label>
+  );
+}
+
+function Step({ n, title, hint, children, id }: { n: number; title: string; hint?: string; children: ReactNode; id?: string }) {
+  return (
+    <section className="bstep" id={id} aria-labelledby={`bstep-${n}`}>
+      <h3 id={`bstep-${n}`}>
+        <span className="step">{n}</span> {title}
+      </h3>
+      {hint && <p className="sheet-hint">{hint}</p>}
+      {children}
+    </section>
+  );
+}
+
 function HelperCard({ helper, areas, technical, onChange, onRemove, projectId, helpersCommand }: { helper: HelperView; areas: Area[]; technical: boolean; onChange: () => void; onRemove: () => void; projectId: string; helpersCommand: string }) {
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -142,10 +169,17 @@ function HelperCard({ helper, areas, technical, onChange, onRemove, projectId, h
   const not = helper.brief.mustNotTouch.map((id) => byId.get(id)).filter(Boolean) as string[];
   const check = helper.check;
   const tone = check.runs === 0 ? undefined : check.strayed > 0 ? "critical" : check.unclear > 0 ? "attention" : "positive";
+  const lines = describeChoices(choicesFromBrief(helper.brief, helper.grownFrom), areas);
   return (
     <article className={`helper-card${open ? " open" : ""}`} id={`helper-${helper.id}`}>
       <div className="helper-head">
-        <span className="helper-tools">{helper.brief.tools.map((t) => TOOL_NAMES[t]).join(" · ")}</span>
+        <span className="helper-tools">
+          {helper.brief.tools.map((t) => (
+            <span key={t} className="helper-tool" title={TOOL_NAMES[t]}>
+              <ToolLogo tool={t} size={13} />
+            </span>
+          ))}
+        </span>
         {helper.placedAt ? (
           <span className="pill sm" data-tone="positive" title={`Placed ${new Date(helper.placedAt).toLocaleString()}`}>
             <Check size={10} /> In your project
@@ -155,7 +189,12 @@ function HelperCard({ helper, areas, technical, onChange, onRemove, projectId, h
         )}
       </div>
       <h3 className="helper-name">{helper.name}</h3>
-      <p className="helper-job">{helper.brief.job}</p>
+      <ul className="helper-lines">
+        {lines.slice(0, open ? lines.length : 3).map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+        {!open && lines.length > 3 && <li className="faint">and {lines.length - 3} more</li>}
+      </ul>
       {(may.length > 0 || not.length > 0) && (
         <dl className="helper-facts">
           {may.length > 0 && (
@@ -180,7 +219,11 @@ function HelperCard({ helper, areas, technical, onChange, onRemove, projectId, h
         {tone === "positive" && <Check size={12} />}
         {check.line}
       </p>
-      {technical && <p className="mono small faint">{helper.slug} · {helper.check.runs} run{helper.check.runs === 1 ? "" : "s"} matched by that name</p>}
+      {technical && (
+        <p className="mono small faint">
+          {helper.slug} · {helper.check.runs} run{helper.check.runs === 1 ? "" : "s"} matched by that name
+        </p>
+      )}
       <div className="helper-actions">
         <button className="msg-link" type="button" onClick={onChange}>
           Change <ChevronRight size={12} />
@@ -250,17 +293,17 @@ function HelperCard({ helper, areas, technical, onChange, onRemove, projectId, h
             </div>
           )}
           <span className="section-label">The files each tool reads</span>
-          <Files helper={helper} />
+          <Files files={helper.files} />
         </div>
       )}
     </article>
   );
 }
 
-function SuggestionCard({ s, projectId, onGrow, canGrow }: { s: HelperSuggestion; projectId: string; onGrow: () => void; canGrow: boolean }) {
+function SuggestionCard({ s, projectId, onUse, canGrow }: { s: HelperSuggestion; projectId: string; onUse: () => void; canGrow: boolean }) {
   return (
     <article className="suggest-card" data-kind={s.kind}>
-      <span className="suggest-kind">{KIND_TEXT[s.kind]}</span>
+      <span className="suggest-kind">{s.starter ? "A starter" : KIND_TEXT[s.kind]}</span>
       <h3 className="suggest-name">{s.name}</h3>
       <p className="suggest-summary">{s.summary}</p>
       <Evidence e={s.evidence} projectId={projectId} />
@@ -269,8 +312,8 @@ function SuggestionCard({ s, projectId, onGrow, canGrow }: { s: HelperSuggestion
           <Check size={12} /> Grown as {s.grownAs.name}
         </a>
       ) : (
-        <button className="button sm" type="button" onClick={onGrow} disabled={!canGrow}>
-          <Sprout size={12} /> Grow this
+        <button className="button sm" type="button" onClick={onUse} disabled={!canGrow}>
+          <Sprout size={12} /> Use this
         </button>
       )}
     </article>
@@ -298,45 +341,20 @@ export function Shed({
   startWith?: string;
 }) {
   const [view, setView] = useState<ShedView>(initial);
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [build, setBuild] = useState<Build | null>(null);
+  const [entry, setEntry] = useState<Mode>("tick");
   const [words, setWords] = useState("");
   const [busy, setBusy] = useState<"draft" | "save" | null>(null);
   const [note, setNote] = useState<{ text: string; tone?: "attention" | "critical" | "positive"; upgrade?: boolean } | null>(null);
   const [technical, setTechnical] = useState(false);
-  const [tab, setTab] = useState<Tab>("build");
-  const [layout, setLayoutState] = useState<Layout>(DEFAULT_LAYOUT);
   const [justGrown, setJustGrown] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date(initial.generatedAt).getTime());
   const projectId = view.project.id;
-
-  const setLayout = useCallback((patch: Partial<Layout>) => {
-    setLayoutState((l) => {
-      const next = { ...l, ...patch };
-      try {
-        localStorage.setItem(LAYOUT_KEY, JSON.stringify(next));
-      } catch {
-        /* no storage */
-      }
-      return next;
-    });
-  }, []);
-
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? "null") as Partial<Layout> | null;
-      if (saved) setLayoutState({ ...DEFAULT_LAYOUT, ...saved });
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const areas = view.areas;
 
   const refresh = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/shed/${projectId}`, { cache: "no-store" });
-      if (res.ok) setView((await res.json()) as ShedView);
-    } catch {
-      /* next poll */
-    }
+    const a = await askServer<ShedView>(() => fetch(`/api/shed/${projectId}`, { cache: "no-store" }), "Could not refresh the Shed.");
+    if (a.data && !a.problem) setView(a.data);
   }, [projectId]);
 
   useEffect(() => {
@@ -349,130 +367,120 @@ export function Shed({
     };
   }, [refresh]);
 
-  const growFrom = useCallback((s: HelperSuggestion) => {
-    setDraft({ name: s.name, brief: { ...s.brief, rules: s.brief.rules.map((r) => ({ ...r })) }, grownFrom: s.id, evidence: s.evidence });
+  const scrollTo = (id: string) => setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+
+  const open = useCallback((b: Build) => {
+    setBuild(b);
     setNote(null);
     setJustGrown(null);
-    setTab("build");
-    setTimeout(() => document.getElementById("sheet")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    scrollTo("builder");
   }, []);
+
+  const startKind = useCallback((kind: KindId) => open({ name: "", choices: choicesForKind(kind, areas), grownFrom: `kind:${kind}` }), [areas, open]);
+
+  const takeSuggestion = useCallback((s: HelperSuggestion) => open({ name: s.name, choices: choicesFromBrief(s.brief, s.id), grownFrom: s.id, evidence: s.evidence }), [open]);
+
+  const changeHelper = useCallback((h: HelperView) => open({ id: h.id, name: h.name, choices: choicesFromBrief(h.brief, h.grownFrom), grownFrom: h.grownFrom }), [open]);
 
   useEffect(() => {
     if (!startWith) return;
     const s = initial.suggestions.find((x) => x.id === startWith);
-    if (s) growFrom(s);
-  }, [startWith, initial.suggestions, growFrom]);
+    if (s) takeSuggestion(s);
+  }, [startWith, initial.suggestions, takeSuggestion]);
 
-  const changeHelper = useCallback((h: HelperView) => {
-    setDraft({ id: h.id, name: h.name, brief: { ...h.brief, rules: h.brief.rules.map((r) => ({ ...r })) }, grownFrom: h.grownFrom });
-    setNote(null);
-    setJustGrown(null);
-    setTab("build");
-    setTimeout(() => document.getElementById("sheet")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
-  }, []);
-
-  /** The composer: the owner's words become a draft, tidied by the AI when there is one. */
-  async function startFromWords() {
+  /** Describe it: the owner's words become ticked boxes, tidied by the AI when there is one. */
+  async function draftFromWords() {
     const w = words.trim();
     if (w.length < 3 || busy) return;
     setBusy("draft");
     setNote(null);
     setJustGrown(null);
-    const sensitive = view.areas.filter((a) => a.sensitive).map((a) => a.id);
-    let d: Draft = {
-      name: nameFromWords(w, view.areas),
-      brief: { job: w, mayTouch: [], mustNotTouch: sensitive, stopAndAsk: sensitive.length ? view.areas.filter((a) => a.sensitive).map((a) => `Before changing anything in ${a.name}`) : [], care: "balanced", rules: [], tools: [...TOOLS] },
+    const choices = choicesForKind("own", areas);
+    const sensitive = areas.filter((a) => a.sensitive);
+    let b: Build = {
+      name: nameFromWords(w, areas),
+      choices: { ...choices, ownWords: w, mustNotTouch: sensitive.map((a) => a.id), stops: sensitive.map((a) => `Before changing anything in ${a.name}`) },
       grownFrom: "owner",
-      fromWords: w,
     };
-    try {
-      const res = await fetch("/api/shed/draft", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ projectId, words: w }) });
-      const data = (await res.json()) as { draft: { name: string; job: string; mayTouch: string[]; mustNotTouch: string[]; stopAndAsk: string[]; care: HelperCare } | null; reason?: string };
-      if (data.draft) {
-        d = { ...d, name: data.draft.name, brief: { ...d.brief, job: data.draft.job, mayTouch: data.draft.mayTouch, mustNotTouch: data.draft.mustNotTouch, stopAndAsk: data.draft.stopAndAsk, care: data.draft.care }, aiNote: "Tidied into a first draft by AI from your words. Change anything." };
-      } else d = { ...d, aiNote: data.reason };
-    } catch {
-      d = { ...d, aiNote: "Could not reach the Shed for a tidy-up; your words are used as typed." };
-    }
-    setDraft(d);
+    const a = await askServer<{ draft: { name: string; job: string; mayTouch: string[]; mustNotTouch: string[]; stopAndAsk: string[]; care: HelperCare } | null; reason?: string }>(
+      () => fetch("/api/shed/draft", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ projectId, words: w }) }),
+      "Could not reach the Shed for a tidy-up.",
+    );
+    if (a.data?.draft) {
+      const d = a.data.draft;
+      b = { ...b, name: d.name, choices: { ...b.choices, ownWords: d.job, mayTouch: d.mayTouch, mustNotTouch: d.mustNotTouch.filter((id) => !d.mayTouch.includes(id)), stops: d.stopAndAsk, care: d.care }, aiNote: "Tidied into a first draft by AI from your words. Change anything, and tick anything else it should do." };
+    } else b = { ...b, aiNote: a.problem ? `${a.problem} Your words are used as typed.` : (a.data?.reason ?? "Your words are used as typed.") };
     setWords("");
     setBusy(null);
-    setTab("build");
+    open(b);
   }
 
+  const name = build ? build.name.trim() || nameFor(build.choices, areas) : "";
+  const brief = useMemo(() => (build ? briefFromChoices(build.choices) : null), [build]);
+  const preview = useMemo(() => (build ? describeChoices(build.choices, areas) : []), [build, areas]);
+  const previewFiles = useMemo(() => (build && brief && technical ? compileHelper({ slug: slugify(name), name, brief }, areas) : []), [build, brief, technical, name, areas]);
+
   async function save() {
-    if (!draft || busy) return;
-    if (draft.brief.job.trim().length < 3) {
-      setNote({ text: "Say what the helper should do first.", tone: "attention" });
+    if (!build || !brief || busy) return;
+    if (brief.job.trim().length < 3) {
+      setNote({ text: "Tick at least one thing it should do, or say it in your own words at the bottom.", tone: "attention" });
       return;
     }
-    if (draft.brief.tools.length === 0) {
+    if (brief.tools.length === 0) {
       setNote({ text: "Pick at least one tool for it to work in.", tone: "attention" });
       return;
     }
     setBusy("save");
     setNote(null);
-    try {
-      const res = await fetch(`/api/shed/${projectId}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: draft.id, name: draft.name.trim() || "Helper", grownFrom: draft.grownFrom, brief: { ...draft.brief, stopAndAsk: draft.brief.stopAndAsk.filter((s) => s.trim()), rules: draft.brief.rules.filter((r) => r.text.trim()) } }),
-      });
-      const data = (await res.json()) as { helper?: HelperView; shed?: ShedView; error?: string; upgrade?: string };
-      if (!res.ok || !data.shed) {
-        setNote({ text: data.error ?? "Could not save the helper.", tone: "critical", upgrade: Boolean(data.upgrade) });
-        return;
-      }
-      setView(data.shed);
-      setJustGrown(data.helper?.id ?? null);
-      setDraft(null);
-      setNote(null);
-      setLayout({ helpers: "open" });
-      setTab("helpers");
-      setTimeout(() => document.getElementById(`helper-${data.helper?.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-    } catch {
-      setNote({ text: "Could not reach the Shed. Nothing was saved.", tone: "critical" });
-    } finally {
-      setBusy(null);
+    const a = await askServer<{ helper?: HelperView; shed?: ShedView; upgrade?: string }>(
+      () =>
+        fetch(`/api/shed/${projectId}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id: build.id, name: name || "Helper", grownFrom: build.grownFrom, brief }),
+        }),
+      "Could not save the helper.",
+    );
+    setBusy(null);
+    if (a.problem || !a.data?.shed) {
+      setNote({ text: a.problem ?? "Could not save the helper.", tone: "critical", upgrade: Boolean(a.data?.upgrade) });
+      return;
     }
+    setView(a.data.shed);
+    setJustGrown(a.data.helper?.id ?? null);
+    setBuild(null);
+    setEntry("tick");
+    setNote(null);
+    scrollTo(`helper-${a.data.helper?.id}`);
   }
 
   async function remove(h: HelperView) {
-    try {
-      const res = await fetch(`/api/shed/${projectId}?id=${encodeURIComponent(h.id)}`, { method: "DELETE" });
-      const data = (await res.json()) as { shed?: ShedView };
-      if (res.ok && data.shed) setView(data.shed);
-      if (draft?.id === h.id) setDraft(null);
-    } catch {
-      /* the poll will tell the truth */
-    }
+    const a = await askServer<{ shed?: ShedView }>(() => fetch(`/api/shed/${projectId}?id=${encodeURIComponent(h.id)}`, { method: "DELETE" }), "Could not remove the helper.");
+    if (a.data?.shed && !a.problem) setView(a.data.shed);
+    if (build?.id === h.id) setBuild(null);
   }
 
-  const update = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
-  const updateBrief = (patch: Partial<HelperBrief>) => setDraft((d) => (d ? { ...d, brief: { ...d.brief, ...patch } } : d));
+  const setChoices = (patch: Partial<Choices>) => setBuild((b) => (b ? { ...b, choices: { ...b.choices, ...patch } } : b));
+  const toggleIn = <T extends string>(list: T[], item: T): T[] => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
 
-  const cycleArea = (id: string) => {
-    if (!draft) return;
-    const may = new Set(draft.brief.mayTouch);
-    const not = new Set(draft.brief.mustNotTouch);
-    if (may.has(id)) {
-      may.delete(id);
-      not.add(id);
-    } else if (not.has(id)) not.delete(id);
-    else may.add(id);
-    updateBrief({ mayTouch: [...may], mustNotTouch: [...not] });
-  };
+  const switchKind = (kind: KindId) =>
+    setBuild((b) => {
+      if (!b) return b;
+      const fresh = choicesForKind(kind, areas);
+      return { ...b, name: "", grownFrom: b.id ? b.grownFrom : `kind:${kind}`, evidence: undefined, choices: { ...fresh, knows: b.choices.knows, ownWords: b.choices.ownWords, tools: b.choices.tools } };
+    });
 
-  const askOptions = useMemo(() => {
-    const opts = stopAndAskOptions(view.areas);
-    for (const s of draft?.brief.stopAndAsk ?? []) if (!opts.includes(s)) opts.push(s);
+  const stopOptions = useMemo(() => {
+    const opts = stopOptionsFor(areas);
+    for (const s of build?.choices.stops ?? []) if (!opts.includes(s)) opts.push(s);
     return opts;
-  }, [view.areas, draft?.brief.stopAndAsk]);
+  }, [areas, build?.choices.stops]);
 
-  const helpersFolded = layout.helpers === "rail";
-  const grownFolded = layout.grown === "closed";
   const grownHere = justGrown ? view.helpers.find((h) => h.id === justGrown) : undefined;
   const placedCount = view.helpers.filter((h) => h.placedAt).length;
+  const unplaced = view.helpers.length - placedCount;
+  const kind = build ? KIND_BY_ID.get(build.choices.kind) : undefined;
+  const liveSuggestions = view.suggestions.filter((s) => !s.grownAs);
 
   const switcher =
     projects.length > 1 ? (
@@ -494,10 +502,10 @@ export function Shed({
 
   return (
     <>
-      <a className="skip-link" href="#sheet">
+      <a className="skip-link" href="#builder">
         Skip to the builder
       </a>
-      <main className="room shed" data-tab={tab} data-agents={layout.helpers} data-progress={layout.grown}>
+      <main className="shed-page" data-building={build ? "yes" : "no"}>
         <header className="room-head">
           <div className="room-head-left">
             <a className="back-link head-back" href="/" title={`Leave ${shedName} and go back to ${siteName}'s two products`}>
@@ -531,362 +539,449 @@ export function Shed({
           </nav>
         </header>
 
-        <nav className="room-tabs" aria-label="Sections">
-          <button role="tab" aria-selected={tab === "helpers"} onClick={() => setTab("helpers")}>
-            Helpers
-            {view.helpers.length > 0 && <span className="nav-count">{view.helpers.length}</span>}
-          </button>
-          <button role="tab" aria-selected={tab === "build"} onClick={() => setTab("build")}>
-            Build
-          </button>
-          <button role="tab" aria-selected={tab === "grown"} onClick={() => setTab("grown")}>
-            From your project
-            {view.suggestions.filter((s) => !s.grownAs && !s.starter).length > 0 && <span className="nav-count">{view.suggestions.filter((s) => !s.grownAs && !s.starter).length}</span>}
-          </button>
-        </nav>
-
-        <div className="room-grid">
-          <aside className="room-col agents" id="helpers" aria-label="Your helpers" data-active={tab === "helpers"}>
-            <div className="rail" aria-hidden={!helpersFolded}>
-              <button className="icon-button rail-open" aria-label="Show your helpers" title="Show your helpers" onClick={() => setLayout({ helpers: "open" })}>
-                <PanelLeft size={16} />
-              </button>
-            </div>
-            <div className="col-body">
-              <div className="col-head">
-                <button className="icon-button col-fold" aria-label="Fold the helpers away" aria-pressed title="Fold the helpers away" onClick={() => setLayout({ helpers: "rail" })}>
-                  <PanelLeft size={16} />
-                </button>
-                <h2 className="col-title">
-                  Your helpers
-                  {view.helpers.length > 0 && <span className="count">{view.helpers.length}</span>}
-                </h2>
-                <label className="switch tiny">
-                  <input type="checkbox" checked={technical} onChange={(e) => setTechnical(e.target.checked)} />
-                  Technical detail
-                </label>
-              </div>
-
-              {!view.canGrow && (
-                <div className="notice dashed">
-                  <Info />
-                  <div className="notice-body">
-                    <span>{UPGRADE_REASONS.helpers}</span>
-                    <a className="link-accent link-underline" href="/account">
-                      See plans
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {grownHere && (
-                <div className="notice attention" role="status">
-                  <Sprout />
-                  <div className="notice-body">
-                    <strong>{grownHere.name} is grown.</strong>
-                    <span>It is not in your project yet. Open a terminal in the project folder and run this once; it writes the helper's files and nothing else.</span>
-                    <span className="command-row">
-                      <code>{helpersCommand}</code>
-                      <CopyButton text={helpersCommand} className="button sm" />
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {view.helpers.length === 0 && (
-                <div className="empty">
-                  <Sprout size={22} className="empty-icon" />
-                  <h2>No helpers yet.</h2>
-                  <p>Say what you need in the box, or take one your project suggests on the right. Each helper becomes a real file that Claude Code, Codex or Cursor reads.</p>
-                </div>
-              )}
-
-              <div className="agents-list">
-                {view.helpers.map((h) => (
-                  <HelperCard key={h.id} helper={h} areas={view.areas} technical={technical} onChange={() => changeHelper(h)} onRemove={() => void remove(h)} projectId={projectId} helpersCommand={helpersCommand} />
-                ))}
-              </div>
-
-              {view.helpers.length > 0 && (
-                <div className="col-foot">
-                  <span>Checked {ago(view.generatedAt, now)}</span>
-                  <span>{placedCount === view.helpers.length ? "All in your project" : `${view.helpers.length - placedCount} not placed yet`}</span>
-                </div>
-              )}
-            </div>
-          </aside>
-
-          <section className="room-col story" aria-label="The builder" data-active={tab === "build"}>
-            <div className="chat">
-              <div className="chat-scroll">
-                <div className="chat-inner">
-                  <div className="story-head">
-                    <h1 className="story-title">{view.project.name}</h1>
-                    <p className="story-sub">
-                      {view.helpers.length === 0 ? "No helpers yet. " : `${view.helpers.length} helper${view.helpers.length === 1 ? "" : "s"} grown. `}
-                      {view.evidence.tasks === 0 ? "Nothing has been recorded in this project yet, so the suggestions are starters." : `Read from ${view.evidence.tasks} task${view.evidence.tasks === 1 ? "" : "s"} over the last two weeks.`}
-                    </p>
-                  </div>
-
-                  {!draft && (
-                    <div className="sheet intro" id="sheet">
-                      <h2 className="sheet-title">Grow a helper</h2>
-                      <ol className="steps">
-                        <li>
-                          <strong>Say what you need</strong> in the box below, in your own words. “Check the checkout still works before anything is called finished.”
-                        </li>
-                        <li>
-                          <strong>Answer a few plain questions</strong> on one sheet: where it may work, when it must stop and ask you, how careful to be.
-                        </li>
-                        <li>
-                          <strong>Run one command</strong> in your project folder. The helper appears for Claude Code, Codex and Cursor at once, and Glasshouse checks afterwards that it kept to its patch.
-                        </li>
-                      </ol>
-                      <p className="faint small">
-                        Or start from what your project has already taught us: the column on the right proposes helpers from real stuck moments, questions you were asked, and parts that were changed when they should not have been.
-                      </p>
-                    </div>
-                  )}
-
-                  {draft && (
-                    <form
-                      className="sheet"
-                      id="sheet"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void save();
-                      }}
-                    >
-                      <div className="sheet-head">
-                        <span className="suggest-kind">{draft.id ? "Changing a helper" : draft.evidence ? KIND_TEXT[draft.evidence.kind] : "Your own idea"}</span>
-                        <label className="visually-hidden" htmlFor="helper-name">
-                          Name
-                        </label>
-                        <input id="helper-name" className="sheet-name" value={draft.name} onChange={(e) => update({ name: e.target.value })} maxLength={80} placeholder="Name it by its job" />
-                        {draft.evidence && <Evidence e={draft.evidence} projectId={projectId} />}
-                        {draft.aiNote && (
-                          <p className="faint small">
-                            <Sparkle size={12} /> {draft.aiNote}
-                          </p>
-                        )}
-                      </div>
-
-                      <section className="sheet-section">
-                        <h3>
-                          <span className="step">1</span> What it does
-                        </h3>
-                        <label className="visually-hidden" htmlFor="helper-job">
-                          The job
-                        </label>
-                        <textarea id="helper-job" className="field sheet-text" rows={4} value={draft.brief.job} onChange={(e) => updateBrief({ job: e.target.value })} maxLength={1200} placeholder="In your own words. What should it do, and when?" />
-                      </section>
-
-                      <section className="sheet-section">
-                        <h3>
-                          <span className="step">2</span> Where it may work
-                        </h3>
-                        {view.areas.length === 0 ? (
-                          <p className="faint small">No parts of your app are mapped yet. Connect the project and the map arrives with it; until then the helper may work anywhere.</p>
-                        ) : (
-                          <>
-                            <p className="sheet-hint">Tap a part once to let it work there, twice to keep it out, a third time to say nothing. Parts marked sensitive start out kept out.</p>
-                            <div className="chips" role="group" aria-label="Parts of your app">
-                              {view.areas.map((a) => {
-                                const state = draft.brief.mayTouch.includes(a.id) ? "may" : draft.brief.mustNotTouch.includes(a.id) ? "not" : "none";
-                                return (
-                                  <button key={a.id} type="button" className="chip" data-state={state} onClick={() => cycleArea(a.id)} aria-pressed={state !== "none"} title={a.description || a.name}>
-                                    {state === "may" ? <Check size={11} /> : state === "not" ? <Hand size={11} /> : null}
-                                    {a.name}
-                                    {a.sensitive && <span className="chip-note">sensitive</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <p className="chips-legend">
-                              <span data-state="may">May work here</span>
-                              <span data-state="not">Must never change</span>
-                              <span data-state="none">No rule</span>
-                            </p>
-                            {technical && (
-                              <p className="mono small faint">
-                                {draft.brief.mayTouch.length > 0 && `may: ${view.areas.filter((a) => draft.brief.mayTouch.includes(a.id)).flatMap((a) => a.prefixes).join(", ")}`}
-                                {draft.brief.mustNotTouch.length > 0 && ` · never: ${view.areas.filter((a) => draft.brief.mustNotTouch.includes(a.id)).flatMap((a) => a.prefixes).join(", ")}`}
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </section>
-
-                      <section className="sheet-section">
-                        <h3>
-                          <span className="step">3</span> When it must stop and ask you
-                        </h3>
-                        <div className="checks">
-                          {askOptions.map((opt) => {
-                            const on = draft.brief.stopAndAsk.includes(opt);
-                            return (
-                              <label key={opt} className="check-row">
-                                <input type="checkbox" checked={on} onChange={() => updateBrief({ stopAndAsk: on ? draft.brief.stopAndAsk.filter((s) => s !== opt) : [...draft.brief.stopAndAsk, opt] })} />
-                                {opt}
-                              </label>
-                            );
-                          })}
-                        </div>
-                        <AddLine placeholder="Another moment, e.g. Before sending any email" onAdd={(t) => updateBrief({ stopAndAsk: [...draft.brief.stopAndAsk, t] })} />
-                      </section>
-
-                      <section className="sheet-section">
-                        <h3>
-                          <span className="step">4</span> How carefully
-                        </h3>
-                        <div className="segmented" role="tablist" aria-label="How carefully it works">
-                          {CARES.map((c) => (
-                            <button key={c} type="button" role="tab" aria-selected={draft.brief.care === c} onClick={() => updateBrief({ care: c })}>
-                              {CARE_TEXT[c].label}
-                            </button>
-                          ))}
-                        </div>
-                        <p className="sheet-hint">{CARE_TEXT[draft.brief.care].owner}</p>
-                      </section>
-
-                      <section className="sheet-section">
-                        <h3>
-                          <span className="step">5</span> Things it should already know
-                        </h3>
-                        <p className="sheet-hint">Your standing answers. Anything you have had to tell an agent more than once belongs here.</p>
-                        <ul className="rules">
-                          {draft.brief.rules.map((r, i) => (
-                            <li key={i}>
-                              <div className="rule-row">
-                                <label className="visually-hidden" htmlFor={`rule-${i}`}>
-                                  Rule {i + 1}
-                                </label>
-                                <input id={`rule-${i}`} className="field" value={r.text} maxLength={400} onChange={(e) => updateBrief({ rules: draft.brief.rules.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })} />
-                                <button type="button" className="icon-button" aria-label="Remove this rule" onClick={() => updateBrief({ rules: draft.brief.rules.filter((_, j) => j !== i) })}>
-                                  <Trash size={14} />
-                                </button>
-                              </div>
-                              {r.evidence && <Evidence e={r.evidence} projectId={projectId} />}
-                            </li>
-                          ))}
-                        </ul>
-                        <AddLine placeholder="e.g. Prices are shown in pounds, never pence" onAdd={(t) => updateBrief({ rules: [...draft.brief.rules, { text: t } satisfies HelperRule] })} />
-                      </section>
-
-                      <section className="sheet-section">
-                        <h3>
-                          <span className="step">6</span> Which tools
-                        </h3>
-                        <div className="chips" role="group" aria-label="Tools">
-                          {TOOLS.map((t) => {
-                            const on = draft.brief.tools.includes(t);
-                            return (
-                              <button key={t} type="button" className="chip" data-state={on ? "may" : "none"} aria-pressed={on} onClick={() => updateBrief({ tools: on ? draft.brief.tools.filter((x) => x !== t) : [...draft.brief.tools, t] })}>
-                                {on && <Check size={11} />}
-                                {TOOL_NAMES[t]}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <p className="sheet-hint">One helper, written once, for every tool you use. In Codex it becomes a standing instruction the agent reads at the start of each session.</p>
-                      </section>
-
-                      {note && (
-                        <div className={`notice ${note.tone ?? ""}`} role="alert">
-                          <Info />
-                          <div className="notice-body">
-                            <span>{note.text}</span>
-                            {note.upgrade && (
-                              <a className="link-accent link-underline" href="/account">
-                                See plans
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="sheet-actions">
-                        <button className="button primary" type="submit" disabled={busy === "save" || draft.brief.job.trim().length < 3}>
-                          {busy === "save" ? <span className="spinner" /> : <Sprout size={14} />}
-                          {draft.id ? "Save the changes" : "Grow it"}
-                        </button>
-                        <button className="button quiet" type="button" onClick={() => setDraft(null)}>
-                          Discard
-                        </button>
-                        <span className="faint small">Nothing reaches an agent until you run the command in your project folder.</span>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              </div>
-
-              {!draft && (
-                <div className="composer-wrap">
-                  <form
-                    className="composer"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void startFromWords();
-                    }}
-                  >
-                    <label className="visually-hidden" htmlFor="helper-words">
-                      What should this helper do?
-                    </label>
-                    <input
-                      id="helper-words"
-                      className="composer-field"
-                      value={words}
-                      onChange={(e) => setWords(e.target.value)}
-                      placeholder="What should this helper do? e.g. Check the checkout still works before anything is called finished"
-                      maxLength={1200}
-                      disabled={busy === "draft"}
-                      autoComplete="off"
-                    />
-                    <div className="composer-row">
-                      <span className="composer-note">{view.canGrow ? "Your words become a sheet you can change before anything is written." : UPGRADE_REASONS.helpers}</span>
-                      <button className="composer-send" type="submit" aria-label="Start a helper" title="Start a helper" disabled={busy === "draft" || words.trim().length < 3 || !view.canGrow}>
-                        {busy === "draft" ? <span className="spinner" /> : <ArrowUp size={16} />}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <aside className="room-col progress-col" aria-label="From your project" data-active={tab === "grown"}>
-            <div className="rail" aria-hidden={!grownFolded}>
-              <button className="icon-button rail-open" aria-label="Show what your project suggests" title="Show what your project suggests" onClick={() => setLayout({ grown: "open" })}>
-                <PanelRight size={16} />
-              </button>
-            </div>
-            <div className="col-body">
-              <div className="col-head">
-                <h2 className="col-title">From your project</h2>
-                <div className="col-tools">
-                  <button className="icon-button col-fold" aria-label="Fold this away" aria-pressed title="Fold this away" onClick={() => setLayout({ grown: "closed" })}>
-                    <PanelRight size={16} />
-                  </button>
-                </div>
-              </div>
-              <p className="faint small">
-                {view.evidence.tasks === 0
-                  ? "Nothing recorded yet. These two are starters; once agents have worked here, the suggestions come from what actually happened."
-                  : `Computed from ${view.evidence.tasks} task${view.evidence.tasks === 1 ? "" : "s"} since ${new Date(view.evidence.since).toLocaleDateString(undefined, { day: "numeric", month: "short" })}. Every count links to the tasks behind it.`}
+        <div className="shed-body">
+          <div className="shed-hero">
+            <div className="shed-hero-text">
+              <h1 className="story-title">{view.project.name}</h1>
+              <p className="story-sub">
+                {view.helpers.length === 0 ? "No helpers yet. " : `${view.helpers.length} helper${view.helpers.length === 1 ? "" : "s"} grown${placedCount ? `, ${placedCount} in your project` : ""}. `}
+                A helper is a set of standing instructions for Claude Code, Codex and Cursor. You make one by ticking boxes; it becomes a real file each tool reads.
               </p>
-              <div className="agents-list">
-                {view.suggestions.map((s) => (
-                  <SuggestionCard key={s.id} s={s} projectId={projectId} canGrow={view.canGrow} onGrow={() => growFrom(s)} />
-                ))}
-              </div>
-              <div className="col-foot">
-                <span>{view.areaMapSource ? `Parts of your app named ${view.areaMapSource === "ai" ? "by AI" : "from folder names"}.` : "No map of your app yet."}</span>
-                <a className="link-underline" href={`/room/${projectId}/areas`}>
-                  Rename the parts
+            </div>
+            <label className="switch tiny">
+              <input type="checkbox" checked={technical} onChange={(e) => setTechnical(e.target.checked)} />
+              Technical detail
+            </label>
+          </div>
+
+          {!view.canGrow && (
+            <div className="notice dashed">
+              <Info />
+              <div className="notice-body">
+                <span>{UPGRADE_REASONS.helpers}</span>
+                <a className="link-accent link-underline" href="/account">
+                  See plans
                 </a>
               </div>
             </div>
-          </aside>
+          )}
+
+          {grownHere && (
+            <div className="notice attention" role="status">
+              <Sprout />
+              <div className="notice-body">
+                <strong>{grownHere.name} is grown.</strong>
+                <span>It is not in your project yet. Open a terminal in the project folder and run this once; it writes the helper's files and nothing else.</span>
+                <span className="command-row">
+                  <code>{helpersCommand}</code>
+                  <CopyButton text={helpersCommand} className="button sm" />
+                </span>
+              </div>
+            </div>
+          )}
+
+          <section className="builder" id="builder" aria-label="Grow a helper">
+            <div className="builder-head">
+              <div className="builder-head-text">
+                <span className="section-label">{build?.id ? "Changing a helper" : view.helpers.length === 0 ? "Get started" : "Grow another helper"}</span>
+                <h2 className="builder-title">{build ? (build.id ? name : "Tick what it should do") : entry === "tick" ? "What kind of helper do you need?" : "Say what you need, in a sentence"}</h2>
+                <p className="builder-sub">
+                  {build
+                    ? "Every box is one plain sentence the helper is told. The card on the right is the whole helper, in your words; nothing else is added."
+                    : entry === "tick"
+                      ? "Pick one to start. You can change every part of it before anything is written."
+                      : "For when you would rather describe it. Your words land in the same boxes, so you can still change anything."}
+                </p>
+              </div>
+              {!build && (
+                <div className="segmented" role="tablist" aria-label="How to start">
+                  <button type="button" role="tab" aria-selected={entry === "tick"} onClick={() => setEntry("tick")}>
+                    Tick boxes
+                  </button>
+                  <button type="button" role="tab" aria-selected={entry === "describe"} onClick={() => setEntry("describe")}>
+                    Describe it
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {!build && entry === "tick" && (
+              <>
+                <div className="kinds" role="group" aria-label="Kinds of helper">
+                  {KINDS.map((k) => {
+                    const Icon = KIND_ICON[k.id];
+                    return (
+                      <button key={k.id} type="button" className="kind" onClick={() => startKind(k.id)} disabled={!view.canGrow}>
+                        <span className="kind-icon">
+                          <Icon size={18} />
+                        </span>
+                        <span className="kind-name">{k.name}</span>
+                        <span className="kind-blurb">{k.blurb}</span>
+                        <span className="kind-go" aria-hidden="true">
+                          <ChevronRight size={14} />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="from-project">
+                  <div className="from-head">
+                    <h3 className="from-title">
+                      <Sparkle size={14} /> Or take one your project suggests
+                    </h3>
+                    <p className="faint small">
+                      {view.evidence.tasks === 0
+                        ? "Nothing recorded yet. These are starters; once agents have worked here, the suggestions come from what actually happened."
+                        : `Computed from ${view.evidence.tasks} task${view.evidence.tasks === 1 ? "" : "s"} since ${new Date(view.evidence.since).toLocaleDateString(undefined, { day: "numeric", month: "short" })}. Every count links to the tasks behind it.`}
+                    </p>
+                  </div>
+                  <div className="suggest-grid">
+                    {view.suggestions.map((s) => (
+                      <SuggestionCard key={s.id} s={s} projectId={projectId} canGrow={view.canGrow} onUse={() => takeSuggestion(s)} />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {!build && entry === "describe" && (
+              <form
+                className="describe"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void draftFromWords();
+                }}
+              >
+                <label className="visually-hidden" htmlFor="helper-words">
+                  Describe your helper
+                </label>
+                <textarea
+                  id="helper-words"
+                  className="field describe-field"
+                  rows={4}
+                  value={words}
+                  onChange={(e) => setWords(e.target.value)}
+                  placeholder="e.g. Check the checkout still works before anything is called finished, and never touch payments without asking me"
+                  maxLength={1200}
+                  disabled={busy === "draft" || !view.canGrow}
+                />
+                <div className="describe-row">
+                  <span className="faint small">{view.canGrow ? "With an AI key set, your words are tidied into a first draft; without one they are used exactly as typed. Either way you see and change everything before it is grown." : UPGRADE_REASONS.helpers}</span>
+                  <button className="button primary" type="submit" disabled={busy === "draft" || words.trim().length < 3 || !view.canGrow}>
+                    {busy === "draft" ? <span className="spinner" /> : <Sprout size={14} />}
+                    Draft it
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {build && brief && (
+              <form
+                className="builder-grid"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void save();
+                }}
+              >
+                <div className="builder-steps">
+                  {build.evidence && <Evidence e={build.evidence} projectId={projectId} />}
+                  {build.aiNote && (
+                    <p className="faint small">
+                      <Sparkle size={12} /> {build.aiNote}
+                    </p>
+                  )}
+
+                  <Step n={1} title="What kind of helper" hint={build.id ? "Changing the kind resets the ticks to that kind's usual ones; your own words and things it knows are kept." : undefined}>
+                    <div className="chips" role="group" aria-label="Kind of helper">
+                      {KINDS.map((k) => (
+                        <button key={k.id} type="button" className="chip" data-state={build.choices.kind === k.id ? "may" : "none"} aria-pressed={build.choices.kind === k.id} onClick={() => build.choices.kind !== k.id && switchKind(k.id)}>
+                          {build.choices.kind === k.id && <Check size={11} />}
+                          {k.name}
+                        </button>
+                      ))}
+                    </div>
+                  </Step>
+
+                  <Step n={2} title="What it does" hint="Tick everything that applies. Each tick is one plain sentence the helper is told, word for word.">
+                    <div className="ticks">
+                      {DUTIES.map((d) => (
+                        <Tick key={d.id} on={build.choices.duties.includes(d.id)} label={d.label} sentence={d.sentence} technical={technical} onChange={() => setChoices({ duties: toggleIn(build.choices.duties, d.id) })} />
+                      ))}
+                    </div>
+                  </Step>
+
+                  <Step n={3} title="Where it may work" hint={areas.length === 0 ? undefined : kind?.wantsArea && build.choices.mayTouch.length === 0 ? "A specialist wants a part to specialise in. Tick the one it should know best." : "Tick the parts it works in, and the parts it must never change. Parts marked sensitive start out off limits."}>
+                    {areas.length === 0 ? (
+                      <p className="faint small">No parts of your app are mapped yet. Connect the project and the map arrives with it; until then the helper may work anywhere.</p>
+                    ) : (
+                      <div className="where">
+                        <div className="where-group">
+                          <span className="where-label">
+                            <Fence size={12} /> Works in
+                          </span>
+                          <div className="chips" role="group" aria-label="Parts it works in">
+                            {areas.map((a) => {
+                              const on = build.choices.mayTouch.includes(a.id);
+                              return (
+                                <button key={a.id} type="button" className="chip" data-state={on ? "may" : "none"} aria-pressed={on} title={a.description || a.name} onClick={() => setChoices({ mayTouch: toggleIn(build.choices.mayTouch, a.id), mustNotTouch: build.choices.mustNotTouch.filter((id) => id !== a.id) })}>
+                                  {on && <Check size={11} />}
+                                  {a.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="where-group">
+                          <span className="where-label">
+                            <Hand size={12} /> Never changes
+                          </span>
+                          <div className="chips" role="group" aria-label="Parts it must never change">
+                            {areas.map((a) => {
+                              const on = build.choices.mustNotTouch.includes(a.id) && !build.choices.mayTouch.includes(a.id);
+                              return (
+                                <button key={a.id} type="button" className="chip" data-state={on ? "not" : "none"} aria-pressed={on} title={a.description || a.name} onClick={() => setChoices({ mustNotTouch: toggleIn(build.choices.mustNotTouch.filter((id) => !build.choices.mayTouch.includes(id)), a.id), mayTouch: build.choices.mayTouch.filter((id) => id !== a.id) })}>
+                                  {on && <Hand size={11} />}
+                                  {a.name}
+                                  {a.sensitive && <span className="chip-note">sensitive</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        {technical && (
+                          <p className="mono small faint">
+                            {brief.mayTouch.length > 0 && `may: ${areas.filter((a) => brief.mayTouch.includes(a.id)).flatMap((a) => a.prefixes).join(", ")}`}
+                            {brief.mustNotTouch.length > 0 && ` · never: ${areas.filter((a) => brief.mustNotTouch.includes(a.id)).flatMap((a) => a.prefixes).join(", ")}`}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </Step>
+
+                  <Step n={4} title="When it must stop and ask you">
+                    <div className="ticks">
+                      {stopOptions.map((opt) => (
+                        <Tick key={opt} on={build.choices.stops.includes(opt)} label={opt} onChange={() => setChoices({ stops: toggleIn(build.choices.stops, opt) })} />
+                      ))}
+                    </div>
+                    <AddLine placeholder="Another moment, e.g. Before sending any email" onAdd={(t) => setChoices({ stops: [...build.choices.stops, t] })} />
+                  </Step>
+
+                  <Step n={5} title="How carefully">
+                    <div className="segmented" role="tablist" aria-label="How carefully it works">
+                      {CARE_IDS.map((c) => (
+                        <button key={c} type="button" role="tab" aria-selected={build.choices.care === c} onClick={() => setChoices({ care: c })}>
+                          {CARE_TEXT[c].label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="sheet-hint">{CARE_TEXT[build.choices.care].owner}</p>
+                  </Step>
+
+                  <Step n={6} title="How it talks" hint="How it speaks to you, whatever it is doing.">
+                    <div className="ticks">
+                      {VOICES.map((v) => (
+                        <Tick key={v.id} on={build.choices.voices.includes(v.id)} label={v.label} sentence={v.sentence} technical={technical} onChange={() => setChoices({ voices: toggleIn(build.choices.voices, v.id) })} />
+                      ))}
+                    </div>
+                  </Step>
+
+                  <Step n={7} title="Things it should already know" hint="Your standing answers. Anything you have had to tell an agent more than once belongs here.">
+                    {build.choices.knows.length > 0 && (
+                      <ul className="rules">
+                        {build.choices.knows.map((r, i) => (
+                          <li key={i}>
+                            <div className="rule-row">
+                              <label className="visually-hidden" htmlFor={`rule-${i}`}>
+                                Thing {i + 1}
+                              </label>
+                              <input id={`rule-${i}`} className="field" value={r.text} maxLength={400} onChange={(e) => setChoices({ knows: build.choices.knows.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })} />
+                              <button type="button" className="icon-button" aria-label="Remove this" onClick={() => setChoices({ knows: build.choices.knows.filter((_, j) => j !== i) })}>
+                                <Trash size={14} />
+                              </button>
+                            </div>
+                            {r.evidence && <Evidence e={r.evidence} projectId={projectId} />}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <AddLine placeholder="e.g. Prices are shown in pounds, never pence" onAdd={(t) => setChoices({ knows: [...build.choices.knows, { text: t } satisfies HelperRule] })} />
+                  </Step>
+
+                  <Step n={8} title="Which tools" hint="One helper, written once, for every tool you use. In Codex it becomes a standing instruction the agent reads at the start of each session.">
+                    <div className="chips" role="group" aria-label="Tools">
+                      {HELPER_TOOL_IDS.map((t: HelperToolId) => {
+                        const on = build.choices.tools.includes(t);
+                        return (
+                          <button key={t} type="button" className="chip tool-chip" data-state={on ? "may" : "none"} aria-pressed={on} onClick={() => setChoices({ tools: toggleIn(build.choices.tools, t) })}>
+                            <ToolLogo tool={t} size={13} />
+                            {TOOL_NAMES[t]}
+                            {on && <Check size={11} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </Step>
+
+                  <section className="bstep own-words" aria-labelledby="own-words-title">
+                    <h3 id="own-words-title">
+                      <Sparkle size={14} /> Anything else, in your own words
+                    </h3>
+                    <p className="sheet-hint">Optional. Whatever you write here is told to the helper exactly as typed, after the ticked sentences.</p>
+                    <label className="visually-hidden" htmlFor="own-words">
+                      Anything else, in your own words
+                    </label>
+                    <textarea id="own-words" className="field own-field" rows={3} value={build.choices.ownWords} maxLength={1200} onChange={(e) => setChoices({ ownWords: e.target.value })} placeholder="e.g. Our customers are schools, so every message they might see must be plain and polite." />
+                  </section>
+
+                  {note && (
+                    <div className={`notice ${note.tone ?? ""}`} role="alert">
+                      <Info />
+                      <div className="notice-body">
+                        <span>{note.text}</span>
+                        {note.upgrade && (
+                          <a className="link-accent link-underline" href="/account">
+                            See plans
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <aside className="builder-preview" aria-label="Your helper so far">
+                  <div className="preview-card">
+                    <span className="section-label">Your helper so far</span>
+                    <label className="visually-hidden" htmlFor="helper-name">
+                      Name
+                    </label>
+                    <input id="helper-name" className="preview-name" value={build.name} onChange={(e) => setBuild((b) => (b ? { ...b, name: e.target.value } : b))} maxLength={80} placeholder={nameFor(build.choices, areas)} />
+                    <ul className="preview-list">
+                      {preview.map((line, i) => (
+                        <li key={i}>
+                          <Check size={12} />
+                          <span>{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="preview-tools">
+                      {brief.tools.length === 0 ? (
+                        "Pick at least one tool."
+                      ) : (
+                        <>
+                          Written for{" "}
+                          {brief.tools.map((t, i) => (
+                            <span key={t}>
+                              {i > 0 && ", "}
+                              <span className="preview-tool">
+                                <ToolLogo tool={t} size={12} /> {TOOL_NAMES[t]}
+                              </span>
+                            </span>
+                          ))}
+                        </>
+                      )}
+                    </p>
+                    <div className="preview-actions">
+                      <button className="button primary block" type="submit" disabled={busy === "save" || brief.job.trim().length < 3}>
+                        {busy === "save" ? <span className="spinner" /> : <Sprout size={14} />}
+                        {build.id ? "Save the changes" : "Grow it"}
+                      </button>
+                      <button className="button quiet block" type="button" onClick={() => setBuild(null)}>
+                        {build.id ? "Leave it as it was" : "Start again"}
+                      </button>
+                    </div>
+                    <ol className="preview-next">
+                      <li>
+                        <strong>Grow it.</strong> Only these words are stored.
+                      </li>
+                      <li>
+                        <strong>Run one command</strong> in your project folder. The helper appears for every tool you ticked.
+                      </li>
+                      <li>
+                        <strong>Glasshouse checks afterwards</strong> that it kept to its patch, from the files its runs changed.
+                      </li>
+                    </ol>
+                    {technical && previewFiles.length > 0 && (
+                      <details className="preview-files">
+                        <summary>The files it becomes</summary>
+                        <Files files={previewFiles} />
+                      </details>
+                    )}
+                  </div>
+                </aside>
+
+                {/* Phones: the helper's name and the one button stay within a thumb's reach while the boxes scroll by. */}
+                <div className="build-bar">
+                  <span className="build-bar-text">
+                    <strong>{name}</strong>
+                    <span>
+                      {preview.length} thing{preview.length === 1 ? "" : "s"} ·{" "}
+                      <a className="link-underline" href="#helper-name">
+                        read it
+                      </a>
+                    </span>
+                  </span>
+                  <button className="button primary" type="submit" disabled={busy === "save" || brief.job.trim().length < 3}>
+                    {busy === "save" ? <span className="spinner" /> : <Sprout size={14} />}
+                    {build.id ? "Save" : "Grow it"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+
+          <section className="shed-section" id="helpers" aria-label="Your helpers">
+            <div className="section-head">
+              <h2 className="section-title">
+                Your helpers
+                {view.helpers.length > 0 && <span className="count">{view.helpers.length}</span>}
+              </h2>
+              {view.helpers.length > 0 && <span className="faint small">{placedCount === view.helpers.length ? "All in your project" : `${unplaced} not placed yet`}</span>}
+            </div>
+
+            {unplaced > 0 && !grownHere && (
+              <div className="notice dashed">
+                <Info />
+                <div className="notice-body">
+                  <span>
+                    {unplaced === 1 ? "One helper is" : `${unplaced} helpers are`} not in your project yet. Open a terminal in the project folder and run this once; it writes their files and nothing else.
+                  </span>
+                  <span className="command-row">
+                    <code>{helpersCommand}</code>
+                    <CopyButton text={helpersCommand} className="button sm" />
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {view.helpers.length === 0 ? (
+              <div className="empty">
+                <Sprout size={22} className="empty-icon" />
+                <h2>No helpers yet.</h2>
+                <p>Pick a kind above, or take one your project suggests. Each helper becomes a real file that Claude Code, Codex or Cursor reads, and Glasshouse checks afterwards that it kept to its patch.</p>
+              </div>
+            ) : (
+              <div className="helpers-grid">
+                {view.helpers.map((h) => (
+                  <HelperCard key={h.id} helper={h} areas={areas} technical={technical} onChange={() => changeHelper(h)} onRemove={() => void remove(h)} projectId={projectId} helpersCommand={helpersCommand} />
+                ))}
+              </div>
+            )}
+
+            <div className="shed-foot">
+              <span>Checked {ago(view.generatedAt, now)}</span>
+              <span>{view.areaMapSource ? `Parts of your app named ${view.areaMapSource === "ai" ? "by AI" : "from folder names"}.` : "No map of your app yet."}</span>
+              <a className="link-underline" href={`/room/${projectId}/areas`}>
+                Rename the parts
+              </a>
+              {liveSuggestions.length > 0 && build && (
+                <button type="button" className="link-button" onClick={() => setBuild(null)}>
+                  See what your project suggests
+                </button>
+              )}
+            </div>
+          </section>
         </div>
       </main>
     </>
