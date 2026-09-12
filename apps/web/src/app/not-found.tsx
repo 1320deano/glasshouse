@@ -12,7 +12,7 @@ export default function NotFound() {
         <h2>There is nothing at this address.</h2>
         <p>The project may have been removed, or the link may belong to a different account.</p>
         <a className="button primary" href="/">
-          Back to your projects
+          Back to {SITE_NAME}
         </a>
       </div>
     </main>

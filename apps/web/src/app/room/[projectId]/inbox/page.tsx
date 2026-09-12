@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { Inbox } from "@/components/Inbox";
 import { UpgradePanel } from "@/components/UpgradePanel";
 import { currentViewer } from "@/lib/auth";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { SITE_NAME } from "@/lib/brand";
 import { featureAllowed } from "@/lib/plan";
 import { getStore } from "@/lib/store";
 
@@ -15,6 +15,6 @@ export default async function InboxPage({ params }: { params: Promise<{ projectI
   if (!viewer) redirect(`/signin?next=/room/${projectId}/inbox`);
   const project = await getStore().getProject(projectId);
   if (!project || (!viewer.local && !viewer.admin && project.ownerId !== viewer.id)) notFound();
-  if (!featureAllowed(viewer.plan, "inbox")) return <UpgradePanel feature="inbox" productName={PRODUCT_NAME} back={`/room/${projectId}`} />;
+  if (!featureAllowed(viewer.plan, "inbox")) return <UpgradePanel feature="inbox" productName={SITE_NAME} back={`/room/${projectId}`} />;
   return <Inbox project={project} />;
 }
