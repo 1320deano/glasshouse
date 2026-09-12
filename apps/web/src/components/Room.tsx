@@ -5,7 +5,7 @@ import { UPGRADE_REASONS, type GatedRoom } from "@/lib/plan";
 import type { RoomState, SessionView } from "@/lib/store/types";
 import { AgentCard } from "./AgentCard";
 import { Conversation } from "./Conversation";
-import { ArrowLeft, Info, Mark, PanelLeft, PanelRight, Rows, Screen } from "./icons";
+import { ArrowLeft, Info, Mark, PanelLeft, PanelRight, Rows, Screen, Sprout } from "./icons";
 import { Progress } from "./Progress";
 import { ReportProblem } from "./ReportProblem";
 import { Walkthrough } from "./Walkthrough";
@@ -334,6 +334,9 @@ export function Room({
             {switcher}
           </div>
           <nav className="room-nav" aria-label="This project">
+            <a className="nav-link" href={`/shed/${projectId}`} title="Grow helpers for this project">
+              <Sprout size={14} /> Potting Shed
+            </a>
             {!viewer.local && (
               <a className="nav-link" href="/account">
                 {gated.plan === "pro" ? "Pro" : "Free"}

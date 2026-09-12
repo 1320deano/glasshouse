@@ -109,9 +109,10 @@ export function gateRoom(room: RoomState, plan: Plan, nowIso: string): GatedRoom
     ? room.progress.map((p) => (p.lastTouchedAt && p.lastTouchedAt >= windowStart ? p : { ...p, stage: null, attention: undefined, running: 0, finished: 0, filesChanged: 0, checks: undefined, lastTouchedAt: undefined, tools: [] }))
     : room.progress;
   const activity = windowStart ? activityWindow(room.activity.hours, windowStart) : room.activity;
+  const helpers = windowStart ? room.helpers?.map((h) => ({ ...h, runs: h.runs.filter((r) => r.at >= windowStart) })) : room.helpers;
 
   // Inbox counts and "since you last checked" are Pro features; the free room does not tease them.
-  const base: RoomState = { ...room, sessions, story, progress, activity };
+  const base: RoomState = { ...room, sessions, story, progress, activity, helpers };
   const gated: RoomState = limits.inbox ? base : { ...base, inboxOpen: 0, sinceChecked: { done: 0, needsYou: 0 } };
   return { room: gated, plan, locked: { agents: hiddenAgents, history, reasons } };
 }

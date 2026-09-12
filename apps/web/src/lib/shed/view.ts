@@ -9,6 +9,7 @@ import { limitsFor, type Plan, canGrowHelper } from "../plan";
 import { getStore } from "../store";
 import type { HelperRecord, ProjectSummary } from "../store/types";
 import { compileHelper, type CompiledFile } from "./compile";
+import { boxEvidenceFrom, rehearsalTasksFrom, type BoxEvidence, type RehearsalTask } from "./evidence";
 import { suggestHelpers, type HelperSuggestion } from "./suggest";
 import { checkHelper, type HelperCheck } from "./verify";
 
@@ -28,6 +29,10 @@ export interface ShedView {
   suggestions: HelperSuggestion[];
   /** How many tasks the suggestions were read from, and since when. A fact for the column head. */
   evidence: { tasks: number; since: string };
+  /** What the record says about each box in the builder, keyed "duty:", "stop:", "area:", "kind:". */
+  boxEvidence: BoxEvidence;
+  /** The most recent tasks, cut down to what a helper can be rehearsed against. */
+  recent: RehearsalTask[];
   plan: Plan;
   /** Whether one more helper may be grown on this plan. */
   canGrow: boolean;
@@ -50,6 +55,8 @@ export async function shedForViewer(projectId: string, viewer: Viewer, now = new
     helpers: views,
     suggestions: suggestHelpers(tasks, areas, helpers),
     evidence: { tasks: tasks.length, since },
+    boxEvidence: boxEvidenceFrom(tasks, areas),
+    recent: rehearsalTasksFrom(tasks, areas),
     plan: viewer.plan,
     canGrow: canGrowHelper(viewer.plan, helpers.length),
     helpersAllowed: limitsFor(viewer.plan).helpers,

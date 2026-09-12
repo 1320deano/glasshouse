@@ -200,7 +200,7 @@
 }
 .pill[data-tone="positive"] {
   background: var(--positive-quiet);
-  color: var(--positive);
+  color: var(--positive-ink);
 }
 
 /* The status on a card: a word and a dot. Neutral while working (the dot carries the accent),
@@ -1637,4 +1637,84 @@
 }
 .part-meta .faint:last-child {
   margin-left: auto;
+}
+
+/* --- Your helpers (Phase 7): the Shed's helpers as the Room sees them ------------------------
+   One row each: the tool marks, the name (a link back to the Shed), what it does, and the one line
+   that matters, computed from the files its runs changed. Green only when verified, red only when
+   it strayed, amber when the tool did not say who made an edit. */
+.helper-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.helper-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-1) 0;
+  border-top: 1px solid var(--line-subtle);
+}
+.helper-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.helper-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.helper-row-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+}
+.helper-row-name {
+  font-size: var(--text-4);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.helper-row-job {
+  font-size: var(--text-3);
+  line-height: var(--leading-snug);
+  color: var(--text-secondary);
+}
+.helper-row-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-05);
+  font-size: var(--text-2);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+}
+.helper-row[data-tone="positive"] .helper-row-line {
+  color: var(--positive);
+}
+.helper-row[data-tone="attention"] .helper-row-line {
+  color: var(--warn);
+}
+.helper-row[data-tone="critical"] .helper-row-line {
+  color: var(--danger);
+}
+.helper-row .msg-link {
+  align-self: flex-start;
+  margin-left: calc(-1 * var(--space-1));
+}
+.panel-card-lead svg {
+  vertical-align: -2px;
+  color: var(--accent);
+}
+
+/* A helper's line in the story: the same bubble, its own little mark colour. */
+.msg[data-helper="yes"] .msg-avatar {
+  color: var(--accent);
 }

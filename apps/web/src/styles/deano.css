@@ -467,6 +467,86 @@ a.product-card:hover .product-open svg {
   font-size: var(--text-4);
 }
 
+/* The helper as a document: each question is its answer in plain words with a Change button;
+   open, it is the boxes. Reading it top to bottom is reading the helper. */
+.helper-doc {
+  gap: 0;
+}
+.hsec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line-subtle);
+}
+.hsec:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.hsec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.hsec-head h3 {
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-normal);
+  color: var(--text-tertiary);
+}
+.hsec-toggle {
+  flex: none;
+  margin-right: calc(-1 * var(--space-1));
+}
+.hsec[data-open="yes"] .hsec-chevron {
+  transform: rotate(90deg);
+}
+.hsec-chevron {
+  transition: transform var(--duration-base) var(--ease-out);
+}
+.hsec-summary {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-05) var(--space-1);
+  margin: 0 calc(-1 * var(--space-1));
+  border-radius: var(--radius-sm);
+  font-size: var(--text-5);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.hsec-summary:hover {
+  background: var(--bg-raised);
+}
+.hsec-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hsec-lines li::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 var(--space-1) 3px 0;
+  border-radius: var(--radius-full);
+  background: var(--positive);
+}
+.hsec-empty {
+  color: var(--text-tertiary);
+}
+.hsec-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  animation: rise var(--duration-base) var(--ease-out) both;
+}
+
 /* Boxes to tick: each a small card so it reads at a glance and takes a whole thumb. */
 .ticks {
   display: grid;
@@ -518,6 +598,53 @@ a.product-card:hover .product-open svg {
   font-size: var(--text-2);
   line-height: var(--leading-normal);
   color: var(--text-tertiary);
+}
+/* A box the record has something to say about: its count sits under the label, the tasks one tap away. */
+.tick .evidence {
+  margin-top: 2px;
+}
+.tick[data-seen="yes"][data-on="no"] {
+  border-style: dashed;
+  border-color: var(--accent-line);
+}
+.chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 2px;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.chip[data-state="may"] .chip-count,
+.chip[data-state="not"] .chip-count {
+  background: rgba(255, 255, 255, 0.6);
+  color: inherit;
+}
+
+/* A tile the record has seen a reason for. */
+.kind-seen {
+  display: flex;
+  gap: var(--space-05);
+  align-items: flex-start;
+  margin-top: var(--space-05);
+  padding-right: var(--space-3);
+  font-size: var(--text-2);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+.kind-seen svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--accent);
+}
+.kind[data-seen="yes"] {
+  border-color: var(--line-strong);
 }
 
 /* Where: two questions, two rows of chips. */
@@ -618,6 +745,11 @@ a.product-card:hover .product-open svg {
   top: calc(var(--room-head) + var(--space-2));
   min-width: 0;
 }
+.builder-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+}
 .preview-card {
   display: flex;
   flex-direction: column;
@@ -688,8 +820,7 @@ a.product-card:hover .product-open svg {
 }
 .preview-next {
   margin: 0;
-  padding: var(--space-15) 0 0 var(--space-2);
-  border-top: 1px solid var(--line-subtle);
+  padding: 0 0 0 var(--space-2);
   display: flex;
   flex-direction: column;
   gap: var(--space-05);
@@ -701,6 +832,53 @@ a.product-card:hover .product-open svg {
   color: var(--text-secondary);
   font-weight: var(--weight-medium);
 }
+/* Tried on your recent tasks: the helper's rules held against what each task actually did. */
+.rehearsal .section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+}
+.rehearsal .section-label svg {
+  color: var(--accent);
+}
+.rehearsal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+}
+.rehearsal-list > li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rehearsal-task {
+  font-size: var(--text-3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.rehearsal-when {
+  font-size: var(--text-1);
+  color: var(--text-tertiary);
+}
+.rehearsal-would {
+  list-style: none;
+  margin: var(--space-05) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  font-size: var(--text-3);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+.rehearsal-would li {
+  padding-left: var(--space-15);
+  border-left: 2px solid var(--accent-line);
+}
+
 .preview-files summary {
   cursor: pointer;
   font-size: var(--text-3);
@@ -883,7 +1061,7 @@ a.product-card:hover .product-open svg {
 }
 .pill[data-tone="positive"] {
   background: var(--positive-quiet);
-  color: var(--positive);
+  color: var(--positive-ink);
 }
 
 .helper-actions {

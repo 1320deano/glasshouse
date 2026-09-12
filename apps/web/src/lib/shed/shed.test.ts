@@ -4,6 +4,9 @@ import { MemoryStore } from "../store/memory";
 import type { HelperRecord, HelperRun, TaskView } from "../store/types";
 import { briefFromChoices, choicesForKind, choicesFromBrief, describeChoices, DUTIES, jobFrom, nameFor, VOICES } from "./build";
 import { compileHelper, emptyBrief, instructions, mergeSection, removeSection } from "./compile";
+import { boxEvidenceFrom, rehearsalTasksFrom } from "./evidence";
+import { rehearse } from "./rehearse";
+import { helperLine, helperStory, jobLine, roomHelpersFrom } from "./room";
 import { agentTypeOf, helperRunsFrom } from "./runs";
 import { sameBrief, slugify, uniqueSlug } from "./slug";
 import { suggestHelpers } from "./suggest";
@@ -148,6 +151,76 @@ describe("build", () => {
     const s = suggestHelpers([], AREAS);
     expect(choicesFromBrief(s[0]!.brief, s[0]!.id)).toMatchObject({ kind: "checker", duties: ["run-checks", "stop-on-repeat"], ownWords: "" });
     expect(choicesFromBrief(s[1]!.brief, s[1]!.id)).toMatchObject({ kind: "guard", duties: ["ask-before-off-limits"], mustNotTouch: ["payments", "login"] });
+  });
+});
+
+describe("evidence and rehearsal", () => {
+  const tasks: TaskView[] = [
+    task({ id: "stuck1", stage: "stuck", storedStage: "testing", stuckReason: "The same error has happened three times in a row", headline: "Looks stuck", prompt: "Fix the basket total", endedAt: undefined, areas: [{ id: "checkout", name: "Checkout", description: "", changed: ["src/checkout/a.ts"], looked: [] }] }),
+    task({ id: "fail1", lastTests: { passed: 3, failed: 2 }, areas: [{ id: "payments", name: "Payments", description: "", changed: ["src/payments/stripe.ts"], looked: [] }], installs: 1 }),
+    task({ id: "ask1", report: { headline: "x", touchedReasons: {}, needsYou: "decision", needsYouDetail: "Refund to card or credit?", source: "template", createdAt: "2026-09-01T00:00:00Z" } as TaskView["report"] }),
+    task({ id: "hand1", continuedFrom: { tool: "codex", taskId: "prev", reason: "same files" } as TaskView["continuedFrom"] }),
+    task({ id: "clean1", lastTests: { passed: 9, failed: 0 }, areas: [{ id: "checkout", name: "Checkout", description: "", changed: ["src/checkout/b.ts"], looked: [] }] }),
+  ];
+
+  it("says, per box, what the record has seen, with the tasks behind it", () => {
+    const e = boxEvidenceFrom(tasks, AREAS);
+    expect(e["duty:run-checks"]!.taskIds).toEqual(["fail1"]);
+    expect(e["duty:run-checks"]!.text).toBe("1 task in your project was called finished with checks still failing.");
+    expect(e["duty:stop-on-repeat"]!.taskIds).toEqual(["stuck1"]);
+    expect(e["stop:When the same check fails twice"]!.taskIds).toEqual(["stuck1"]);
+    expect(e["stop:Before installing anything new"]!.taskIds).toEqual(["fail1"]);
+    expect(e["duty:apply-answers"]!.text).toBe("You were asked to decide 1 time.");
+    expect(e["duty:handover-note"]!.taskIds).toEqual(["hand1"]);
+    expect(e["duty:ask-before-off-limits"]!.text).toBe("Agents changed Payments in 1 task.");
+    expect(e["stop:Before changing anything in Payments"]!.taskIds).toEqual(["fail1"]);
+    expect(e["area:checkout"]!.text).toBe("Changed in 2 tasks.");
+    expect(e["kind:checker"]!.text).toBe("1 stuck moment and 1 task finished with failing checks in your project.");
+    expect(e["kind:guard"]!.taskIds).toEqual(["fail1"]);
+    expect(e["kind:specialist"]).toBeUndefined(); // one finished task per part is not a pattern
+    expect(e["duty:stay-inside"]).toBeUndefined();
+  });
+
+  it("replays a helper's rules against what each task actually did, and counts the quiet ones", () => {
+    const recent = rehearsalTasksFrom(tasks, AREAS);
+    // Newest first by when it ended or last moved; the live task last moved before the others finished.
+    expect(recent.map((t) => t.id)).toEqual(["fail1", "ask1", "hand1", "clean1", "stuck1"]);
+    const checker = { ...choicesForKind("checker", AREAS), mayTouch: ["checkout"], stops: [...choicesForKind("checker", AREAS).stops, "Before installing anything new"] };
+    const r = rehearse(checker, recent, AREAS);
+    const byTask = Object.fromEntries(r.lines.map((l) => [l.taskId, l.would]));
+    expect(byTask.stuck1).toEqual(["Would have stopped at the second time the same error came up and reported it, instead of trying a third way."]);
+    expect(recent.find((t) => t.id === "stuck1")!.headline).toBe("Fix the basket total");
+    // A silence is not a repeated error: nothing a helper could have done, so nothing is claimed.
+    expect(rehearse(checker, rehearsalTasksFrom([task({ id: "quiet", stage: "stuck", storedStage: "building", stuckReason: "Nothing has happened for 7 minutes", endedAt: undefined })], AREAS), AREAS).lines).toEqual([]);
+    expect(byTask.fail1).toEqual(["Would have stopped before changing Payments and asked you first.", "Would not have called it finished: 2 checks were still failing.", "Would have asked you before adding something new to the project."]);
+    expect(byTask.ask1).toBeUndefined();
+    expect(r.quiet).toBe(3);
+    expect(r.total).toBe(5);
+    const rules = { ...choicesForKind("rules", AREAS), knows: [{ text: "Refunds go back to the card." }] };
+    expect(rehearse(rules, recent, AREAS).lines.find((l) => l.taskId === "ask1")!.would[0]).toMatch(/checked your standing answers first/);
+    const handover = choicesForKind("handover", AREAS);
+    expect(rehearse(handover, recent, AREAS).lines.find((l) => l.taskId === "hand1")!.would[0]).toBe("Would have left a handover note for Claude Code to pick up from Codex.");
+    expect(rehearse(choicesForKind("own", AREAS), [], AREAS)).toEqual({ lines: [], quiet: 0, total: 0 });
+  });
+});
+
+describe("helpers in the Room", () => {
+  const run = (over: Partial<HelperRun>): HelperRun => ({ taskId: "t1", tool: "claude-code", agentType: "checkout-checker", startedAt: "2026-09-02T00:00:00Z", endedAt: "2026-09-02T00:05:00Z", changedPaths: ["src/checkout/basket.ts"], taskWide: false, ...over });
+
+  it("shows each helper with its runs judged, and says so in the story", () => {
+    const placed = { ...helper, placedAt: "2026-09-01T12:00:00Z", brief: { ...helper.brief, job: jobFrom(["run-checks"]) } };
+    const [h] = roomHelpersFrom([placed], [run({}), run({ taskId: "t2", startedAt: "2026-09-03T00:00:00Z", endedAt: "2026-09-03T00:05:00Z", changedPaths: ["src/payments/stripe.ts"] }), run({ agentType: "someone-else" })], AREAS);
+    expect(h!.job).toBe("Runs the project's checks before anything is called finished");
+    expect(h!.runs.map((r) => r.verdict)).toEqual(["kept", "strayed"]);
+    expect(helperLine(h!)).toEqual({ text: "Ran 2 times; went outside its patch once (Payments).", tone: "critical" });
+    expect(helperLine({ runs: [], placedAt: undefined })).toEqual({ text: "Not placed in your project yet." });
+    const story = helperStory([h!]);
+    expect(story.map((m) => m.kind)).toEqual(["helper-started", "helper-finished", "helper-started", "helper-finished"]);
+    expect(story[0]!.text).toBe("Claude Code handed part of this task to your helper Checkout checker.");
+    expect(story[1]!.text).toBe("Your helper Checkout checker finished and kept to its patch.");
+    expect(story[3]!.text).toBe("Your helper Checkout checker finished but changed Payments, outside its patch.");
+    expect(story[3]!.helper).toEqual({ id: "h1", name: "Checkout checker", verdict: "strayed", outside: ["Payments"] });
+    expect(jobLine({ ...helper.brief, job: "Look after the basket.\nMore." })).toBe("Look after the basket.");
   });
 });
 

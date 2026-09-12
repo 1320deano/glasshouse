@@ -15,7 +15,7 @@ function diffLines(events: readonly EventView[]): { added: number; removed: numb
   }
   return { added, removed, files: d.files, withoutPatch: d.withoutPatch };
 }
-import { Alert, Check, ThumbsDown } from "./icons";
+import { Alert, Check, Sprout, ThumbsDown } from "./icons";
 import { RISK_TEXT, TOOL_NAMES, ago, latencyOf } from "./labels";
 import { Loading } from "./Loading";
 import { ReportCard } from "./ReportCard";
@@ -150,6 +150,11 @@ export function TaskPanel({ session, now }: { session: SessionView; now: number 
           {helpers.size > 0 ? ` · ${helpers.size} helper${helpers.size === 1 ? "" : "s"}` : ""}
           {detail.headlineSource === "ai" ? " · headline written by AI" : ""}
         </span>
+        {(detail.stage === "stuck" || (detail.lastTests?.failed ?? 0) > 0 || detail.report?.needsYou === "decision" || detail.report?.needsYou === "blocked" || detail.continuedFrom) && (
+          <a className="msg-link" href={`/shed/${detail.projectId}?task=${encodeURIComponent(detail.id)}`} title="Open the Potting Shed with a helper drawn from this task">
+            <Sprout size={12} /> Grow a helper from this
+          </a>
+        )}
       </div>
 
       {technical && (

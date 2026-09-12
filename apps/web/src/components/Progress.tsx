@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AgentTool, Stage } from "@glasshouse/schema";
 import { PROGRESS_STEPS, hourTotal, stepIndex } from "@/lib/progress";
-import type { ActivityView, AreaProgress, RoomState } from "@/lib/store/types";
-import { ChevronDown, Info } from "./icons";
+import { helperLine } from "@/lib/shed/room";
+import type { ActivityView, AreaProgress, RoomHelper, RoomState } from "@/lib/store/types";
+import { ToolLogo } from "./ToolLogo";
+import { Check, ChevronDown, Copy, Info, Sprout } from "./icons";
 import { STAGE_TEXT, TOOL_COLOURS, TOOL_NAMES, ago } from "./labels";
 
 /**
@@ -137,7 +139,60 @@ function AreaRow({ p, now }: { p: AreaProgress; now: number }) {
   );
 }
 
-type SectionId = "activity" | "tools" | "parts";
+/** Words the owner can paste into Claude Code to hand a job to this helper. Copied, never sent (rule 4). */
+function CopyAsk({ slug }: { slug: string }) {
+  const [done, setDone] = useState(false);
+  const text = `Please use the ${slug} sub-agent for this.`;
+  return (
+    <button
+      type="button"
+      className="msg-link"
+      title="Copies a line you can paste into Claude Code's own window to hand it this helper. Nothing is sent from here."
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setDone(true);
+          setTimeout(() => setDone(false), 1800);
+        } catch {
+          /* clipboard blocked */
+        }
+      }}
+    >
+      {done ? <Check size={12} /> : <Copy size={12} />}
+      {done ? "Copied" : "Copy a line that asks for it"}
+    </button>
+  );
+}
+
+/** One helper as the Room shows it: what it does, and the fact of how it did this week. */
+function HelperRow({ h, now, projectId }: { h: RoomHelper; now: number; projectId: string }) {
+  const line = helperLine(h);
+  const last = h.runs[0];
+  return (
+    <li className="helper-row" data-tone={line.tone ?? ""}>
+      <div className="helper-row-head">
+        <span className="helper-row-tools" aria-hidden="true">
+          {h.tools.map((t) => (
+            <ToolLogo key={t} tool={t} size={12} />
+          ))}
+        </span>
+        <a className="helper-row-name link-underline" href={`/shed/${projectId}#helper-${h.id}`} title="See this helper in the Potting Shed">
+          {h.name}
+        </a>
+        {!h.placedAt && <span className="pill sm">Not placed</span>}
+      </div>
+      <p className="helper-row-job">{h.job}</p>
+      <p className="helper-row-line" title="Computed from the files its runs changed, never from what it said">
+        {line.tone === "positive" && <Check size={12} />}
+        {line.text}
+        {last && <span className="faint"> · {ago(last.at, now)}</span>}
+      </p>
+      {h.placedAt && h.tools.includes("claude-code") && <CopyAsk slug={h.slug} />}
+    </li>
+  );
+}
+
+type SectionId = "activity" | "tools" | "parts" | "helpers";
 
 /** A white card with a heading that folds it. The fold is remembered in this browser. */
 function Section({ id, title, aside, open, onToggle, children }: { id: SectionId; title: string; aside?: ReactNode; open: boolean; onToggle: (id: SectionId) => void; children: ReactNode }) {
@@ -163,7 +218,7 @@ function Section({ id, title, aside, open, onToggle, children }: { id: SectionId
 }
 
 export function Progress({ state, now }: { state: RoomState; now: number }) {
-  const [folded, setFolded] = useState<Record<SectionId, boolean>>({ activity: false, tools: false, parts: false });
+  const [folded, setFolded] = useState<Record<SectionId, boolean>>({ activity: false, tools: false, parts: false, helpers: false });
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(FOLDS_KEY) ?? "null") as Partial<Record<SectionId, boolean>> | null;
@@ -190,6 +245,30 @@ export function Progress({ state, now }: { state: RoomState; now: number }) {
           <strong className="tabular">{state.activity.total}</strong> action{state.activity.total === 1 ? "" : "s"} recorded across the agents this week.
         </p>
         <Heatmap activity={state.activity} now={now} />
+      </Section>
+
+      <Section
+        id="helpers"
+        title="Your helpers"
+        open={!folded.helpers}
+        onToggle={toggle}
+        aside={
+          <a className="panel-card-aside link-underline" href={`/shed/${state.project.id}`} title="Grow helpers in the Potting Shed">
+            Grow
+          </a>
+        }
+      >
+        {!state.helpers || state.helpers.length === 0 ? (
+          <p className="panel-card-lead">
+            <Sprout size={12} /> No helpers yet. Grow one in the Potting Shed from what has happened here, and it shows up in this story the moment it runs.
+          </p>
+        ) : (
+          <ul className="helper-rows">
+            {state.helpers.map((h) => (
+              <HelperRow key={h.id} h={h} now={now} projectId={state.project.id} />
+            ))}
+          </ul>
+        )}
       </Section>
 
       <Section id="tools" title="Which tools" open={!folded.tools} onToggle={toggle}>

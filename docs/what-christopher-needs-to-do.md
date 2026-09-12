@@ -97,3 +97,13 @@ In order of how much they unblock. Each item says what it is for, in plain words
 - **Decide the AI key question for the Shed.** Without a key, your typed sentence is used as-is. With a key, one call
   tidies it into a name, a clearer job and first-guess boundaries. It costs one short call per helper started, logged
   like every other call.
+
+## Phase 7 (the Shed rebuilt, helpers in Glasshouse)
+
+- **Read the six kinds and the boxes as a customer would.** The words on the tiles, the boxes under "What it does" and
+  "How it talks", and the lines in "Tried on your recent tasks" are the product now. Each is one string in
+  `apps/web/src/lib/shed/build.ts` and `rehearse.ts`; say which read wrongly and they change in a minute.
+- **Grow a helper from a real stuck moment.** In Glasshouse, on a stuck or failing task, press "Grow a helper from
+  this", read what it would have done on that very task, grow it, run the one command, and watch the story say it
+  started and whether it kept to its patch. That is the whole loop; it needs one real project to prove it.
+

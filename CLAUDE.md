@@ -73,6 +73,10 @@ Then explain what was done in plain, non-technical language, leaving nothing out
   actions per hour, actions per tool. Never a percentage, never a velocity.
 - "Stuck" is detected (same error three times, nothing for minutes), never declared.
 - "Waiting for you" is the one badge allowed to light up.
+- Helpers from the Shed live in the Room too (`lib/shed/room.ts`): a "Your helpers" panel in the progress column with
+  each helper's runs judged from the files they changed; story lines when a helper starts and finishes, with the verdict
+  as the badge; "Grow a helper from this" on stuck, stopped, decision and failing-check moments, which opens the Shed on
+  the suggestion that task is part of; and "Copy a line that asks for it" (copied, never sent).
 
 ## Design rules for the Potting Shed
 
@@ -82,13 +86,20 @@ Then explain what was done in plain, non-technical language, leaving nothing out
   grid, tabs or reply box. Below 960px it is the same page in one column, with a sticky bar carrying the helper's name
   and the one button.
 - The owner never writes a prompt. The card starts with six kinds of helper (Checker, Guard, Specialist, House rules,
-  Handover notes, Something else) and, under them, what the record suggests. Picking one unfolds the boxes, in a fixed
-  order: what kind, what it does, where it may work, when it must stop and ask, how carefully (three stages, never a
-  number), how it talks, things it should already know, which tools, then anything else in the owner's own words.
+  Handover notes, Something else), each tile saying what the record has seen for it, and, under them, what the record
+  suggests. One tap later the helper is finished and reads as a document, in a fixed order: what kind, what it does,
+  where it may work, when it must stop and ask, how carefully (three stages, never a number), how it talks, things it
+  should already know, which tools, anything else in the owner's own words. Each question shows its answer in plain
+  words; "Change" opens that question's boxes and nothing else.
 - Every tick is one fixed plain-English sentence (`lib/shed/build.ts`), and the stored brief is those sentences and
-  nothing else. The "Your helper so far" card beside the boxes is computed from the ticks, so it is the helper, not a
-  paraphrase of it. Opening a helper again ticks the same boxes exactly (sentences are matched, never guessed); anything
-  the owner typed rides along as their own words.
+  nothing else. Opening a helper again ticks the same boxes exactly (sentences are matched, never guessed); anything the
+  owner typed rides along as their own words.
+- Every box knows what happened. `lib/shed/evidence.ts` computes, per box, the count from the record ("3 tasks were
+  called finished with checks still failing") with the tasks behind it. Never generated.
+- "Tried on your recent tasks" (`lib/shed/rehearse.ts`) holds the helper's rules against the last twelve tasks and says,
+  per task, what it would have done: only from facts the record holds (parts changed, checks failed, a repeated error,
+  installs, the question asked, a handover). Tasks where nothing would change are counted, not narrated; a silence
+  claims nothing.
 - "Describe it" is the same card for people who would rather say it in a sentence. The words are used as typed (tidied
   into a first draft by the one AI call when there is a key) and land in the same boxes.
 - Every suggestion is computed from the record (`lib/shed/suggest.ts`), written from the same ticked sentences, and

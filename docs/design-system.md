@@ -9,8 +9,8 @@ invents a value.
 | base | `apps/web/src/styles/base.css` | reset, typographic defaults, links, the focus ring, the motion contract |
 | components | `apps/web/src/styles/components.css` | buttons, fields, badges, cards, notices, empty states, the loading wheel, tables, page shell |
 | screens | `apps/web/src/styles/screens.css` | the report card, the task panel, digest, inbox, areas, landing, admin |
-| room | `apps/web/src/styles/room.css` | the Room: header, three columns, agent cards, the story, progress |
-| deano | `apps/web/src/styles/deano.css` | the front door (the product picker) and the Potting Shed: the way-out button, product cards, the one builder card (kind tiles, boxes to tick, the helper-so-far card, the phone bar), helper and suggestion cards, chips |
+| room | `apps/web/src/styles/room.css` | the Room: header, three columns, agent cards, the story, progress, the helper rows |
+| deano | `apps/web/src/styles/deano.css` | the front door (the product picker) and the Potting Shed: the way-out button, product cards, the one builder card (kind tiles, the helper as a document with its folding questions, boxes to tick with what the record says, the rehearsal card, the phone bar), helper and suggestion cards, chips |
 
 `apps/web/src/app/globals.css` is six `@import` lines and nothing else.
 
@@ -30,8 +30,10 @@ passes AA. Links are neutral by default; `.link-accent` opts one in.
 **Status colour carries a fact.** In the Shed, the green "In your project" pill and the green "kept to its patch" line
 are computed (from the connector's report and from the files a run changed); a red "went outside its patch" is the same
 computation the other way; amber "unclear" means the tool did not say which agent made an edit. The chips in the builder
-use the same three: green works here, red must never change, neutral no rule. The ticks in the "Your helper so far" card
-are green because each one is a sentence that will be in the file, verbatim.
+use the same three: green works here, red must never change, neutral no rule. The dots beside a helper's lines are green
+because each line is a sentence that will be in the file, verbatim. A box the record has seen a reason for, and which is
+not ticked, has a dashed accent edge: the accent is the one colour allowed to say "look here". Text on the green tint
+uses `--positive-ink`, a shade deeper than `--positive`, so a "Kept to its patch" pill passes AA on the story's ground too.
 
  Amber (`--warn`) means the owner is the blocker: waiting for you,
 a decision needed, a part that counts as high risk. Green (`--positive`) means verified: "not

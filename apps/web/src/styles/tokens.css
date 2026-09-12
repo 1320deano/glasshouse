@@ -91,7 +91,8 @@
   --warn: #8a5200; /* waiting for you, medium risk, a decision to make: 5.3:1 on its tint */
   --warn-quiet: rgba(214, 137, 16, 0.13);
   --warn-line: rgba(214, 137, 16, 0.45);
-  --positive: #1b7a3e; /* verified: not touched, checks passed: 4.6:1 on its tint */
+  --positive: #1b7a3e; /* verified: not touched, checks passed: 4.6:1 on its tint over white */
+  --positive-ink: #186c3a; /* the same green a shade deeper, for text on the tint over the story's ground: 5.3:1 */
   --positive-quiet: rgba(27, 122, 62, 0.1);
   --danger: #ab2b3f; /* an error, high risk, stuck: 5.5:1 on its tint */
   --danger-quiet: rgba(171, 43, 63, 0.09);

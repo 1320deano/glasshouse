@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AskAnswer } from "@/lib/ai/ask";
 import type { RoomState, StoryMessage } from "@/lib/store/types";
-import { ArrowUp, Check, ChevronRight, Copy, Mark } from "./icons";
+import { ArrowUp, Check, ChevronRight, Copy, Mark, Sprout } from "./icons";
 import { NEEDS_YOU_TEXT, RISK_TEXT, TOOL_NAMES, clip, clock, dayLabel } from "./labels";
 
 /**
@@ -41,6 +41,8 @@ const BADGE: Partial<Record<StoryMessage["kind"], { text: string; tone: string }
 
 function badgeFor(m: StoryMessage): { text: string; tone: string } | null {
   if (BADGE[m.kind]) return BADGE[m.kind]!;
+  if (m.kind === "helper-finished" && m.helper?.verdict) return m.helper.verdict === "kept" ? { text: "Kept to its patch", tone: "positive" } : m.helper.verdict === "strayed" ? { text: "Outside its patch", tone: "critical" } : { text: "Unclear", tone: "attention" };
+  if (m.kind === "helper-started") return { text: "Helper", tone: "info" };
   if (m.kind === "finished" && m.needsYou && m.needsYou !== "nothing") return { text: NEEDS_YOU_TEXT[m.needsYou], tone: m.needsYou === "review" ? "info" : "attention" };
   return null;
 }
@@ -93,7 +95,14 @@ function Bubble({ who, at, badge, children }: { who: "glasshouse" | "you"; at: s
   );
 }
 
-function StoryLine({ m, onOpenTask }: { m: StoryMessage; onOpenTask: (taskId: string) => void }) {
+/** A moment the Potting Shed can grow a helper from: stuck, out of usage, a decision asked for, checks failing. */
+function growable(m: StoryMessage): boolean {
+  if (m.kind === "stuck" || m.kind === "limit") return true;
+  if (m.kind === "finished") return (m.needsYou !== undefined && m.needsYou !== "nothing" && m.needsYou !== "review") || /failed/.test(m.checks ?? "");
+  return false;
+}
+
+function StoryLine({ m, onOpenTask, projectId }: { m: StoryMessage; onOpenTask: (taskId: string) => void; projectId: string }) {
   const facts = (m.kind === "finished" || m.kind === "limit") && (m.touched?.length || m.notTouched?.length || m.checks || m.risk);
   return (
     <Bubble who="glasshouse" at={m.at} badge={badgeFor(m)}>
@@ -143,6 +152,16 @@ function StoryLine({ m, onOpenTask }: { m: StoryMessage; onOpenTask: (taskId: st
           <ChevronRight size={12} />
         </button>
         {m.suggestedReply && <CopyForAgent text={m.suggestedReply} />}
+        {growable(m) && (
+          <a className="msg-link" href={`/shed/${projectId}?task=${encodeURIComponent(m.taskId)}`} title="Open the Potting Shed with a helper drawn from this moment">
+            <Sprout size={12} /> Grow a helper from this
+          </a>
+        )}
+        {m.kind === "helper-finished" && m.helper && (
+          <a className="msg-link" href={`/shed/${projectId}#helper-${m.helper.id}`} title="See this helper in the Potting Shed">
+            See the helper
+          </a>
+        )}
       </div>
       {m.suggestedReply && <p className="msg-suggest">“{m.suggestedReply}”</p>}
     </Bubble>
@@ -281,7 +300,7 @@ export function Conversation({
             return (
               <div key={l.kind === "story" ? l.m.id : l.c.id}>
                 {divider}
-                {l.kind === "story" ? <StoryLine m={l.m} onOpenTask={onOpenTask} /> : <ChatLineView c={l.c} technical={technical} />}
+                {l.kind === "story" ? <StoryLine m={l.m} onOpenTask={onOpenTask} projectId={state.project.id} /> : <ChatLineView c={l.c} technical={technical} />}
               </div>
             );
           })}
