@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import type { SessionView } from "@/lib/store/types";
 import { Alert, Check, ChevronDown, Handoff } from "./icons";
-import { NEEDS_YOU_TEXT, RISK_TEXT, TOOL_COLOURS, TOOL_NAMES, ago, clip, statusOf } from "./labels";
+import { NEEDS_YOU_TEXT, RISK_TEXT, TOOL_NAMES, ago, clip, statusOf } from "./labels";
 import { TaskPanel } from "./TaskPanel";
+import { ToolLogo } from "./ToolLogo";
 
 /**
  * One agent, one card (Phase 5). Fixed order: tool + status, headline, where and why, anything
@@ -61,7 +62,7 @@ export function AgentCard({
     return (
       <article id={task ? `task-${task.id}` : undefined} className={`agent finished${open ? " open" : ""}${flash ? " flash" : ""}`} data-status={status.cls}>
         <div className="agent-line">
-          <span className="tool-dot" style={{ background: TOOL_COLOURS[session.tool] }} aria-hidden="true" />
+          <ToolLogo tool={session.tool} size={14} />
           <span className="agent-line-tool">{TOOL_NAMES[session.tool]}</span>
           <span className="agent-line-title" title={headline}>
             {headline}
@@ -92,7 +93,7 @@ export function AgentCard({
     <article id={task ? `task-${task.id}` : undefined} className={`agent${open ? " open" : ""}${flash ? " flash" : ""}${folded ? " compact" : ""}`} data-status={status.cls}>
       <header className="agent-head">
         <span className="agent-tool">
-          <span className="tool-dot" style={{ background: TOOL_COLOURS[session.tool] }} aria-hidden="true" />
+          <ToolLogo tool={session.tool} />
           {TOOL_NAMES[session.tool]}
         </span>
         <span className="status" data-status={status.cls} title={status.detail}>

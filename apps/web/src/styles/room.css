@@ -256,6 +256,13 @@
   flex: none;
 }
 
+/* The tool's own mark, where a card names the tool. Drawn in that tool's hue, so it says the same
+   thing the dot used to say and a little more: which tool, recognised by its logo. */
+.tool-logo {
+  flex: none;
+  display: block;
+}
+
 /* --- Chips: a part of the app, or (behind the toggle) a file ------------------------------- */
 .chips {
   display: flex;
