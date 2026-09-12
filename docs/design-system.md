@@ -37,7 +37,14 @@ a decision needed, a part that counts as high risk. Green (`--positive`) means v
 touched", checks passed. Red (`--danger`) means an error, stuck, or high risk. Nothing is coloured
 because it looks nice. Per the Room's design rules, "waiting for you" is the one badge allowed to
 light up, and the card it belongs to is the one card allowed an amber border. The activity heatmap
-climbs `--accent-1` to `--accent-4`: it is a count, so it may use the accent's ramp and nothing else.
+climbs `--blue-1` to `--blue-4`: it is a count, so it may use the progress blue's ramp and nothing else.
+
+**The progress column is blue.** `--blue` is Claude's blue (#6a9bcc, the secondary accent of the Claude
+and Claude Code apps). It is spent only on counts and stages on the right of the Room: the heatmap's
+four steps (`--blue-1` to `--blue-4`), the filled segments of a part's stage bar (`--blue`, with the
+"finished" segment at `--blue-deep`), and Claude Code's hue in `TOOL_COLOURS`, which the tool mix bar
+and the tool marks share. It never marks an action or a status: amber and red keep those, so a part
+that is waiting for you or stuck still lights its own bar.
 
 **Contrast passes AA everywhere.** Every text token is at or above 4.5:1 on the surface it is used
 on (`--text-tertiary` is the floor at 5.0:1 on the subtle fill). Earlier sessions are made quieter with size and
