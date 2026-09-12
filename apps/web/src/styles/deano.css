@@ -6,12 +6,23 @@
    Composes tokens, base, components and room. Nothing here invents a value.
    ============================================================================================ */
 
-/* --- The way out of a product: sits before the brand in the header ------------------------- */
-.head-out {
-  color: var(--text-tertiary);
-  margin-right: calc(-1 * var(--space-05));
+/* --- The way out: a labelled back link before the brand in every header ---------------------
+   "Products" leaves Glasshouse or the Shed for the front door; "Landing page" leaves the front door. */
+.head-back {
+  height: 30px;
+  padding: 0 var(--space-1);
+  margin-left: calc(-1 * var(--space-1));
+  border-radius: var(--radius-sm);
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
-.head-out:hover {
+.head-back:hover {
+  background: var(--bg-subtle);
   color: var(--text-primary);
 }
 
@@ -663,4 +674,9 @@ a.product-card:hover .product-open svg {
   .helper-facts dt {
     width: 110px;
   }
+}
+
+/* A product's name never breaks across two lines, however narrow the header. */
+.room-head .brand span {
+  white-space: nowrap;
 }

@@ -67,8 +67,10 @@ The loop is: watch → grow → place → watch again. Only a product that watch
   with one live fact computed from the record ("3 agents working now · 1 waiting for you"; "1 helper grown, 1 placed").
   Signed out, `/` is still the landing page, which now has a "Two products, one record" section.
 - `/glasshouse` is the Room's door (your projects; straight into the Room with one project). `/shed` is the Shed's door.
-- Every product screen has the **way out** in the top-left corner: a small grid button before the product's name, which
-  goes back to the front door. The product name itself goes to that product's door. The Shed also carries "Watch in
+- Every product screen has the **way out** in the top-left corner: a labelled "Products" link before the product's
+  name, which goes back to the front door; the front door has a "Landing page" link in the same place, so the owner can
+  back out all the way. (The first version used an icon-only grid button; Christopher asked for something visible.)
+  The product name itself goes to that product's door. The Shed also carries "Watch in
   Glasshouse" for the same project, and the Room's project links reach the Shed through the front door.
 - The pages around the products (account, connect, testers, sign in, not found) carry the site's name, so their brand
   link goes to the front door.

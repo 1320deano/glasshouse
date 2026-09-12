@@ -10,13 +10,15 @@ The website is now called **Deano**. It has two products inside it. **Glasshouse
 it watches your AI coding agents and tells you, in plain English, what they are doing. **Potting Shed** is new: it is
 where you build helpers (small specialist agents) for your project by answering a few plain questions, without writing a
 single line of anything technical. When you sign in you land on a front door that shows both products side by side, and
-you pick one. Every product screen has a small grid button at the top-left that takes you back to that front door.
+you pick one. Every product screen has a "Products" link at the top-left that takes you back to that front door, and the
+front door has a "Landing page" link that takes you back out again.
 
 ## 1. The front door
 
 After sign-in (or straight away when running on your own computer) you see this. Each card carries one live fact
 computed from the record: how many agents are working right now, whether any is waiting for you, how many helpers you
-have grown and placed. The greeting changes with the time of day.
+have grown and placed. The greeting changes with the time of day. The "Landing page" link at the top-left goes back
+out to the landing page.
 
 ![The front door at desktop width](report/picker-1440.png)
 
@@ -26,8 +28,9 @@ On a phone the two cards stack.
 
 ## 2. The way out of a product
 
-The Room (Glasshouse) is unchanged except for its top-left corner: a grid button before the product's name leaves the
-product and goes back to the front door. The name itself now goes to Glasshouse's own door (your list of projects).
+The Room (Glasshouse) is unchanged except for its top-left corner: a "Products" link before the product's name leaves
+the product and goes back to the front door with the two products. The Potting Shed has the same link in the same
+place. The product name itself goes to that product's own door (your list of projects).
 
 ![The Room, with the way out at the top-left](report/room-1440.png)
 

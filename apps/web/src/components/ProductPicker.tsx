@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Product } from "@/lib/brand";
-import { ChevronRight, Grid, Mark, Screen, Sprout } from "./icons";
+import { ArrowLeft, ChevronRight, Grid, Mark, Screen, Sprout } from "./icons";
 
 /**
  * The front door after sign-in: Deano's two products, side by side, in the Room's own chrome.
@@ -53,6 +53,13 @@ export function ProductPicker({
       <main className="room picker">
         <header className="room-head">
           <div className="room-head-left">
+            <a className="back-link head-back" href="/landing" title={`The ${siteName} landing page`}>
+              <ArrowLeft />
+              <span>Landing page</span>
+            </a>
+            <span className="crumb-sep" aria-hidden="true">
+              /
+            </span>
             <a className="brand" href="/" aria-current="page">
               <Mark />
               <span>{siteName}</span>
