@@ -62,7 +62,7 @@ Other commands:
   based on. Without an AI key the card is written from the record alone and Ask says so.
 - **Since you last checked** (top of the Room) opens the digest: what finished, what is still going, what needs you, what
   is new in your app, and which tools did what, since you last opened that page (or today, or this week).
-- **Needs you** (top of the Room, lights up amber) is the inbox: every finished task flagged for review, a decision or
+- **Needs you** (top of the Room, the one link allowed to light up, in black) is the inbox: every finished task flagged for review, a decision or
   blocked, in one list. Clear each one once you have dealt with it.
 - A 👎 next to any line in an expanded tile records that the description was wrong or unclear. `/room/<id>/feedback`
   lists them with the real action behind each, for the weekly review.

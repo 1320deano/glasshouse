@@ -41,7 +41,7 @@ room in miniature, drawn with the control room's own parts.
 ![Chapter 1](report/landing/demo-chapter-1.png)
 
 **2. It changes Login.** You asked about the dashboard; it changed how people log in. The card flips to "High risk",
-and the amber "This is the moment" callout appears in the story with your own instruction beside it.
+and the "This is the moment" callout appears in the story with your own instruction beside it.
 
 ![Chapter 2](report/landing/demo-chapter-2.png)
 
