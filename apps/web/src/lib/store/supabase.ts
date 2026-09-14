@@ -33,6 +33,7 @@ import {
 import { WEEK_MS, activityFrom, areaProgress } from "../progress";
 import { storyFrom } from "../story";
 import { newLinkCode, normaliseCode } from "./memory";
+import { helperStory, roomHelpersFrom } from "../shed/room";
 import { helperRunsFrom } from "../shed/runs";
 import { sameBrief, uniqueSlug } from "../shed/slug";
 import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, HelperBrief, HelperRecord, HelperRun, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
@@ -376,6 +377,7 @@ export class SupabaseStore implements Store {
     const areas = map?.areas ?? [];
     // Actions per hour over the week. Capped: a very busy project still gets a truthful "at least" picture.
     const { data: weekEvents } = await this.db.from("events").select("ts,tool").eq("project_id", projectId).gte("ts", weekAgo).order("ts", { ascending: false }).limit(8000);
+    const helpers = roomHelpersFrom(await this.listHelpers(projectId), await this.helperRuns(projectId, { since: weekAgo }), areas);
     return {
       project,
       sessions: views,
@@ -385,9 +387,10 @@ export class SupabaseStore implements Store {
       inboxOpen: open.length,
       lastCheckedAt,
       sinceChecked: { done: doneSince.length, needsYou: doneSince.filter((t) => t.report && t.report.needsYou !== "nothing" && !t.report.resolvedAt).length },
-      story: storyFrom(week),
+      story: storyFrom(week, 80, helperStory(helpers)),
       progress: areaProgress(week, areas, weekAgo),
       activity: activityFrom((weekEvents ?? []).map((e) => ({ ts: e.ts as string, tool: e.tool as AgentTool })), weekAgo),
+      helpers,
     };
   }
 

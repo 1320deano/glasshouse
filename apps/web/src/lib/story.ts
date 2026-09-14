@@ -11,6 +11,8 @@
  *   stuck     detected, never declared: the same error three times, or silence
  *   finished  the report card's headline plus its verified facts
  *   limit     the agent ran out of usage
+ * Lines for helpers grown in the Potting Shed (started, finished with a verdict) come from
+ * `lib/shed/room.ts` and are merged in by `storyFrom`.
  */
 import type { AgentTool } from "@glasshouse/schema";
 import type { StoryMessage, TaskView } from "./store/types";
@@ -111,7 +113,7 @@ export function storyForTask(t: TaskView): StoryMessage[] {
 }
 
 /** The whole story over a set of tasks, oldest first, capped to the most recent `limit` lines. */
-export function storyFrom(tasks: readonly TaskView[], limit = 80): StoryMessage[] {
-  const all = tasks.flatMap(storyForTask).sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));
+export function storyFrom(tasks: readonly TaskView[], limit = 80, extra: readonly StoryMessage[] = []): StoryMessage[] {
+  const all = [...tasks.flatMap(storyForTask), ...extra].sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));
   return all.length > limit ? all.slice(all.length - limit) : all;
 }

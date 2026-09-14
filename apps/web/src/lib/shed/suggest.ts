@@ -7,10 +7,14 @@
  * rests on and the tasks it came from (rule 3), and pre-fills a brief the owner can change.
  *
  * With no record at all, two starters are offered and say so plainly ("not from your record").
+ *
+ * Every job is written from the builder's own ticked sentences (`build.ts`), so a suggestion opens
+ * in the builder as boxes already ticked, and the owner can untick any of them.
  */
 import type { Area } from "@glasshouse/schema";
 import { questionIn } from "@glasshouse/translate";
 import type { HelperBrief, HelperEvidence, HelperRecord, TaskView } from "../store/types";
+import { jobFrom } from "./build";
 import { emptyBrief } from "./compile";
 
 export interface HelperSuggestion {
@@ -71,7 +75,7 @@ export function suggestHelpers(tasks: TaskView[], areas: Area[], existing: Helpe
       },
       brief: {
         ...emptyBrief(),
-        job: `Before any work${where} is called finished, run the project's checks and read what failed properly. If the same error appears a second time, stop, write down exactly what it says, and ask the owner rather than trying a third way.`,
+        job: jobFrom(["run-checks", "stop-on-repeat"]),
         mayTouch: area ? [area.id] : [],
         mustNotTouch: areas.filter((a) => a.sensitive && a.id !== areaId).map((a) => a.id),
         stopAndAsk: ["When the same check fails twice", ...stopAndAskFor(areas)],
@@ -109,7 +113,7 @@ export function suggestHelpers(tasks: TaskView[], areas: Area[], existing: Helpe
       },
       brief: {
         ...emptyBrief(),
-        job: "Carry the owner's standing answers into every task, and apply them without asking again. When something new comes up that none of them covers, stop and ask; then the answer can be added here.",
+        job: jobFrom(["apply-answers", "ask-when-new"]),
         care: "balanced",
         stopAndAsk: ["When a question comes up that none of the rules below answers"],
         rules: [...questions.entries()].slice(0, 8).map(([q, list]) => ({
@@ -131,7 +135,7 @@ export function suggestHelpers(tasks: TaskView[], areas: Area[], existing: Helpe
       evidence: { kind: "checks", taskIds: failing.map((t) => t.id), text: `${plural(failing.length, "task")} finished with checks still failing.` },
       brief: {
         ...emptyBrief(),
-        job: "Before a job is called finished, run every check the project has. If any fail, either fix the cause or report exactly which checks failed and why. Never describe a job as done with a failing check.",
+        job: jobFrom(["run-checks", "no-done-while-failing"]),
         care: "careful",
         stopAndAsk: ["When a check fails for a reason outside the job you were given"],
         rules: [{ text: "A job with a failing check is not finished; it is 'testing' at most.", evidence: { kind: "checks", taskIds: failing.map((t) => t.id), text: `${plural(failing.length, "task")} were called finished with failures.` } }],
@@ -151,7 +155,7 @@ export function suggestHelpers(tasks: TaskView[], areas: Area[], existing: Helpe
       evidence: { kind: "sensitive", taskIds: touched.map((t) => t.id), text: `Agents changed files in ${area.name} in ${plural(touched.length, "task")}.` },
       brief: {
         ...emptyBrief(),
-        job: `Do the job you are given, but treat ${area.name} as off limits: read it if you must, never change it without the owner's say-so. If the job needs a change there, stop and explain exactly what and why.`,
+        job: jobFrom(["ask-before-off-limits"]),
         mustNotTouch: [area.id],
         stopAndAsk: [`Before changing anything in ${area.name}`],
         care: "careful",
@@ -171,7 +175,7 @@ export function suggestHelpers(tasks: TaskView[], areas: Area[], existing: Helpe
       evidence: { kind: "handoff", taskIds: handed.map((t) => t.id), text: `${plural(handed.length, "task")} carried on in a different tool (${[...new Set(pairs)].join("; ")}).` },
       brief: {
         ...emptyBrief(),
-        job: "Whenever you stop for any reason (finished, out of usage, or asked to), write a short handover in plain English: what the job was, what is done, what is not, which checks passed, and the one next step. Put it where the next agent will read it first.",
+        job: jobFrom(["handover-note"]),
         care: "balanced",
         rules: [{ text: "The next agent may be a different tool. Write for someone who has not seen this conversation.", evidence: { kind: "handoff", taskIds: handed.map((t) => t.id), text: `${plural(handed.length, "handover")} so far.` } }],
       },
@@ -195,7 +199,7 @@ export function suggestHelpers(tasks: TaskView[], areas: Area[], existing: Helpe
       evidence: { kind: "busy", taskIds: busiest[1].map((t) => t.id), text: `${plural(busiest[1].length, "finished task")} mostly changed ${area.name}, more than any other part.` },
       brief: {
         ...emptyBrief(),
-        job: `Take on jobs in ${area.name}. ${area.description ? `${area.description.trim().replace(/\.$/, "")}. ` : ""}Keep changes inside it, and say so when a job would need to reach outside.`,
+        job: jobFrom(["stay-inside", "smallest-change"], `Take on jobs in ${area.name}.${area.description ? ` ${area.description.trim().replace(/\.$/, "")}.` : ""}`),
         mayTouch: [area.id],
         mustNotTouch: areas.filter((a) => a.sensitive && a.id !== area.id).map((a) => a.id),
         stopAndAsk: stopAndAskFor(areas.filter((a) => a.id !== area.id)),
@@ -213,7 +217,7 @@ export function suggestHelpers(tasks: TaskView[], areas: Area[], existing: Helpe
         name: "Checker",
         summary: "Runs the checks properly before anything is called finished.",
         evidence: { kind: "owner", taskIds: [], text: "A starter, not from your record: the Room has not seen enough yet." },
-        brief: { ...emptyBrief(), job: "Before any work is called finished, run the project's checks and read what failed properly. If the same error appears a second time, stop and ask rather than trying a third way.", care: "careful", stopAndAsk: ["When the same check fails twice"] },
+        brief: { ...emptyBrief(), job: jobFrom(["run-checks", "stop-on-repeat"]), care: "careful", stopAndAsk: ["When the same check fails twice"] },
         starter: true,
       },
       {
@@ -222,7 +226,7 @@ export function suggestHelpers(tasks: TaskView[], areas: Area[], existing: Helpe
         name: "Guard",
         summary: "Keeps agents out of the parts of your app you would rather they asked about first.",
         evidence: { kind: "owner", taskIds: [], text: "A starter, not from your record: the sensitive parts are named from folder names." },
-        brief: { ...emptyBrief(), job: "Do the job you are given, but never change the parts marked off limits without asking first.", mustNotTouch: areas.filter((a) => a.sensitive).map((a) => a.id), stopAndAsk: stopAndAskFor(areas), care: "careful" },
+        brief: { ...emptyBrief(), job: jobFrom(["ask-before-off-limits"]), mustNotTouch: areas.filter((a) => a.sensitive).map((a) => a.id), stopAndAsk: stopAndAskFor(areas), care: "careful" },
         starter: true,
       },
     );

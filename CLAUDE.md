@@ -15,7 +15,8 @@ page. Names live in `apps/web/src/lib/brand.ts`.
 
 Brief: `control-room-product-report.md`. Phased plan: `glasshouse-phased-plan.md`. Research: `docs/`.
 Phases 0 to 4 are built; findings per phase in `docs/phase-N-findings.md`. Phase 5 (the three-column Room) is in
-`docs/phase-5-findings.md`; Phase 6 (Deano and the Potting Shed) in `docs/phase-6-findings.md`. What only Christopher
+`docs/phase-5-findings.md`; Phase 6 (Deano and the Potting Shed) in `docs/phase-6-findings.md`; the Shed's
+rebuild around one tick-box card in `docs/phase-7-findings.md`. What only Christopher
 can do is listed in `docs/what-christopher-needs-to-do.md`.
 
 ## Reporting to Christopher (every finished task)
@@ -72,19 +73,40 @@ Then explain what was done in plain, non-technical language, leaving nothing out
   actions per hour, actions per tool. Never a percentage, never a velocity.
 - "Stuck" is detected (same error three times, nothing for minutes), never declared.
 - "Waiting for you" is the one badge allowed to light up.
+- Helpers from the Shed live in the Room too (`lib/shed/room.ts`): a "Your helpers" panel in the progress column with
+  each helper's runs judged from the files they changed; story lines when a helper starts and finishes, with the verdict
+  as the badge; "Grow a helper from this" on stuck, stopped, decision and failing-check moments, which opens the Shed on
+  the suggestion that task is part of; and "Copy a line that asks for it" (copied, never sent).
 
 ## Design rules for the Potting Shed
 
-- The same chrome as the Room: the same header, grid, columns, tabs and reply box classes (`styles/deano.css` adds only
-  the helper card, the suggestion card, the sheet and the chips). Helpers on the left, the builder in the middle, "From
-  your project" on the right; three tabs below 960px.
-- The owner never writes a prompt. One sentence in the reply box, or "Grow this" on a suggestion, opens one sheet with
-  six questions in a fixed order: what it does, where it may work, when it must stop and ask, how carefully (three
-  stages, never a number), things it should already know, which tools.
-- Every suggestion is computed from the record (`lib/shed/suggest.ts`) and carries its count and the tasks behind it.
-  Starters with no record say so. Nothing is generated or guessed.
+- Deliberately not the Room. The Room is three columns glanced at from two metres; the Shed is one page leaned into,
+  built around one card. It keeps the Room's header (Products, the product name, the project switcher, "Watch in
+  Glasshouse") and its materials (`styles/deano.css` composes the tokens; light only, one accent) and nothing of its
+  grid, tabs or reply box. Below 960px it is the same page in one column, with a sticky bar carrying the helper's name
+  and the one button.
+- The owner never writes a prompt. The card starts with six kinds of helper (Checker, Guard, Specialist, House rules,
+  Handover notes, Something else), each tile saying what the record has seen for it, and, under them, what the record
+  suggests. One tap later the helper is finished and reads as a document, in a fixed order: what kind, what it does,
+  where it may work, when it must stop and ask, how carefully (three stages, never a number), how it talks, things it
+  should already know, which tools, anything else in the owner's own words. Each question shows its answer in plain
+  words; "Change" opens that question's boxes and nothing else.
+- Every tick is one fixed plain-English sentence (`lib/shed/build.ts`), and the stored brief is those sentences and
+  nothing else. Opening a helper again ticks the same boxes exactly (sentences are matched, never guessed); anything the
+  owner typed rides along as their own words.
+- Every box knows what happened. `lib/shed/evidence.ts` computes, per box, the count from the record ("3 tasks were
+  called finished with checks still failing") with the tasks behind it. Never generated.
+- "Tried on your recent tasks" (`lib/shed/rehearse.ts`) holds the helper's rules against the last twelve tasks and says,
+  per task, what it would have done: only from facts the record holds (parts changed, checks failed, a repeated error,
+  installs, the question asked, a handover). Tasks where nothing would change are counted, not narrated; a silence
+  claims nothing.
+- "Describe it" is the same card for people who would rather say it in a sentence. The words are used as typed (tidied
+  into a first draft by the one AI call when there is a key) and land in the same boxes.
+- Every suggestion is computed from the record (`lib/shed/suggest.ts`), written from the same ticked sentences, and
+  carries its count and the tasks behind it. Starters with no record say so. Nothing is generated or guessed.
 - Only words are stored (`HelperBrief`). The files each tool reads are compiled at read time from the current area map
-  (`lib/shed/compile.ts`), so a renamed part is right in every helper at once. "Details" always shows the real files.
+  (`lib/shed/compile.ts`), so a renamed part is right in every helper at once. "Details" on a helper, and "The files it
+  becomes" under Technical detail while building, always show the real files.
 - "Kept to its patch" is computed from the files a helper's runs changed (`lib/shed/verify.ts`), never from what it said;
   "unclear" when the tool did not say which agent edited what.
 - The Shed writes nothing into a project folder. The owner runs `glasshouse helpers`; the connector writes the files and

@@ -139,6 +139,35 @@ async function send(token: string, events: NormalisedEvent[]) {
   }
 }
 
+function helperRun(projectId: string, sessionId: string, slug: string, agentId: string, startAt: number, paths: string[], stray?: string): NormalisedEvent[] {
+  const own = (e: Ev) => ({ ...e, agentId });
+  return handBuilt(projectId, sessionId, "claude-code", `${sessionId}-task`, startAt, 15_000, [
+    { kind: "session_start", summary: "Session started", ...src("SessionStart") },
+    { kind: "prompt", summary: "Prompt submitted", prompt: "Make the dashboard load faster for big teams, and make sure it really works before you say you are done.", ...src("UserPromptSubmit") },
+    { kind: "read", summary: "Read src/dashboard/page.tsx", paths: ["src/dashboard/page.tsx"], ...src("PostToolUse", "Read") },
+    { kind: "subagent_start", summary: `Started a helper (${slug})`, raw: { agent_type: slug, agent_id: agentId }, ...own({ kind: "subagent_start", summary: `Started a helper (${slug})`, ...src("SubagentStart") }) },
+    ...paths.map((p): Ev => own({ kind: "edit", summary: `Edit ${p}`, paths: [p], ...src("PostToolUse", "Edit") })),
+    ...(stray ? [own({ kind: "edit", summary: `Edit ${stray}`, paths: [stray], ...src("PostToolUse", "Edit") })] : []),
+    own({ kind: "test_run", summary: "npm test", command: "npm test", tests: { passed: 14, failed: 0 }, ...src("PostToolUse", "Bash") }),
+    own({ kind: "subagent_stop", summary: `Helper finished (${slug})`, ...src("SubagentStop") }),
+    { kind: "stop", summary: "Turn finished", text: "The dashboard now loads the widgets in one go. All 14 checks pass.", ...src("Stop") },
+    { kind: "session_end", summary: "Session ended", ...src("SessionEnd") },
+  ]);
+}
+
+async function seedHelper(project: { projectId: string; token: string }, now: number) {
+  const shed = (await (await fetch(`${BASE}/api/shed/${project.projectId}`)).json()) as { suggestions: Array<{ id: string; name: string; brief: unknown }> };
+  const s = shed.suggestions.find((x) => x.id.startsWith("stuck:")) ?? shed.suggestions[0];
+  if (!s) return;
+  const grown = (await post(`/api/shed/${project.projectId}`, { name: s.name, grownFrom: s.id, brief: s.brief })) as { helper: { slug: string } };
+  await post("/api/shed/pull", {}, project.token);
+  const hour = 60 * 60_000;
+  await send(project.token, [
+    ...helperRun(project.projectId, "seed-helper-1", grown.helper.slug, "seed-agent-1", now - 26 * hour, ["src/dashboard/widgets.tsx"]),
+    ...helperRun(project.projectId, "seed-helper-2", grown.helper.slug, "seed-agent-2", now - 5 * hour, ["src/dashboard/page.tsx"], "src/payments/invoices.ts"),
+  ]);
+}
+
 async function main() {
   const now = Date.now();
 
@@ -162,6 +191,11 @@ async function main() {
     replay("claude-code-usage-limit-synthetic.jsonl", busy.projectId, now - 6 * day - 1 * 60 * 60_000, 6_000, "d6"),
   ];
   for (const events of earlier) await send(busy.token, events);
+
+  // A helper grown in the Potting Shed from the stuck moment above, placed, and run twice by a
+  // Claude Code sub-agent: once inside its patch, once straying into Payments. So the Room's story
+  // carries helper lines, the progress column has a helper row, and the Shed's card says how it did.
+  await seedHelper(busy, now);
 
   // 2. A second project with nothing running, for the project list and the empty Room.
   await seedProject("marketing-site", { tree: true });

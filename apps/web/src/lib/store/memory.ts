@@ -28,6 +28,7 @@ import {
 } from "./derive";
 import { WEEK_MS, activityFrom, areaProgress } from "../progress";
 import { storyFrom } from "../story";
+import { helperStory, roomHelpersFrom } from "../shed/room";
 import { helperRunsFrom } from "../shed/runs";
 import { sameBrief, uniqueSlug } from "../shed/slug";
 import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, HelperRecord, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
@@ -402,6 +403,7 @@ export class MemoryStore implements Store {
     const weekAgo = new Date(new Date(nowIso).getTime() - WEEK_MS).toISOString();
     const week = recent.filter((t) => (t.lastEventAt ?? t.startedAt) >= weekAgo || (t.endedAt ?? "") >= weekAgo);
     const areas = map?.areas ?? [];
+    const helpers = roomHelpersFrom(await this.listHelpers(projectId), await this.helperRuns(projectId, { since: weekAgo }), areas);
     return {
       project,
       sessions,
@@ -411,12 +413,13 @@ export class MemoryStore implements Store {
       inboxOpen: open.length,
       lastCheckedAt,
       sinceChecked: { done: doneSince.length, needsYou: doneSince.filter((t) => t.report && t.report.needsYou !== "nothing" && !t.report.resolvedAt).length },
-      story: storyFrom(week),
+      story: storyFrom(week, 80, helperStory(helpers)),
       progress: areaProgress(week, areas, weekAgo),
       activity: activityFrom(
         this.db.events.filter((e) => e.projectId === projectId && e.ts >= weekAgo),
         weekAgo,
       ),
+      helpers,
     };
   }
 

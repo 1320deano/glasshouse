@@ -13,7 +13,7 @@ export const HelperRuleInput = z.object({
 });
 
 export const HelperBriefInput = z.object({
-  job: z.string().trim().min(3).max(1200),
+  job: z.string().trim().min(3).max(3000),
   mayTouch: z.array(z.string().min(1).max(120)).max(60).default([]),
   mustNotTouch: z.array(z.string().min(1).max(120)).max(60).default([]),
   stopAndAsk: z.array(z.string().trim().min(1).max(200)).max(20).default([]),

@@ -44,6 +44,9 @@ The loop is: watch → grow → place → watch again. Only a product that watch
 
 ## Simplicity
 
+> Rebuilt on 12 September 2026: the three-column layout and the six-question sheet described below were replaced by one
+> tick-box card. See `docs/phase-7-findings.md`. The moat above is unchanged.
+
 - **No prompt writing.** The owner types one sentence in the same reply box the Room uses ("Check the checkout still
   works before anything is called finished") or taps "Grow this" on a suggestion. That becomes a **sheet** with six plain
   questions in a fixed order: what it does, where it may work (tap a part once to allow, twice to forbid), when it must

@@ -190,11 +190,13 @@ export interface StoryMessage {
   id: string;
   /** When the thing it describes happened. */
   at: string;
-  kind: "started" | "handoff" | "waiting" | "stuck" | "finished" | "limit";
+  kind: "started" | "handoff" | "waiting" | "stuck" | "finished" | "limit" | "helper-started" | "helper-finished";
   taskId: string;
   tool: AgentTool;
   /** The plain-English line. */
   text: string;
+  /** A helper grown in the Potting Shed that started or finished on this task; the verdict is computed from the files its run changed. */
+  helper?: { id: string; name: string; verdict?: "kept" | "strayed" | "unclear"; outside?: string[] };
   /** Verified facts for a finished task, computed from the changed-files list. */
   touched?: string[];
   notTouched?: string[];
@@ -233,6 +235,29 @@ export interface ActivityView {
   byTool: Record<AgentTool, number>;
 }
 
+/** One run of a helper as the Room shows it: a verdict on a task, computed from the files it changed. */
+export interface RoomHelperRun {
+  taskId: string;
+  at: string;
+  endedAt?: string;
+  tool: AgentTool;
+  verdict: "kept" | "strayed" | "unclear";
+  outside: string[];
+}
+
+/** A helper grown in the Potting Shed, as the Room sees it. Words and computed runs; nothing stored. */
+export interface RoomHelper {
+  id: string;
+  name: string;
+  slug: string;
+  tools: AgentTool[];
+  /** One line saying what it does, from its ticked sentences. */
+  job: string;
+  placedAt?: string;
+  /** Its runs in the Room's window, newest first. */
+  runs: RoomHelperRun[];
+}
+
 export interface RoomState {
   project: ProjectSummary;
   sessions: SessionView[];
@@ -249,6 +274,8 @@ export interface RoomState {
   /** The progress column. */
   progress: AreaProgress[];
   activity: ActivityView;
+  /** The helpers grown for this project and how they did this week. Absent from a server older than Phase 7. */
+  helpers?: RoomHelper[];
 }
 
 /** The stored words of a report card. The facts are computed when read (derive.ts). */
