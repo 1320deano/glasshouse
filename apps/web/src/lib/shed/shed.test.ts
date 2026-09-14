@@ -267,6 +267,13 @@ describe("suggest", () => {
     expect(rules.brief.rules[0]!.text).toContain("Should refunds go back to the card or to credit?");
     expect(s.some((x) => x.starter)).toBe(false);
   });
+
+  it("does not count a stop for a usage limit as a question the owner was asked", () => {
+    const tasks: TaskView[] = [
+      task({ id: "t1", endReason: "usage_limit", report: { headline: "Stopped before finishing: usage limit reached", touchedReasons: {}, needsYou: "blocked", needsYouDetail: "Claude Code hit its usage limit before finishing. Pick the task up in another tool, or wait for the limit to reset.", source: "template", createdAt: "2026-09-01T00:00:00Z" } as TaskView["report"] }),
+    ];
+    expect(suggestHelpers(tasks, AREAS).map((x) => x.id)).not.toContain("asked:all");
+  });
 });
 
 describe("runs and verify", () => {

@@ -16,7 +16,8 @@ page. Names live in `apps/web/src/lib/brand.ts`.
 Brief: `control-room-product-report.md`. Phased plan: `glasshouse-phased-plan.md`. Research: `docs/`.
 Phases 0 to 4 are built; findings per phase in `docs/phase-N-findings.md`. Phase 5 (the three-column Room) is in
 `docs/phase-5-findings.md`; Phase 6 (Deano and the Potting Shed) in `docs/phase-6-findings.md`; the Shed's
-rebuild around one tick-box card in `docs/phase-7-findings.md`. What only Christopher
+rebuild around one tick-box card in `docs/phase-7-findings.md`; the landing page rebuilt around a chaptered demo of the
+real Room in `docs/landing-page-findings.md`. What only Christopher
 can do is listed in `docs/what-christopher-needs-to-do.md`.
 
 ## Reporting to Christopher (every finished task)

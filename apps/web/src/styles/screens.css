@@ -1,275 +1,8 @@
 /* ============================================================================================
-   Screens: the report card, the task panel, and the pages around the Room (which is room.css).
+   Screens: the report card, the task panel, the landing page, and the pages around the Room
+   (which is room.css).
    Everything here composes the tokens and the components; nothing invents a value.
    ============================================================================================ */
-
-/* ============================================================================================
-   1. Tiles (the landing page's live mock). The Room itself lives in room.css.
-   ============================================================================================ */
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
-  gap: var(--space-2);
-  align-items: start;
-}
-
-.tile {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  background: var(--bg-surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
-  min-height: 232px;
-  animation: rise var(--duration-slow) var(--ease-out) both;
-  transition:
-    border-color var(--duration-base) var(--ease-standard),
-    background var(--duration-base) var(--ease-standard);
-}
-
-.tile:hover {
-  border-color: var(--line-strong);
-}
-
-/* Waiting for you is the one tile that is allowed to catch the eye across the room. */
-.tile[data-stage="waiting"] {
-  border-color: var(--warn-line);
-}
-
-.tile.open,
-.tile.has-report:not(.quiet) {
-  grid-column: 1 / -1;
-}
-
-.tile.open {
-  border-color: var(--line-strong);
-}
-
-/* Earlier sessions: quieter by size and colour, never by opacity — a dimmed tile is an
-   unreadable tile. */
-.tiles.earlier {
-  grid-template-columns: 1fr;
-  gap: var(--space-1);
-}
-
-.tile.quiet {
-  min-height: 0;
-  gap: var(--space-15);
-  padding: var(--space-2) var(--space-3);
-  background: transparent;
-}
-
-.tile-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-15);
-  font-size: var(--text-3);
-  min-height: 20px;
-}
-
-.tile-tool {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-  font-weight: var(--weight-medium);
-  color: var(--text-primary);
-  letter-spacing: var(--tracking-snug);
-}
-
-.tile-tool .tool-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-full);
-  flex: none;
-}
-
-.tile-project {
-  color: var(--text-tertiary);
-  font-weight: var(--weight-normal);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tile-meta {
-  flex: none;
-  color: var(--text-tertiary);
-  font-size: var(--text-2);
-  font-variant-numeric: tabular-nums;
-}
-
-.tile-continuing {
-  align-self: flex-start;
-  max-width: 100%;
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-1);
-  font-size: var(--text-3);
-  color: var(--text-secondary);
-  padding: var(--space-1) var(--space-15);
-  background: var(--bg-subtle);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line-subtle);
-}
-
-.tile-continuing svg {
-  flex: none;
-  margin-top: 3px;
-  color: var(--text-tertiary);
-}
-
-.tile-headline {
-  font-size: var(--text-headline);
-  font-weight: var(--weight-semibold);
-  line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-tight);
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
-  /* Three lines is a headline. More than that is a paragraph, and the report holds the rest. */
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin: 0;
-}
-
-.tile.quiet .tile-headline {
-  max-width: var(--measure);
-  font-size: var(--text-7);
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  color: var(--text-secondary);
-  letter-spacing: var(--tracking-snug);
-}
-
-.tile-location {
-  font-size: var(--text-4);
-  color: var(--text-tertiary);
-  margin-top: calc(var(--space-1) * -1);
-}
-
-.tile-location strong {
-  color: var(--text-secondary);
-  font-weight: var(--weight-medium);
-}
-
-.tile-status {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex-wrap: wrap;
-}
-
-.stage-note {
-  font-size: var(--text-3);
-  color: var(--text-tertiary);
-}
-
-/* Stage badge: neutral by default, amber when the owner is the blocker, red when something
-   has gone wrong. The dot pulses only while an agent is actually working. */
-.stage {
-  color: var(--text-secondary);
-}
-.stage .dot {
-  color: var(--grey-400);
-}
-.stage[data-stage="working"] .dot {
-  color: var(--accent);
-}
-.stage[data-stage="done"] .dot {
-  color: var(--positive);
-}
-.stage[data-stage="stuck"] .dot,
-.stage[data-stage="limit"] .dot {
-  color: var(--danger);
-}
-
-.risk[data-level="medium"] {
-  color: var(--warn);
-}
-.risk[data-level="high"] {
-  color: var(--danger);
-}
-
-/* --- The ticker: every action, at the foot of the tile ------------------------------------- */
-.tile-foot {
-  margin-top: auto;
-  padding-top: var(--space-15);
-  border-top: 1px solid var(--line-subtle);
-  display: flex;
-  align-items: center;
-  gap: var(--space-15);
-  font-size: var(--text-4);
-  min-width: 0;
-}
-
-.tile-ticker {
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tile-when {
-  flex: none;
-  color: var(--text-tertiary);
-  font-size: var(--text-2);
-  font-variant-numeric: tabular-nums;
-}
-
-.tile-toggle {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-05);
-  height: var(--control-height-sm);
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-2);
-  font-weight: var(--weight-medium);
-  color: var(--text-secondary);
-  transition:
-    background var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
-}
-
-.tile-toggle:hover {
-  background: var(--bg-subtle);
-  color: var(--text-primary);
-}
-
-.tile-toggle svg {
-  transition: transform var(--duration-base) var(--ease-out);
-}
-
-.tile-toggle[aria-expanded="true"] svg {
-  transform: rotate(180deg);
-}
-
-@media (max-width: 640px) {
-  .tile-project {
-    display: none;
-  }
-}
-
-@media (max-width: 520px) {
-  .tile-foot {
-    flex-wrap: wrap;
-  }
-  .tile-ticker {
-    flex-basis: 100%;
-  }
-  .tile-toggle {
-    margin-left: auto;
-  }
-}
 
 /* ============================================================================================
    2. The report card
@@ -1139,30 +872,47 @@
 
 /* ============================================================================================
    11. Landing
+   --------------------------------------------------------------------------------------------
+   The page shows the product instead of describing it. Everything that looks like the Room here
+   is drawn with the Room's own classes (room.css) over the recorded sessions, so the landing
+   page cannot drift from the product. Two things are this page's own: the demo player (the
+   two-monitor stage and its chapter strip) and the sections around it.
    ============================================================================================ */
 .landing {
   max-width: 1180px;
   margin: 0 auto;
-  padding: var(--space-3) var(--page-pad-x) var(--space-12);
+  padding: 0 var(--page-pad-x) var(--space-12);
   display: flex;
   flex-direction: column;
   gap: var(--space-12);
 }
 
+/* The header stays with the reader: sign-in is one click away however far they have scrolled. */
 .landing-head {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
-  padding-bottom: var(--space-3);
+  padding: var(--space-15) 0;
+  background: var(--bg-canvas);
+  border-bottom: 1px solid var(--line);
 }
 
 .landing-head nav {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-05);
   align-items: center;
   font-size: var(--text-4);
   color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .landing-head nav a:not(:last-child) {
+    display: none;
+  }
 }
 
 .hero {
@@ -1170,14 +920,14 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
-  padding-top: var(--space-6);
+  padding-top: var(--space-4);
 }
 
 .hero h1 {
   font-size: var(--text-display);
   line-height: 1.04;
   letter-spacing: -0.03em;
-  max-width: 24ch;
+  max-width: 22ch;
 }
 
 .hero .lede {
@@ -1192,13 +942,39 @@
   align-items: center;
   gap: var(--space-1);
   font-size: var(--text-3);
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   border: 1px solid var(--line);
   border-radius: var(--radius-full);
-  padding: var(--space-05) var(--space-15);
+  padding: var(--space-05) var(--space-15) var(--space-05) var(--space-1);
+  background: var(--bg-surface);
 }
 
-.works-with .dot {
+/* The makers' own marks, in a row: the first line of the page is "works with", shown. */
+.works-with-marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: var(--space-05);
+  border-right: 1px solid var(--line);
+}
+
+.hero-facts {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-3);
+  color: var(--text-tertiary);
+}
+
+.hero-facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hero-facts svg {
   color: var(--positive);
 }
 
@@ -1245,44 +1021,687 @@
 .landing-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
+  scroll-margin-top: 72px;
 }
 
 .landing-section-head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-15);
   max-width: var(--measure);
 }
 
 .landing-section-head h2 {
   font-size: var(--text-9);
   letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
 }
 
-.three {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: var(--space-3);
-  border-top: 1px solid var(--line);
-  padding-top: var(--space-3);
+.landing-section-head > p:not(.eyebrow) {
+  color: var(--text-secondary);
+  font-size: var(--text-5);
+  line-height: var(--leading-relaxed);
 }
 
-.three > div {
+.landing-section-head .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* --- The demo: five chapters, two monitors, one caption ----------------------------------- */
+.demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.demo-chapters {
+  display: flex;
+  gap: var(--space-1);
+  align-items: stretch;
+}
+
+.demo-chapter {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  padding: var(--space-1) var(--space-15) var(--space-15);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  text-align: left;
+  color: var(--text-tertiary);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
 
-.three h3 {
+.demo-chapter:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  color: var(--text-secondary);
+}
+
+.demo-chapter[data-state="current"] {
+  border-color: var(--line-strong);
+  color: var(--text-primary);
+}
+
+.demo-chapter[data-state="done"] {
+  color: var(--text-secondary);
+}
+
+/* How far through the chapter the stage is: a fill, not a number. The current chapter's fill is
+   the one accent, because it is the thing the eye should follow; a finished chapter's is grey. */
+.demo-chapter-bar {
+  display: block;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--grey-750);
+  overflow: hidden;
+}
+
+.demo-chapter-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--grey-500);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform var(--duration-slower) var(--ease-standard);
+}
+
+.demo-chapter[data-state="current"] .demo-chapter-bar > span {
+  background: var(--accent);
+}
+
+.demo-chapter-num {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  font-size: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-chapter[data-state="current"] .demo-chapter-num {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.demo-chapter-title {
+  font-size: var(--text-3);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
+}
+
+.demo-play {
+  flex: none;
+  align-self: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  background: var(--bg-surface);
+}
+
+@media (max-width: 720px) {
+  .demo-chapter {
+    padding: var(--space-1);
+    align-items: center;
+  }
+  /* The caption under the stage carries the title; the strip keeps the number and the fill.
+     The title stays in the tree (clipped, not removed) so the tab keeps its name for a reader. */
+  .demo-chapter-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.demo-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 290px) minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.demo-screen {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.demo-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-05);
+  padding: var(--space-1) var(--space-15);
+  border-bottom: 1px solid var(--line-subtle);
+  color: var(--text-tertiary);
+  font-size: var(--text-2);
+  min-height: 34px;
+}
+
+.demo-bar i {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--grey-700);
+}
+
+.demo-bar em {
+  margin-left: auto;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.demo-bar-room {
+  gap: var(--space-1);
+  background: var(--bg-surface);
+}
+
+.demo-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-3);
+}
+
+.demo-crumb {
+  color: var(--text-tertiary);
+}
+
+.demo-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: var(--space-1);
+  color: var(--text-secondary);
+}
+
+.demo-live .dot {
+  color: var(--positive);
+}
+
+/* The terminal: the last few things it printed, newest at the bottom, on the inset ground. */
+.demo-terminal pre {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-2);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow: hidden;
+  background: var(--bg-inset);
+  font-family: var(--font-mono);
+  font-size: var(--text-2);
+  line-height: var(--leading-relaxed);
+  color: var(--text-tertiary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.demo-term-line {
+  display: block;
+}
+
+.demo-term-line[data-latest="yes"] {
+  color: var(--text-primary);
+  animation: rise var(--duration-base) var(--ease-out) both;
+}
+
+.demo-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 13px;
+  background: var(--text-secondary);
+  animation: blink 1.1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* The Room in miniature: cards on the left, the story on the right, on the Room's own ground. */
+.demo-room {
+  background: var(--bg-canvas);
+}
+
+/* A fixed height on wide screens, so the page below never jumps while the demo plays: what no
+   longer fits in a column slips off its top. flex-basis auto, so the height is the basis. */
+.demo-room-body {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: var(--space-2);
+  padding: var(--space-15);
+  min-height: 0;
+  height: 640px;
+  overflow: hidden;
+}
+
+.demo-agents,
+.demo-story {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.demo-col-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+  padding: 0 var(--space-05);
+}
+
+.demo-col-title .count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The lines read top down until they overflow; then the player keeps the newest in view, like a
+   chat, by scrolling the column itself (there is no scrollbar to drag). */
+.demo-story-lines {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow: hidden;
+}
+
+/* A finished card folds to one line once another agent has taken over, as it does in the Room. */
+.demo-agent.finished {
+  padding: var(--space-1) var(--space-15);
+}
+
+.demo-agent {
+  padding: var(--space-15);
+  gap: 6px;
+}
+
+.demo-agent .agent-title {
+  font-size: var(--text-5);
+}
+
+.demo-agent .agent-alert {
+  font-size: var(--text-2);
+}
+
+.demo-msg .msg-text {
+  font-size: var(--text-4);
+  line-height: var(--leading-normal);
+}
+
+.demo-msg .msg-facts {
+  padding: var(--space-1) var(--space-15);
+  font-size: var(--text-2);
+}
+
+.demo-msg .msg-facts dt {
+  min-width: 80px;
+}
+
+.demo-moment {
+  padding: var(--space-15) var(--space-2);
+  gap: 6px;
+}
+
+.demo-moment .moment-fact {
+  font-size: var(--text-4);
+}
+
+.demo-moment .moment-why {
+  font-size: var(--text-3);
+}
+
+@media (max-width: 960px) {
+  .demo-stage {
+    grid-template-columns: 1fr;
+  }
+  .demo-terminal pre {
+    min-height: 120px;
+    max-height: 150px;
+  }
+  .demo-room-body {
+    height: auto;
+    overflow: visible;
+  }
+  /* Stacked, the story is capped so the page does not grow under the reader as the demo plays. */
+  .demo-story-lines {
+    max-height: 380px;
+  }
+}
+
+@media (max-width: 640px) {
+  .demo-room-body {
+    grid-template-columns: 1fr;
+  }
+  .demo-bar-room em {
+    display: none;
+  }
+}
+
+.demo-caption {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-15);
+  font-size: var(--text-5);
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+  max-width: 72ch;
+  min-height: 3.3em;
+}
+
+.demo-caption strong {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.demo-caption-num {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--text-2);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- The three proofs: words on one side, the product's own output on the other ---------- */
+.proofs {
+  gap: var(--space-8);
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-8);
+}
+
+.proof {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--space-5);
+  align-items: center;
+}
+
+.proof:nth-child(even) .proof-words {
+  order: 2;
+}
+
+.proof-words {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  max-width: 46ch;
+}
+
+.proof-words h3 {
+  font-size: var(--text-8);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+
+.proof-words p:not(.eyebrow) {
+  color: var(--text-secondary);
+  font-size: var(--text-5);
+  line-height: var(--leading-relaxed);
+}
+
+.proof-show {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--bg-raised);
+  min-width: 0;
+}
+
+.proof-note {
+  font-size: var(--text-2);
+  color: var(--text-tertiary);
+  line-height: var(--leading-normal);
+}
+
+.proof-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.proof-report-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-2);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+
+.proof-report-head .status {
+  margin-left: auto;
+}
+
+.proof-report-title {
   font-size: var(--text-6);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
   letter-spacing: var(--tracking-snug);
 }
 
-.three p {
-  color: var(--text-secondary);
+.proof-report .msg-facts {
+  max-width: none;
+}
+
+.proof-handoff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: var(--space-15);
+  align-items: center;
+}
+
+.proof-mini {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  font-size: var(--text-3);
+  min-width: 0;
+}
+
+.proof-mini-where {
+  color: var(--text-tertiary);
+}
+
+.proof-arrow {
+  display: inline-flex;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 860px) {
+  .proof {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+  .proof:nth-child(even) .proof-words {
+    order: 0;
+  }
+  .proof-handoff {
+    grid-template-columns: 1fr;
+  }
+  .proof-arrow {
+    transform: rotate(90deg);
+    justify-self: center;
+  }
+}
+
+/* --- The Room in six lines ------------------------------------------------------------------ */
+.features {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--space-3) var(--space-5);
+}
+
+.features li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: var(--space-15);
   font-size: var(--text-4);
   line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+}
+
+.features strong {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.feature-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.feature-pro {
+  display: inline-block;
+  margin-left: var(--space-05);
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  font-size: var(--text-1);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+  vertical-align: 1px;
+}
+
+/* --- The Potting Shed: two helpers proposed from the demo's own record --------------------- */
+.shed-show {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-15);
+}
+
+.suggestions {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: var(--space-2);
+  max-width: 880px;
+}
+
+.suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.suggestion-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-6);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-snug);
+}
+
+.suggestion-name svg {
+  color: var(--accent);
+}
+
+.suggestion-summary {
+  color: var(--text-secondary);
+  font-size: var(--text-4);
+  line-height: var(--leading-normal);
+}
+
+/* The evidence line is a count from the record: the tick is green because it is verified. */
+.suggestion-evidence {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--text-3);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+  padding-top: var(--space-05);
+  border-top: 1px solid var(--line-subtle);
+}
+
+.suggestion-evidence svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--positive);
+}
+
+/* --- Setup and what leaves your computer ---------------------------------------------------- */
+.setup {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+.setup-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.setup-col .landing-section-head h2 {
+  font-size: var(--text-8);
+}
+
+@media (max-width: 860px) {
+  .setup {
+    grid-template-columns: 1fr;
+  }
 }
 
 .how ol {
@@ -1328,6 +1747,91 @@
   border: 1px solid var(--line);
   padding: 2px 6px;
   border-radius: var(--radius-xs);
+  font-size: 0.92em;
+}
+
+.privacy-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.privacy-list dt {
+  font-size: var(--text-4);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-05);
+}
+
+.privacy-list dd {
+  margin: 0;
+  font-size: var(--text-4);
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+}
+
+/* --- Price ------------------------------------------------------------------------------------ */
+.landing-plans .plan {
+  gap: var(--space-2);
+}
+
+.landing-plans .plan.featured {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.landing-plans .plan-cta {
+  margin-top: auto;
+}
+
+/* --- Questions -------------------------------------------------------------------------------- */
+.faq {
+  display: flex;
+  flex-direction: column;
+  max-width: var(--measure);
+  border-top: 1px solid var(--line);
+}
+
+.faq-item {
+  border-bottom: 1px solid var(--line);
+}
+
+.faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  font-size: var(--text-5);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item summary::after {
+  content: "+";
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-7);
+  line-height: 1;
+}
+
+.faq-item[open] summary::after {
+  content: "–";
+}
+
+.faq-item p {
+  padding: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-4);
+  line-height: var(--leading-relaxed);
+  max-width: 60ch;
 }
 
 .cta {
@@ -1348,6 +1852,11 @@
 }
 
 .landing-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
   border-top: 1px solid var(--line);
   padding-top: var(--space-3);
   color: var(--text-tertiary);
@@ -1359,98 +1868,9 @@
   max-width: var(--measure);
 }
 
-/* --- The landing page's live mock ----------------------------------------------------------- */
-.mock {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  gap: var(--space-2);
-  align-items: stretch;
-}
-
-@media (max-width: 860px) {
-  .mock {
-    grid-template-columns: 1fr;
-  }
-  .mock-terminal pre {
-    min-height: 180px;
-  }
-  .mock-room {
-    min-height: 0;
-  }
-}
-
-.mock-terminal,
-.mock-room {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
-  overflow: hidden;
+.landing-foot nav {
   display: flex;
-  flex-direction: column;
-}
-
-.mock-bar {
-  display: flex;
-  align-items: center;
   gap: var(--space-05);
-  padding: var(--space-1) var(--space-15);
-  border-bottom: 1px solid var(--line-subtle);
-  color: var(--text-tertiary);
-  font-size: var(--text-2);
-}
-
-.mock-bar i {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-full);
-  background: var(--grey-700);
-}
-
-.mock-bar em {
-  margin-left: auto;
-  font-style: normal;
-}
-
-.mock-terminal pre {
-  margin: 0;
-  padding: var(--space-2);
-  flex: 1;
-  min-height: 300px;
-  font-family: var(--font-mono);
-  font-size: var(--text-2);
-  line-height: var(--leading-relaxed);
-  color: var(--text-secondary);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.mock-room {
-  padding: var(--space-15);
-  gap: var(--space-15);
-  background: var(--bg-canvas);
-  min-height: 340px;
-}
-
-.mock-room > .mock-bar {
-  margin: calc(var(--space-15) * -1) calc(var(--space-15) * -1) 0;
-  border-bottom: none;
-}
-
-.mock-tile {
-  min-height: 0;
-  padding: var(--space-2);
-  gap: var(--space-15);
-  animation: none;
-}
-
-.mock-tile .tile-headline {
-  font-size: var(--text-7);
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-}
-
-.mock-tile .tile-foot {
-  padding-top: var(--space-1);
 }
 
 /* ============================================================================================
