@@ -1594,17 +1594,20 @@
   color: var(--text-tertiary);
   font-weight: var(--weight-normal);
 }
-.part[data-attention="waiting"] .part-stage {
-  color: var(--warn);
-}
+/* "Waiting for you" and "Looks stuck" are written in words here, so they are written in the
+   column's own deep blue and not in amber or red. The signals the owner is meant to catch from
+   across the room live on the agent card: its status word, its amber edge, its pill. This column
+   is the week in counts and stages, and it stays one cool family throughout. */
+.part[data-attention="waiting"] .part-stage,
 .part[data-attention="stuck"] .part-stage {
-  color: var(--danger);
+  color: var(--blue-ink);
+  font-weight: var(--weight-semibold);
 }
 
 /* Five segments, one per stage: looking, planning, building, testing, finished. A filled
    segment is a stage reached, in the progress blue; the last one, "finished", is the deep end of
-   the same ramp. Amber and red stay for the two facts the owner must catch from across the room:
-   waiting for you, and stuck. Nothing here is a percentage. */
+   the same ramp. Waiting and stuck do not tint the bar: the stage word above it already says so.
+   Nothing here is a percentage. */
 .part-bar {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -1621,12 +1624,6 @@
 .part-bar span:last-child[data-on="yes"] {
   background: var(--blue-deep);
 }
-.part[data-attention="waiting"] .part-bar span[data-on="yes"] {
-  background: var(--warn);
-}
-.part[data-attention="stuck"] .part-bar span[data-on="yes"] {
-  background: var(--danger);
-}
 
 .part-meta {
   display: flex;
@@ -1637,4 +1634,15 @@
 }
 .part-meta .faint:last-child {
   margin-left: auto;
+}
+
+/* Checks passed is the one verified fact this column states, so it keeps the verified green.
+   Checks failing is stated in words and set in the column's deep blue, not in red: the red one
+   belongs on the agent card and in the report, where the owner can do something about it. */
+.part-checks {
+  color: var(--positive);
+}
+.part-checks[data-failed="yes"] {
+  color: var(--blue-ink);
+  font-weight: var(--weight-medium);
 }

@@ -36,15 +36,26 @@ use the same three: green may work here, red must never change, neutral no rule.
 a decision needed, a part that counts as high risk. Green (`--positive`) means verified: "not
 touched", checks passed. Red (`--danger`) means an error, stuck, or high risk. Nothing is coloured
 because it looks nice. Per the Room's design rules, "waiting for you" is the one badge allowed to
-light up, and the card it belongs to is the one card allowed an amber border. The activity heatmap
+light up, and the card it belongs to is the one card allowed an amber border. Amber and red are spent
+on the *agent card* and in the report; the progress column states the same facts in words and in its
+own blue, so the owner's eye is pulled to one place and not to two. The activity heatmap
 climbs `--blue-1` to `--blue-4`: it is a count, so it may use the progress blue's ramp and nothing else.
 
-**The progress column is blue.** `--blue` is Claude's blue (#6a9bcc, the secondary accent of the Claude
-and Claude Code apps). It is spent only on counts and stages on the right of the Room: the heatmap's
-four steps (`--blue-1` to `--blue-4`), the filled segments of a part's stage bar (`--blue`, with the
-"finished" segment at `--blue-deep`), and Claude Code's hue in `TOOL_COLOURS`, which the tool mix bar
-and the tool marks share. It never marks an action or a status: amber and red keep those, so a part
-that is waiting for you or stuck still lights its own bar.
+**The progress column is blue, and only blue.** `--blue` is Claude's blue (#6a9bcc, the secondary
+accent of the Claude and Claude Code apps). The right-hand column of the Room is the week in counts
+and stages, so it is drawn in that one cool family from top to bottom and nothing warm appears in
+it: the heatmap's four steps (`--blue-1` to `--blue-4`); the filled segments of a part's stage bar
+(`--blue`, with the "finished" segment at `--blue-deep`); every part's stage word, including
+"waiting for you" and "looks stuck", in `--blue-ink` (#356490, the one step dark enough for text at
+6.2:1 on a white card); and all four hues of `TOOL_COLOURS`, which are three depths of the same
+blue plus the watcher's slate, for the tool mix bar and its key.
+
+The signals the owner is meant to catch from across the room are on the agent card, not here: its
+amber status word, its amber edge, its red "looks stuck" block. So the stage bar is never tinted
+amber or red, and a failing check is stated in words in `--blue-ink` rather than in red — `--positive`
+green for "checks passed" is the one status colour this column still spends, because it is a verified
+fact. `TOOL_COLOURS` is deliberately not the makers' brand colours; the real logos carry those
+(see **the tool marks** below).
 
 **Contrast passes AA everywhere.** Every text token is at or above 4.5:1 on the surface it is used
 on (`--text-tertiary` is the floor at 5.0:1 on the subtle fill). Earlier sessions are made quieter with size and
@@ -90,20 +101,27 @@ entrance over inside half a second. Delays are zeroed under `prefers-reduced-mot
 grid, inheriting `currentColor`. An icon appears only where a word would otherwise be repeated.
 
 **One exception: the tool marks.** `apps/web/src/components/ToolLogo.tsx` holds the mark of each tool
-an agent can run in — Claude's burst, the OpenAI blossom for Codex, Cursor's cube, a folder for the
-watcher. These are the makers' real logos, never a drawing of one: each is the official single-path
-mark, taken from what the maker publishes (Claude from `claude.ai/favicon.svg`, Cursor from
-`cursor.sh/favicon.svg`, the OpenAI blossom as OpenAI publishes it) and kept at that mark's own
-viewBox. A logo is either the right one or it is wrong, so redrawing one by hand is not allowed; to
-refresh one, replace its `d` with the maker's current published path. Only the watcher's folder is
-drawn here, because a folder watcher is not a product and has no mark to be right about.
+an agent can run in — Claude's burst for Claude Code, Codex's own mark, Cursor's cube, a folder for
+the watcher. These are the makers' real logos, never a drawing of one: each is the official
+single-path mark, taken from what the maker publishes and kept at a viewBox that frames that path.
+A logo is either the right one or it is wrong, so redrawing one by hand is not allowed; to refresh
+one, replace its `d`, its `fill-rule` and its `fill` with the maker's current published values.
+Only the watcher's folder is drawn here, because a folder watcher is not a product and has no mark
+to be right about.
 
-They are filled in that tool's own hue from `TOOL_COLOURS`, not `currentColor` and not the maker's
-brand colour, so the Room's colour coding keeps saying one thing and every mark sits on the ivory at
-the same weight. They stand beside the tool's name on an agent card, where a plain coloured dot used
-to, so the tool is recognised from two metres. The name is always written beside the mark, so the
-mark is `aria-hidden` and never carries a fact on its own. The tool mix bar and its key on the right
-keep the dot, because there the colour is the thing being read.
+**A re-tinted logo is the wrong logo**, so each mark keeps its maker's own colour and none of them is
+pulled into the palette: Claude Code is Anthropic's coral (`#D97757`, the fill in `claude.ai/favicon.svg`),
+Cursor is the black cube from the logo in cursor.com's own header, and Codex is the black scalloped
+disc around a `>_` prompt — its `fill-rule` is `evenodd` because the prompt is a hole cut out of the
+disc, and it is deliberately not the OpenAI blossom, which is the company's mark and not this
+product's. The watcher's folder is the Room's slate, having no brand colour to be right about.
+Cursor's cube is taller than it is wide, so `preserveAspectRatio` is left at its default and the
+mark is fitted and centred in its box rather than stretched.
+
+The marks stand beside the tool's name on an agent card, where a plain coloured dot used to, so the
+tool is recognised from two metres. The name is always written beside the mark, so the mark is
+`aria-hidden` and never carries a fact on its own. The tool mix bar and its key on the right keep
+the dot in `TOOL_COLOURS`, because there the colour is a key to a bar and not a logo.
 
 **Keyboard first.** One focus ring (`:focus-visible`), always visible on both the page and a filled
 button. Every page starts with a skip link. Icon-only controls carry an `aria-label`; every input

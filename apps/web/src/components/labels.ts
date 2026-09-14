@@ -10,20 +10,21 @@ export const TOOL_NAMES: Record<AgentTool, string> = {
 };
 
 /**
- * One muted hue per tool, used only for the 7px dot on a tile. Never for text, never for a fill:
- * these say "which agent", they are not part of the palette.
- */
-/**
- * One hue per tool, read wherever a tool is named: the mark beside the tool's name on an agent
- * card, the tool mix bar and its key in the progress column. Claude Code is Claude's own blue
- * (`--blue` in the tokens), the secondary accent of the Claude and Claude Code apps, so the
- * progress column stays in one cool family rather than the accent's terracotta.
+ * One hue per tool for the *charts*: the tool mix bar and its key in the progress column, and the
+ * dot on the landing page's mock tile. They say "which slice is whose" and nothing else.
+ *
+ * They are four steps of the progress column's own cool family - Claude's blue at three depths and
+ * the watcher's slate - because the right-hand column is blue: it reads as information, not as a
+ * row of warnings, and no warm hue belongs in it. They are deliberately NOT the makers' brand
+ * colours: a 7px dot tinted "nearly right" is worse than one that is plainly just a key, and the
+ * real logos (`ToolLogo.tsx`) carry each maker's own colour instead. Every tool's name is written
+ * beside its dot and its count, so the hue never carries a fact on its own.
  */
 export const TOOL_COLOURS: Record<AgentTool, string> = {
-  "claude-code": "#6a9bcc",
-  codex: "#0f766e",
-  cursor: "#6d28d9",
-  watcher: "#64748b",
+  "claude-code": "#6a9bcc", // --blue
+  codex: "#27567f", // the deep end of the same ramp
+  cursor: "#a8c6e2", // the light end
+  watcher: "#64748b", // slate: not a product, and quieter than the three tools
 };
 
 export const DEPTH_LABELS: Record<ViewDepth, string | null> = {
