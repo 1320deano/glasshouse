@@ -8,7 +8,7 @@ invents a value.
 | tokens | `apps/web/src/styles/tokens.css` | colour, type scale, spacing, radii, shadow, motion, layout |
 | base | `apps/web/src/styles/base.css` | reset, typographic defaults, links, the focus ring, the motion contract |
 | components | `apps/web/src/styles/components.css` | buttons, fields, badges, cards, notices, empty states, the loading wheel, tables, page shell |
-| screens | `apps/web/src/styles/screens.css` | the report card, the task panel, digest, inbox, areas, landing, admin |
+| screens | `apps/web/src/styles/screens.css` | the report card, the task panel, digest, inbox, areas, the landing page (its demo player, proofs and sections), admin |
 | room | `apps/web/src/styles/room.css` | the Room: header, three columns, agent cards, the story, progress, the helper rows |
 | deano | `apps/web/src/styles/deano.css` | the front door (the product picker) and the Potting Shed: the way-out button, product cards, the one builder card (kind tiles, the helper as a document with its folding questions, boxes to tick with what the record says, the rehearsal card, the phone bar), helper and suggestion cards, chips |
 
@@ -99,6 +99,15 @@ state, inline or as a whole page (`app/loading.tsx`); it waits a beat before sho
 flashes it. When the real page replaces it, its parts rise in through `.enter` (base.css): the header
 first, then the columns left to right, then the first cards in each column one after another, the whole
 entrance over inside half a second. Delays are zeroed under `prefers-reduced-motion` too.
+
+**The landing page shows the product, in the product's own classes.** Everything on it that looks like
+the Room is drawn with `room.css`'s own agent-card and story classes over the two recorded sessions
+(`lib/demo.ts`), so it cannot drift from the Room. The demo player is the page's one piece of its own
+furniture: five chapter tabs above a two-monitor stage and a caption below. The current chapter's fill
+and its number are the one accent; a finished chapter's fill is grey. On wide screens the Room pane is a
+fixed 640px so the page never jumps while the demo plays; a finished card folds to a line once a later
+agent is on screen, and the story keeps its newest line in view. Under reduced motion nothing plays by
+itself. `docs/landing-page-findings.md` has the rest.
 
 **Icons, never emoji.** `apps/web/src/components/icons.tsx` is the whole set: line icons on a 16px
 grid, inheriting `currentColor`. An icon appears only where a word would otherwise be repeated.

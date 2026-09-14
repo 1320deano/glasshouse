@@ -91,7 +91,8 @@ export function suggestHelpers(tasks: TaskView[], areas: Area[], existing: Helpe
   }
 
   // 2. Asked: the questions the owner has had to answer. Each becomes a standing answer to fill in.
-  const asked = tasks.filter((t) => (t.report && (t.report.needsYou === "decision" || t.report.needsYou === "blocked")) || t.stage === "waiting");
+  //    A stop for a usage limit is "blocked" on its card, but nobody asked the owner anything.
+  const asked = tasks.filter((t) => t.endReason !== "usage_limit" && ((t.report && (t.report.needsYou === "decision" || t.report.needsYou === "blocked")) || t.stage === "waiting"));
   const questions = new Map<string, TaskView[]>();
   for (const t of asked) {
     const q = t.report?.needsYouDetail ?? questionIn(t.closingMessage) ?? t.closingMessage;

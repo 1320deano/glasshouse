@@ -5,7 +5,7 @@ import { type NormalisedEvent, RecordedHook } from "@glasshouse/schema";
 import { buildHeuristicAreaMap, normaliseClaudeCode } from "@glasshouse/translate";
 import { rememberProfile } from "./auth";
 import { planChangeFrom } from "./billing";
-import { demoFrames } from "./demo";
+import { DEMO_CHAPTERS, demoFrames, demoSuggestions, terminalLine } from "./demo";
 import { firstMoment } from "./moment";
 import { UPGRADE_REASONS, canCreateProject, featureAllowed, gateRoom, planFromSubscriptionStatus } from "./plan";
 import { MemoryStore, normaliseCode } from "./store/memory";
@@ -142,7 +142,7 @@ describe("the moment and the demo", () => {
     expect(moment?.why).toContain("Login is a part of your app everyone relies on");
   });
 
-  it("replays the fixtures into frames the mock tile can play, with the credit switch in the middle", async () => {
+  it("replays the fixtures into frames the demo can play, with the credit switch in the middle", async () => {
     const frames = await demoFrames();
     expect(frames.length).toBeGreaterThan(10);
     expect(frames.every((f) => f.tiles.every((t) => t.stage !== "stuck"))).toBe(true);
@@ -154,6 +154,59 @@ describe("the moment and the demo", () => {
     const last = frames[frames.length - 1]!;
     expect(last.tiles[1]?.card?.notTouched).toContain("Payments");
     expect(last.tiles[1]?.card?.needsYou).toBe("review");
+    expect(last.tiles[1]?.card?.checks).toBe("All 6 checks passed");
+  });
+
+  it("cuts the demo into the brief's five chapters, each turned by a recorded event, in order", async () => {
+    const frames = await demoFrames();
+    const order = [...new Set(frames.map((f) => f.chapter))];
+    expect(order).toEqual(DEMO_CHAPTERS.map((c) => c.id));
+    // The second chapter starts on the first change, the third on the limit, the fourth when Codex
+    // appears, the fifth when Codex stops.
+    const first = (id: string) => frames.findIndex((f) => f.chapter === id);
+    expect(frames[first("login")]?.tiles[0]?.stage).toBe("building");
+    expect(frames[first("login")]?.tiles[0]?.risk).toBe("high");
+    expect(frames[first("limit")]?.tiles[0]?.endReason).toBe("usage_limit");
+    expect(frames[first("handoff")]?.terminal).toBe("$ codex\n> ready");
+    expect(frames[first("report")]?.tiles[1]?.card?.headline).toContain("All 6 tests pass");
+  });
+
+  it("carries the Room's own story, the moment, and what the card knows, frame by frame", async () => {
+    const frames = await demoFrames();
+    // No frame claims "not touched" before anything has changed (rule 2).
+    for (const f of frames) for (const t of f.tiles) if (t.touched.length === 0) expect(t.notTouched).toEqual([]);
+    // The moment appears on the frame of the first change to Login and stays.
+    const momentAt = frames.findIndex((f) => f.moment);
+    expect(momentAt).toBe(frames.findIndex((f) => f.chapter === "login"));
+    expect(frames[momentAt]?.moment?.fact).toContain("Claude Code changed Login");
+    expect(frames.slice(momentAt).every((f) => f.moment)).toBe(true);
+    // The story is the real template's lines, with the same badges the Room shows.
+    const last = frames[frames.length - 1]!;
+    expect(last.story.map((m) => m.kind)).toEqual(["started", "limit", "handoff", "finished"]);
+    expect(last.story[1]?.badge).toEqual({ text: "Stopped", tone: "critical" });
+    expect(last.story[3]?.badge).toEqual({ text: "Review recommended", tone: "info" });
+    expect(last.story[3]?.checks).toBe("All 6 checks passed");
+    expect(last.story[3]?.notTouched).toContain("Payments");
+  });
+
+  it("writes the terminal from the recorded event, not from a caption", () => {
+    const base = { id: "e1", projectId: "p", sessionId: "s", tool: "claude-code" as const, ts: "2026-09-04T09:00:00.000Z", sourceEvent: "PostToolUse", raw: {} };
+    expect(terminalLine({ ...base, kind: "prompt", summary: "Prompt", prompt: "Fix the login", paths: [] })).toBe("> Fix the login");
+    expect(terminalLine({ ...base, kind: "edit", summary: "Changed src/auth/session.ts", paths: ["src/auth/session.ts"] })).toBe("⏺ Update(src/auth/session.ts)\n  ⎿  Changed src/auth/session.ts");
+    expect(terminalLine({ ...base, kind: "test_run", summary: "pnpm test", command: "pnpm test", tests: { passed: 6, failed: 1 }, paths: [] })).toBe("⏺ Bash(pnpm test)\n  ⎿  Tests  1 failed, 6 passed");
+    expect(terminalLine({ ...base, tool: "codex", kind: "session_start", summary: "Session started", paths: [] })).toBe("$ codex\n> ready");
+  });
+
+  it("proposes the helpers the Shed would grow from the demo's own record, with their evidence", async () => {
+    const s = await demoSuggestions();
+    const ids = s.map((x) => x.id);
+    expect(ids).toContain("sensitive:area-src-auth");
+    expect(ids).toContain("handoff:all");
+    // A stop for a usage limit is not a question the owner was asked, so no house rules from it.
+    expect(ids).not.toContain("asked:all");
+    expect(s.find((x) => x.id === "handoff:all")?.evidence).toBe("1 task carried on in a different tool (Claude Code to Codex).");
+    expect(s.find((x) => x.kind === "sensitive")?.evidence).toBe("Agents changed files in Login in 2 tasks.");
+    expect(s.every((x) => x.tasks > 0)).toBe(true);
   });
 });
 

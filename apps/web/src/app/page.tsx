@@ -2,7 +2,7 @@ import { Landing } from "@/components/Landing";
 import { ProductPicker, type ProductFact } from "@/components/ProductPicker";
 import { currentViewer } from "@/lib/auth";
 import { CONNECT_COMMAND, PRODUCT_NAME, PRODUCTS, SHED_NAME, SITE_NAME } from "@/lib/brand";
-import { demoFrames } from "@/lib/demo";
+import { demoFrames, demoSuggestions } from "@/lib/demo";
 import { PRO_PRICE_GBP } from "@/lib/plan";
 import { getStore } from "@/lib/store";
 
@@ -20,8 +20,8 @@ export default async function Home() {
   const store = getStore();
   const viewer = await currentViewer();
   if (!viewer) {
-    const frames = await demoFrames();
-    return <Landing frames={frames} siteName={SITE_NAME} productName={PRODUCT_NAME} shedName={SHED_NAME} priceGbp={PRO_PRICE_GBP} local={false} connectCommand={CONNECT_COMMAND} />;
+    const [frames, suggestions] = await Promise.all([demoFrames(), demoSuggestions()]);
+    return <Landing frames={frames} suggestions={suggestions} siteName={SITE_NAME} productName={PRODUCT_NAME} shedName={SHED_NAME} priceGbp={PRO_PRICE_GBP} local={false} connectCommand={CONNECT_COMMAND} />;
   }
   const projects = await store.listProjects(viewer.id);
   const sample = projects.slice(0, FACT_PROJECTS);

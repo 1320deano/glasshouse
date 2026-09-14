@@ -40,7 +40,8 @@ export function boxEvidenceFrom(tasks: TaskView[], areas: Area[]): BoxEvidence {
 
   const stuck = real.filter((t) => t.stage === "stuck" || Boolean(t.stuckReason));
   const failing = finished.filter((t) => (t.lastTests?.failed ?? 0) > 0);
-  const asked = real.filter((t) => (t.report && (t.report.needsYou === "decision" || t.report.needsYou === "blocked")) || t.stage === "waiting");
+  // A stop for a usage limit is "blocked" on its card, but nobody asked the owner anything.
+  const asked = real.filter((t) => t.endReason !== "usage_limit" && ((t.report && (t.report.needsYou === "decision" || t.report.needsYou === "blocked")) || t.stage === "waiting"));
   const handed = real.filter((t) => t.continuedFrom);
   const installed = real.filter((t) => t.installs > 0);
   const spread = real.filter((t) => t.areas.filter((a) => a.changed.length > 0).length >= 3);
@@ -142,7 +143,7 @@ export function rehearsalTasksFrom(tasks: TaskView[], areas: Area[], limit = 12)
         passed: t.lastTests?.passed ?? 0,
         stuckReason: t.stuckReason,
         installs: t.installs,
-        asked: t.report && (t.report.needsYou === "decision" || t.report.needsYou === "blocked") ? (t.report.needsYouDetail ?? undefined) : undefined,
+        asked: t.report && t.endReason !== "usage_limit" && (t.report.needsYou === "decision" || t.report.needsYou === "blocked") ? (t.report.needsYouDetail ?? undefined) : undefined,
         continuedFrom: t.continuedFrom?.tool,
       };
     });

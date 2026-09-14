@@ -224,3 +224,16 @@ export const Download = (p: IconProps) => (
     <path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10" />
   </Icon>
 );
+
+/** The demo's play and pause. */
+export const Play = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.5 3.2v9.6L12.5 8 4.5 3.2Z" />
+  </Icon>
+);
+
+export const Pause = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 3.2v9.6M11 3.2v9.6" />
+  </Icon>
+);
