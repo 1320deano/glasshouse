@@ -1,11 +1,13 @@
 # What Christopher needs to do
 
+> Historical follow-ups from the build phases. Some account or deployment steps may since have been completed outside this repository. Check [the Codex handover](codex-handover.md) and the actual service state before treating an item as still outstanding.
+
 Everything built in Phases 0 to 8 that is waiting on a decision, an account, a key or a real session from you.
 In order of how much they unblock. Each item says what it is for, in plain words, and where the instructions are.
 
 ## The three things that unblock the most
 
-1. **Create the hosted Supabase project and apply the migrations (seven of them now).** Supabase is the database, sign-in and
+1. **Create the hosted Supabase project and apply the migrations (six checked-in files).** Supabase is the database, sign-in and
    live-update service the hosted product runs on. Nothing hosted (sign-in, testers, plans, the landing page for real
    visitors) works without it, and the Supabase side of the code has never been run against a real database.
    Instructions: `docs/supabase-setup.md`. Then, before anything else, run the recorded sessions into it and open the

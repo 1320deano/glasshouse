@@ -1,5 +1,7 @@
 # The Control Room — Product Report
 
+> Original product brief, retained for the reasoning behind the app. Later phases added Deano, the Potting Shed and owner-requested agent runs. Read [the codebase map](docs/codebase-map.md) for the current implementation and [AGENTS.md](AGENTS.md) for current working rules.
+
 **Prepared for:** Christopher
 **Date:** 3 September 2026
 **Basis:** your original vision document, the competitive review, and your answers to 12 clarifying questions

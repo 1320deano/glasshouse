@@ -6,14 +6,14 @@ rem and the two stop matching: pages fill with errors that make no sense.
 rem Leave this window open while you work; close it to stop it.
 cd /d "%~dp0"
 echo Getting Deano ready. This takes a few seconds.
-call pnpm --filter @glasshouse/web build
+call corepack pnpm --filter @glasshouse/web build
 if errorlevel 1 (
   echo.
   echo Deano could not be got ready, so it has not been started.
-  echo Nothing is broken on your computer. Send the lines above to Claude and it will sort it out.
+  echo Send the lines above to Codex so it can find out what went wrong.
   echo.
   pause
   exit /b 1
 )
 start "" http://localhost:3000
-call pnpm --filter @glasshouse/web start
+call corepack pnpm --filter @glasshouse/web start

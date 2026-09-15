@@ -163,7 +163,7 @@ mode it is what signed-out visitors see at the front door.
 
 ## Moving to Supabase later
 
-When the hosted Supabase project exists (`docs/supabase-setup.md`), apply all four migrations, fill in `apps/web/.env.local`
+When the hosted Supabase project exists (`docs/supabase-setup.md`), apply all six checked-in migrations, fill in `apps/web/.env.local`
 and restart. The Room then stores everything in Supabase instead of the local file, and sign-in switches on: each person
 sees their own projects, "New project" gives a one-time code for `glasshouse connect --code …`, and plans apply
 (`/account`). `GLASSHOUSE_ADMIN_EMAILS` names who may open `/admin` (testers, invites, what broke).

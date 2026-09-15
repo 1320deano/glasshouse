@@ -1,4 +1,5 @@
 node_modules/
+.pnpm-store/
 dist/
 .next/
 *.tsbuildinfo
@@ -12,3 +13,7 @@ supabase/.branches/
 fixtures/raw/**/*.jsonl
 !fixtures/raw/**/.gitkeep
 .glasshouse/
+# Personal agent settings and nested working copies are not project source.
+.claude/settings.local.json
+.claude/worktrees/
+.codex/worktrees/

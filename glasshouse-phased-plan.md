@@ -1,5 +1,7 @@
 # Glasshouse — Phased Build Plan
 
+> Historical plan with outcomes added over time. For current behaviour, start with [the codebase map](docs/codebase-map.md) and [Codex handover](docs/codex-handover.md). The original daemon, watch-only and "start Phase 0" instructions below are historical; hooks use per-event spooling, and Phase 8 permits recorded owner requests. The implemented Phase 5 Room redesign is described in `docs/phase-5-findings.md`; the launch work originally labelled Phase 5 here is a separate backlog.
+
 ## Context
 
 The brief (`control-room-product-report.md`) describes a watch-only, agent-neutral "control room": a browser tab on the second monitor that narrates in plain English what each AI coding agent is doing, which part of the user's app it is touching, and why, and that keeps one continuous story of the project across Claude Code, Codex, Cursor and GitHub. First user is Christopher. The pain is latent ("trust it and move on"), so the product must be zero-effort and ambient, and it must prove itself in the first session.

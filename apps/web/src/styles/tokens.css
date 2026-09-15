@@ -29,10 +29,10 @@
      The numbers name a role, not a lightness: 1000 is the page, 50 is the primary text, so
      every reference below reads the same whichever way the palette leans. A warm near-grey,
      leaning ivory: the page is a shade darker than a white card, so white reads as "a thing". */
-  --grey-1000: #f5f4ee; /* the page */
+  --grey-1000: #fcfcfb; /* the page */
   --grey-950: #f0efe8; /* inset: wells, code, the quiet fill behind a select */
   --grey-900: #ffffff; /* surface: cards, the reply box */
-  --grey-850: #faf9f5; /* raised: hover on a card, the story's own ground */
+  --grey-850: #faf9f5; /* raised: hover on a card */
   --grey-800: #eeece4; /* subtle fill: chips, your own messages, secondary buttons */
   --grey-750: #e8e6dc;
   --grey-700: #e3e1d7; /* the default hairline */

@@ -14,13 +14,27 @@ invents a value.
 
 `apps/web/src/app/globals.css` is six `@import` lines and nothing else.
 
-**Light only, and warm.** The palette is the Claude app's: an ivory page (`#f5f4ee`), white surfaces,
+**Light only, and warm.** The palette uses a near-white page (`#fcfcfb`), white surfaces (`#ffffff`),
 warm greys for lines and quiet text, one black accent. There is no orange anywhere in the product:
 the terracotta the accent used to be, and the amber `--warn` used to be, are both black now, and
 green and red are the only two hues left that mean anything. There is no dark mode. The grey ramp's
 numbers name a role, not a lightness (`--grey-1000` is the page, `--grey-50` is the primary text), so
 every rule reads the same whichever way the palette leans. White is spent on things: cards, and the
 reply box, which is the one surface that floats.
+
+The Room's story and the area around its reply box use the same `--bg-canvas` (`#fcfcfb`)
+as the side columns. Cards and the reply box keep `--bg-surface` (`#ffffff`).
+
+**Floating cards in the Room.** The sides have no full-height border or separate background.
+Each heading and its controls sit together in a white card, above a separately scrolling stack
+of cards. Heading cards stay in place on desktop; finished agent cards keep the same 12px gaps
+as the other cards. Folding leaves a small white control card. A short grip beside each heading
+supports mouse dragging and keyboard resizing.
+
+The Room's scrollbars use rounded grey handles on transparent tracks, with no arrow buttons.
+The handle darkens on hover or dragging. These are styled native scrollbars, preserving wheel,
+touch, keyboard and drag behaviour; Firefox uses its thin native equivalent. Side card regions
+can be focused with Tab and scrolled with the keyboard. High-contrast mode uses system colours.
 
 ## The rules
 

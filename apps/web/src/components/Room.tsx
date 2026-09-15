@@ -422,22 +422,21 @@ export function Room({
               </button>
             </div>
 
-            <div className="col-body">
-              <div className="col-head">
-                <button className="icon-button col-fold" aria-label="Fold the agents away" aria-pressed title="Fold the agents away" onClick={() => setLayout({ agents: "rail" })}>
-                  <PanelLeft size={16} />
+            <div className="col-head">
+              <button className="icon-button col-fold" aria-label="Fold the agents away" aria-pressed title="Fold the agents away" onClick={() => setLayout({ agents: "rail" })}>
+                <PanelLeft size={16} />
+              </button>
+              <h2 className="col-title">
+                Agents
+                {live_.length > 0 && <span className="count">{live_.length}</span>}
+              </h2>
+              <div className="col-tools">
+                <button className="icon-button" aria-label={compact ? "Show full cards" : "Show compact cards"} aria-pressed={compact} title={compact ? "Show full cards" : "Show compact cards"} onClick={() => setLayout({ density: compact ? "comfortable" : "compact" })}>
+                  <Rows size={16} />
                 </button>
-                <h2 className="col-title">
-                  Agents
-                  {live_.length > 0 && <span className="count">{live_.length}</span>}
-                </h2>
-                <div className="col-tools">
-                  <button className="icon-button" aria-label={compact ? "Show full cards" : "Show compact cards"} aria-pressed={compact} title={compact ? "Show full cards" : "Show compact cards"} onClick={() => setLayout({ density: compact ? "comfortable" : "compact" })}>
-                    <Rows size={16} />
-                  </button>
-                </div>
               </div>
-
+            </div>
+            <div className="col-body" tabIndex={0} role="region" aria-label="Agent cards">
               {gated.locked.reasons.length > 0 && (
                 <div className="notice dashed">
                   <Info />
@@ -551,15 +550,15 @@ export function Room({
               </button>
             </div>
 
-            <div className="col-body">
-              <div className="col-head">
-                <h2 className="col-title">Progress</h2>
-                <div className="col-tools">
-                  <button className="icon-button col-fold" aria-label="Fold progress away" aria-pressed title="Fold progress away" onClick={() => setLayout({ progress: "closed" })}>
-                    <PanelRight size={16} />
-                  </button>
-                </div>
+            <div className="col-head">
+              <h2 className="col-title">Progress</h2>
+              <div className="col-tools">
+                <button className="icon-button col-fold" aria-label="Fold progress away" aria-pressed title="Fold progress away" onClick={() => setLayout({ progress: "closed" })}>
+                  <PanelRight size={16} />
+                </button>
               </div>
+            </div>
+            <div className="col-body" tabIndex={0} role="region" aria-label="Progress cards">
               <Progress state={state} now={now} />
               <div className="col-foot">
                 <span>Updated {new Date(state.generatedAt).toLocaleTimeString()}</span>

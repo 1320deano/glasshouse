@@ -3,9 +3,9 @@
  * part of the app is right in every helper at once (the same rule as the Room's plain lines).
  *
  *   Claude Code  .claude/agents/<slug>.md      a sub-agent: front matter, then its instructions
- *   Codex        AGENTS.md                     a marked section of standing instructions (Codex reads
- *                                              AGENTS.md at the start of every session; it has no
- *                                              sub-agent files of its own)
+ *   Codex        AGENTS.md                     a marked section of standing instructions; this
+ *                                              exporter does not generate native Codex subagent
+ *                                              configurations
  *   Cursor       .cursor/rules/<slug>.mdc      a rule that applies to the files the helper works in
  *
  * Boundaries are compiled from the area map to real path prefixes, so "must never touch Payments"

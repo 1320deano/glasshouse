@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "typecheck": "pnpm -r --parallel typecheck",
     "lint": "eslint .",
+    "check": "pnpm test && pnpm typecheck && pnpm lint",
     "connector": "node packages/connector/dist/cli.js",
     "supabase": "supabase",
     "room": "pnpm --filter @glasshouse/web build && pnpm --filter @glasshouse/web start",

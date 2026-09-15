@@ -41,6 +41,10 @@ Edit the generated file in `supabase/migrations`, then `db push` (hosted) or `db
 | `20260904000000_phase2.sql` | Phase 2: file tree on projects, area keys, `file_descriptions`, task `state`, event `tool`/`text`/`tests` |
 | `20260905000000_phase3.sql` | Phase 3: report card words on `reports`, digest cache, feedback as shown, `last_checked_at` |
 | `20260906000000_phase4.sql` | Phase 4: `profiles` (plan, Stripe ids, created by trigger on sign-up), `link_codes`, `invites`, `tester_notes`, `metrics`, `projects.owner_id` index |
+| `20260909000000_phase6.sql` | Phase 6: `helpers` and the event index for deriving helper runs |
+| `20260914000000_phase8.sql` | Phase 8: `requests`, `request_questions`, and the connector's `projects.listening_at` timestamp |
+
+There are six migration files in this checkout. Apply them in filename order. The local automatic checks do not verify a live Supabase database; see [the Codex handover](codex-handover.md) for the current verification boundary and store differences to investigate.
 
 ## Sign-up and sign-in (Phase 4)
 

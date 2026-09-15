@@ -1,9 +1,9 @@
 /* ============================================================================================
    The Room (Phase 5): three columns, read from two metres, laid out the way the Claude app
    lays out a coding session.
-     left    one card per agent, on the ivory ground; folds to a rail
-     middle  the running story on a lighter ground, and the one white box that floats: the reply box
-     right   the week as counts and stages, in white cards; folds away
+     left    floating agent cards with their own heading card; folds to one small control
+     middle  the running story on the shared page ground, with a white reply box
+     right   floating progress cards with their own heading card; folds away
    Composes tokens, base and components. Nothing here invents a value.
    ============================================================================================ */
 
@@ -353,12 +353,11 @@
   flex-direction: column;
 }
 
-/* Drag the inner edge of a side column to give it more or less of the screen. Invisible until
-   pointed at, then one accent hairline on the edge itself. */
+/* A short grip in the space between cards replaces a full-height divider. */
 .col-resize {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: var(--space-2);
+  height: var(--space-6);
   width: 9px;
   z-index: var(--z-sticky);
   cursor: col-resize;
@@ -373,11 +372,12 @@
 .col-resize::after {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: var(--space-1);
+  bottom: var(--space-1);
   left: 4px;
-  width: 1px;
-  background: transparent;
+  width: 2px;
+  border-radius: var(--radius-full);
+  background: var(--line);
   transition: background var(--duration-fast) var(--ease-standard);
 }
 .col-resize:hover::after,
@@ -400,14 +400,12 @@
 .room[data-progress="closed"] .progress-col .col-resize {
   display: none;
 }
-.room-col.agents {
-  border-right: 1px solid var(--line);
-}
 .room-col.story {
-  background: var(--bg-raised);
+  background: var(--bg-canvas);
 }
+.room-col.agents,
 .room-col.progress-col {
-  border-left: 1px solid var(--line);
+  background: transparent;
 }
 
 .col-body {
@@ -416,14 +414,20 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-15);
-  padding: var(--space-15) var(--space-2) var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
 }
 
 .col-head {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 28px;
+  min-height: var(--space-6);
+  margin: var(--space-2) var(--space-2) var(--space-15);
+  padding: var(--space-1);
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
 }
 
 .col-title {
@@ -505,6 +509,9 @@
   .col-body {
     overflow-y: auto;
     overscroll-behavior: contain;
+    /* The scroll handle occupies the outer padding, keeping heading and content aligned. */
+    padding-right: var(--space-05);
+    scrollbar-gutter: stable;
   }
   .room-col.story {
     overflow: hidden;
@@ -513,41 +520,48 @@
   .room[data-agents="rail"] .agents {
     border-right: none;
     overflow: visible;
+    z-index: var(--z-sticky);
   }
-  .room[data-agents="rail"] .agents .col-body {
+  .room[data-agents="rail"] .agents .col-body,
+  .room[data-agents="rail"] .agents .col-head {
     display: none;
   }
   .room[data-agents="rail"] .agents .rail {
     display: flex;
     position: absolute;
-    top: var(--space-15);
-    left: 0;
+    top: var(--space-2);
+    left: var(--space-2);
     /* The story column is painted after this one, so the toggle has to be lifted above it. */
     z-index: var(--z-sticky);
-    padding: 0 0 0 var(--space-2);
+    padding: var(--space-1);
+    background: var(--bg-surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
     pointer-events: none;
   }
   .room[data-agents="rail"] .agents .rail-open {
     pointer-events: auto;
   }
-  /* Folded: no column, no edge, no scrollbar — only the toggle, left on the pixel it already
-     occupied. It reserves a scrollbar gutter of its own (drawn transparent) because the open
-     column's scrollbar insets its head by the same amount. */
+  /* The folded control keeps the same card material and position as the open heading. */
   .room[data-progress="closed"] .progress-col {
     border-left: none;
     overflow: visible;
+    z-index: var(--z-sticky);
   }
-  .room[data-progress="closed"] .progress-col .col-body {
+  .room[data-progress="closed"] .progress-col .col-body,
+  .room[data-progress="closed"] .progress-col .col-head {
     display: none;
   }
   .room[data-progress="closed"] .progress-col .rail {
     display: flex;
     position: absolute;
-    top: var(--space-15);
-    right: 0;
-    padding: 0 var(--space-2) 0 0;
-    overflow-y: scroll;
-    scrollbar-color: transparent transparent;
+    top: var(--space-2);
+    right: var(--space-2);
+    z-index: var(--z-sticky);
+    padding: var(--space-1);
+    background: var(--bg-surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
     /* Only the button itself is in the way of the story underneath. */
     pointer-events: none;
   }
@@ -630,7 +644,63 @@
     min-height: calc(100dvh - 44px);
   }
   .col-body {
-    padding: var(--space-15);
+    padding: 0 var(--space-15) var(--space-15);
+  }
+  .col-head {
+    margin-inline: var(--space-15);
+  }
+}
+
+/* Room scrollbars: a small floating handle, without a track or arrow buttons.
+   Style the native control so dragging, wheel, touch and keyboard behaviour stay intact.
+   Firefox uses its thin native control; Chromium/WebKit use the rounded inset handle. */
+.room :is(.col-body, .chat-scroll) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--grey-500) transparent;
+}
+.room :is(.col-body, .chat-scroll):is(:hover, :focus-within) {
+  scrollbar-color: var(--grey-400) transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  .room :is(.col-body, .chat-scroll),
+  .room :is(.col-body, .chat-scroll):is(:hover, :focus-within) {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  .room :is(.col-body, .chat-scroll)::-webkit-scrollbar {
+    width: var(--space-15);
+    height: var(--space-15);
+  }
+  .room :is(.col-body, .chat-scroll)::-webkit-scrollbar-track {
+    background: transparent;
+    margin-block: var(--space-1);
+  }
+  .room :is(.col-body, .chat-scroll)::-webkit-scrollbar-thumb {
+    min-height: var(--space-6);
+    background: var(--grey-500);
+    border: var(--space-05) solid transparent;
+    border-radius: var(--radius-full);
+    background-clip: padding-box;
+  }
+  .room :is(.col-body, .chat-scroll)::-webkit-scrollbar-thumb:hover {
+    background-color: var(--grey-400);
+  }
+  .room :is(.col-body, .chat-scroll)::-webkit-scrollbar-thumb:active {
+    background-color: var(--text-secondary);
+  }
+  .room :is(.col-body, .chat-scroll)::-webkit-scrollbar-button {
+    display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .room :is(.col-body, .chat-scroll),
+  .room :is(.col-body, .chat-scroll):is(:hover, :focus-within) {
+    scrollbar-color: auto;
+    scrollbar-width: auto;
+  }
+  .room :is(.col-body, .chat-scroll)::-webkit-scrollbar-thumb {
+    background-color: ButtonText;
   }
 }
 
@@ -640,8 +710,11 @@
   flex-direction: column;
   gap: var(--space-15);
 }
+.agents-list:empty {
+  display: none;
+}
 .agents-list.finished {
-  gap: 2px;
+  gap: var(--space-15);
 }
 
 .agent {
@@ -866,16 +939,16 @@
 
 /* A finished card is one line until it is opened. */
 .agent.finished {
-  padding: 6px var(--space-1);
+  padding: var(--space-15);
   gap: var(--space-1);
-  background: transparent;
-  border-color: transparent;
-  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border-color: var(--line);
+  border-radius: var(--radius-lg);
   animation: none;
 }
 .agent.finished:hover {
-  background: var(--bg-subtle);
-  border-color: transparent;
+  background: var(--bg-surface);
+  border-color: var(--line-strong);
 }
 .agent.finished.open {
   background: var(--bg-surface);

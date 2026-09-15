@@ -24,7 +24,7 @@ describe("the command for a request", () => {
   it("starts Claude Code under the Room's session id, edits allowed, questions through the bridge", () => {
     const l = launchFor({ ...base, externalSessionId: "sess-1" }, project, opts);
     expect(l.cmd).toBe("claude");
-    expect(l.args).toEqual(["-p", "--output-format", "json", "--session-id", "sess-1", "--permission-mode", "acceptEdits", "--permission-prompt-tool", "mcp__glasshouse__ask_owner", "--mcp-config", "/tmp/runs/r1.mcp.json"]);
+    expect(l.args).toEqual(["-p", "--output-format", "json", "--session-id", "sess-1", "--permission-mode", "acceptEdits", "--permission-prompt-tool", "mcp__glasshouse__ask_owner", "--mcp-config", join(opts.runDir, "r1.mcp.json")]);
     expect(l.stdin).toBe("Fix the login bug");
     expect(l.env?.MCP_TOOL_TIMEOUT).toBeDefined();
     const mcp = JSON.parse(l.files![0]!.body) as { mcpServers: { glasshouse: { command: string; args: string[]; env: Record<string, string> } } };

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { appendFile, copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { appendFile, copyFile, mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -100,6 +100,10 @@ describe("codex tailer", () => {
   it("ignores rollouts for folders that are not linked", async () => {
     const path = join(codexHomeDir, "sessions", "2026", "09", "04", "rollout-2026-09-04T11-00-00-y.jsonl");
     await copyFile(rolloutFixture, path);
+    // Windows preserves the source's old modification time when copying. This case needs a
+    // recent rollout so it exercises project filtering, rather than the 36-hour file filter.
+    const now = new Date();
+    await utimes(path, now, now);
     const tailer: TailerState = { files: new Map() };
     expect(await tailAll(codexHomeDir, tailer, { projects: [{ ...project, root: "/somewhere/else" }] })).toEqual([]);
     expect(tailer.files.get(path)?.ignored).toBe(true);
