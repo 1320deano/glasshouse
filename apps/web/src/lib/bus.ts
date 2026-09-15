@@ -6,6 +6,8 @@ export interface RoomNotice {
   projectId: string;
   at: string;
   inserted: number;
+  /** What changed: events arrived (the default), or a request was made or moved on (Phase 8). */
+  kind?: "events" | "request";
 }
 
 type Listener = (n: RoomNotice) => void;

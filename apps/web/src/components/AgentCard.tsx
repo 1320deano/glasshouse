@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SessionView } from "@/lib/store/types";
+import type { RequestQuestion, SessionView } from "@/lib/store/types";
 import { Alert, Check, ChevronDown, Handoff } from "./icons";
 import { NEEDS_YOU_TEXT, RISK_TEXT, TOOL_NAMES, ago, clip, statusOf } from "./labels";
 import { TaskPanel } from "./TaskPanel";
@@ -16,7 +16,12 @@ import { ToolLogo } from "./ToolLogo";
  *   live      the full card. `compact` keeps the tool, status, headline and ticker and folds the rest,
  *             so a wall of agents still fits one screen.
  *   finished  one line: the headline and "See the report"
+ *
+ * Phase 8: "Talk to it" puts this agent in the chat's To box. A question a run started from the
+ * Room has put to the owner (may it run this, which way) sits on the card too, answered with a tap.
  */
+export type CardQuestion = RequestQuestion & { plain: string; requestId: string };
+
 export function AgentCard({
   session,
   now,
@@ -24,6 +29,9 @@ export function AgentCard({
   open,
   compact = false,
   onToggle,
+  onTalk,
+  questions = [],
+  onAnswer,
 }: {
   session: SessionView;
   now: number;
@@ -31,6 +39,11 @@ export function AgentCard({
   open: boolean;
   compact?: boolean;
   onToggle: (taskId: string | null) => void;
+  /** Put this agent in the chat's To box. */
+  onTalk?: (session: SessionView) => void;
+  /** Questions a run started from the Room is waiting on, for this agent. */
+  questions?: CardQuestion[];
+  onAnswer?: (requestId: string, questionId: string, allow: boolean, answers?: Record<string, string>) => void;
 }) {
   const task = session.task;
   const last = session.recentEvents[0];
@@ -57,6 +70,11 @@ export function AgentCard({
   const toggle = () => onToggle(open ? null : (task?.id ?? session.id));
   // An open card is always the full card: the owner asked to see it.
   const folded = compact && !open;
+  const talk = onTalk && session.tool !== "watcher" ? (
+    <button className="agent-toggle agent-talk" type="button" title={mode === "finished" ? "Say what to do next; it picks up where it left off" : "Say something to this agent from the chat"} onClick={() => onTalk(session)}>
+      Talk to it
+    </button>
+  ) : null;
 
   if (mode === "finished") {
     return (
@@ -68,6 +86,7 @@ export function AgentCard({
             {headline}
           </span>
           <span className="agent-when">{task?.endedAt ? ago(task.endedAt, now) : ago(session.endedAt ?? session.lastEventAt, now)}</span>
+          {talk}
           <button className="agent-toggle" data-shot="expand" aria-expanded={open} aria-controls={panelId} title={open ? "Close" : report ? "See the report" : "Details"} onClick={toggle}>
             {open ? "Close" : report ? "Report" : "Details"}
             <ChevronDown />
@@ -130,7 +149,37 @@ export function AgentCard({
           <span>{status.detail ? `Looks stuck: ${status.detail}.` : "Looks stuck."} Nothing has been declared; this is detected from the record.</span>
         </div>
       )}
-      {status.cls === "waiting" && (
+      {questions.map((q) => (
+        <div className="agent-alert" data-tone="attention" role="status" key={q.id}>
+          <Alert />
+          <div className="agent-alert-body">
+            <span>
+              <strong>Waiting for you.</strong> {q.plain}
+            </span>
+            <div className="agent-answer">
+              {q.kind === "permission" ? (
+                <>
+                  <button type="button" className="button sm primary" onClick={() => onAnswer?.(q.requestId, q.id, true)}>
+                    Allow
+                  </button>
+                  <button type="button" className="button sm subtle" onClick={() => onAnswer?.(q.requestId, q.id, false)}>
+                    Don’t allow
+                  </button>
+                </>
+              ) : (
+                (q.choices ?? []).length === 1 &&
+                q.choices![0]!.options.map((o) => (
+                  <button type="button" className="button sm subtle" key={o.label} title={o.description} onClick={() => onAnswer?.(q.requestId, q.id, true, { [q.choices![0]!.question]: o.label })}>
+                    {o.label}
+                  </button>
+                ))
+              )}
+              {q.kind === "choice" && (q.choices ?? []).length > 1 && <span className="small faint">Answer it in the story.</span>}
+            </div>
+          </div>
+        </div>
+      ))}
+      {status.cls === "waiting" && questions.length === 0 && (
         <div className="agent-alert" data-tone="attention" role="status">
           <Alert />
           <span>The agent is waiting for you in its own window.</span>
@@ -188,6 +237,7 @@ export function AgentCard({
           {last?.plain ?? "…"}
         </span>
         <span className="agent-when">{ago(last?.ts, now)}</span>
+        {talk}
         <button className="agent-toggle" data-shot="expand" aria-expanded={open} aria-controls={panelId} onClick={toggle}>
           {open ? "Close" : "Details"}
           <ChevronDown />

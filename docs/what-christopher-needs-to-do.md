@@ -1,11 +1,11 @@
 # What Christopher needs to do
 
-Everything built in Phases 0 to 6 that is waiting on a decision, an account, a key or a real session from you.
+Everything built in Phases 0 to 8 that is waiting on a decision, an account, a key or a real session from you.
 In order of how much they unblock. Each item says what it is for, in plain words, and where the instructions are.
 
 ## The three things that unblock the most
 
-1. **Create the hosted Supabase project and apply the five migrations.** Supabase is the database, sign-in and
+1. **Create the hosted Supabase project and apply the migrations (seven of them now).** Supabase is the database, sign-in and
    live-update service the hosted product runs on. Nothing hosted (sign-in, testers, plans, the landing page for real
    visitors) works without it, and the Supabase side of the code has never been run against a real database.
    Instructions: `docs/supabase-setup.md`. Then, before anything else, run the recorded sessions into it and open the
@@ -72,6 +72,24 @@ In order of how much they unblock. Each item says what it is for, in plain words
 - **Recruit ten testers and run the five days** (`docs/tester-cohort.md`). Write the answers into
   `docs/tester-results.md`.
 - **Decide the launch date and record the 30-second demo** (`docs/demo-script.md`).
+
+## Phase 8 (asking from the Room)
+
+- **Run one real request from the chat on your own computer.** Start `start-watch.cmd`, open the Room, type `@`,
+  pick New Claude Code, ask for something small, and watch it start, ask you for a command, and finish. This was
+  done end to end here on a Linux machine with a signed-in Claude Code; it has not been tried on Windows, where the
+  tools are started by name (`claude`, `codex`, `cursor-agent`) and must be on the PATH.
+- **Try one Codex run and one Cursor run from the chat.** Their commands were written from their documentation
+  (`codex exec … --json`, `cursor-agent -p --output-format stream-json`) and have not been run here, because neither
+  tool is installed in this environment. If one fails, the chat says so in plain words and the real command is
+  under Technical detail; send that line to Claude.
+- **Decide whether asking from the Room is a Pro feature.** It is not gated today: Free and Pro can both start
+  agents from the chat (the run happens on the owner's own computer, so it costs the Room nothing). Questions to
+  Glasshouse that need the AI stay Pro, as Ask always was. The gate would be one line in `lib/plan.ts`.
+- **Decide the default for "how freely".** It is "Asks before commands". "Runs commands freely" hands Claude Code
+  every permission and takes Codex out of its sandbox; it is one tap away, remembered in the browser.
+- **Windows: double-click `start-watch.cmd`.** It is the watcher plus the request taker in one window; the older
+  step of running `watch` by hand still works.
 
 ## Things that are yours to check, not to build
 

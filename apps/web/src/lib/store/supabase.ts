@@ -36,7 +36,8 @@ import { newLinkCode, normaliseCode } from "./memory";
 import { helperStory, roomHelpersFrom } from "../shed/room";
 import { helperRunsFrom } from "../shed/runs";
 import { sameBrief, uniqueSlug } from "../shed/slug";
-import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, HelperBrief, HelperRecord, HelperRun, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
+import { ROOM_REQUESTS, viewRequest, type RequestLookups } from "../requests/view";
+import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, HelperBrief, HelperRecord, HelperRun, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RequestAnswer, RequestQuestion, RequestRecord, RequestView, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
 
 interface TaskRow {
   id: string;
@@ -378,6 +379,7 @@ export class SupabaseStore implements Store {
     // Actions per hour over the week. Capped: a very busy project still gets a truthful "at least" picture.
     const { data: weekEvents } = await this.db.from("events").select("ts,tool").eq("project_id", projectId).gte("ts", weekAgo).order("ts", { ascending: false }).limit(8000);
     const helpers = roomHelpersFrom(await this.listHelpers(projectId), await this.helperRuns(projectId, { since: weekAgo }), areas);
+    const [requests, listeningAt] = await Promise.all([this.roomRequests(projectId, weekAgo, ctx), this.listeningAt(projectId)]);
     return {
       project,
       sessions: views,
@@ -391,6 +393,8 @@ export class SupabaseStore implements Store {
       progress: areaProgress(week, areas, weekAgo),
       activity: activityFrom((weekEvents ?? []).map((e) => ({ ts: e.ts as string, tool: e.tool as AgentTool })), weekAgo),
       helpers,
+      requests,
+      listeningAt,
     };
   }
 
@@ -802,6 +806,260 @@ export class SupabaseStore implements Store {
     }
     return helperRunsFrom(rows, (taskId) => changed.get(taskId) ?? []);
   }
+
+  // -- Phase 8: asking from the Room -------------------------------------------------------------
+
+  private async questionsFor(requestIds: string[]): Promise<Map<string, RequestQuestion[]>> {
+    const out = new Map<string, RequestQuestion[]>();
+    if (requestIds.length === 0) return out;
+    const { data, error } = await this.db.from("request_questions").select(QUESTION_COLUMNS).in("request_id", requestIds).order("asked_at", { ascending: true });
+    if (error) throw error;
+    for (const row of (data ?? []) as unknown as QuestionRow[]) out.set(row.request_id, [...(out.get(row.request_id) ?? []), toQuestion(row)]);
+    return out;
+  }
+
+  private async withQuestions(rows: RequestRow[]): Promise<RequestRecord[]> {
+    const questions = await this.questionsFor(rows.map((r) => r.id));
+    return rows.map((r) => toRequest(r, questions.get(r.id) ?? []));
+  }
+
+  private async requestRow(id: string): Promise<RequestRow | null> {
+    const { data } = await this.db.from("requests").select(REQUEST_COLUMNS).eq("id", id).maybeSingle();
+    return (data as RequestRow | null) ?? null;
+  }
+
+  async createRequest(input: Omit<RequestRecord, "id" | "createdAt" | "statusAt" | "questions"> & { id?: string; createdAt?: string }): Promise<RequestRecord> {
+    const now = input.createdAt ?? new Date().toISOString();
+    const row = {
+      id: input.id ?? crypto.randomUUID(),
+      project_id: input.projectId,
+      owner_id: input.ownerId && UUID.test(input.ownerId) ? input.ownerId : null,
+      tool: input.tool,
+      text: input.text,
+      continues: input.continues ?? null,
+      origin: input.origin,
+      care: input.care,
+      status: input.status,
+      status_at: now,
+      external_session_id: input.externalSessionId ?? null,
+      result: input.result ?? null,
+      answer: input.answer ?? null,
+      created_at: now,
+    };
+    const { data, error } = await this.db.from("requests").insert(row).select(REQUEST_COLUMNS).single();
+    if (error) throw error;
+    return toRequest(data as unknown as RequestRow, []);
+  }
+
+  async getRequest(id: string): Promise<RequestRecord | null> {
+    const row = await this.requestRow(id);
+    return row ? (await this.withQuestions([row]))[0]! : null;
+  }
+
+  async listRequests(projectId: string, opts: { since: string; limit?: number }): Promise<RequestRecord[]> {
+    const { data, error } = await this.db.from("requests").select(REQUEST_COLUMNS).eq("project_id", projectId).gte("created_at", opts.since).order("created_at", { ascending: false }).limit(opts.limit ?? 200);
+    if (error) throw error;
+    return this.withQuestions((data ?? []) as unknown as RequestRow[]);
+  }
+
+  async nextRequest(projectId: string, now: string, maxAgeMs: number): Promise<RequestRecord | null> {
+    const cutoff = new Date(new Date(now).getTime() - maxAgeMs).toISOString();
+    // Anything that waited too long is never run: nobody was listening when it was asked for.
+    await this.db
+      .from("requests")
+      .update({ status: "expired", status_at: now, result: { ok: false, reason: "Nobody was listening on your computer in time, so it was never started." } })
+      .eq("project_id", projectId)
+      .eq("status", "queued")
+      .lt("created_at", cutoff);
+    const { data } = await this.db.from("requests").select(REQUEST_COLUMNS).eq("project_id", projectId).eq("status", "queued").order("created_at", { ascending: true }).limit(1).maybeSingle();
+    return data ? (await this.withQuestions([data as unknown as RequestRow]))[0]! : null;
+  }
+
+  async takeRequest(id: string, at: string): Promise<RequestRecord | null> {
+    // One atomic update: only a queued request flips to taken, so two connectors cannot both run it.
+    const { data } = await this.db.from("requests").update({ status: "taken", status_at: at }).eq("id", id).eq("status", "queued").select(REQUEST_COLUMNS).maybeSingle();
+    return data ? (await this.withQuestions([data as unknown as RequestRow]))[0]! : null;
+  }
+
+  async withdrawRequest(id: string, at: string): Promise<RequestRecord | null> {
+    const { data } = await this.db.from("requests").update({ status: "withdrawn", status_at: at }).eq("id", id).eq("status", "queued").select(REQUEST_COLUMNS).maybeSingle();
+    return data ? (await this.withQuestions([data as unknown as RequestRow]))[0]! : null;
+  }
+
+  async updateRequest(id: string, patch: Partial<Pick<RequestRecord, "status" | "externalSessionId" | "result" | "answer">> & { statusAt?: string }): Promise<RequestRecord | null> {
+    const existing = await this.requestRow(id);
+    if (!existing) return null;
+    const row: Record<string, unknown> = {};
+    if (patch.status !== undefined && patch.status !== existing.status) {
+      row.status = patch.status;
+      row.status_at = patch.statusAt ?? new Date().toISOString();
+    }
+    if (patch.externalSessionId !== undefined) row.external_session_id = patch.externalSessionId;
+    if (patch.result !== undefined) row.result = patch.result;
+    if (patch.answer !== undefined) row.answer = patch.answer;
+    if (Object.keys(row).length === 0) return (await this.withQuestions([existing]))[0]!;
+    const { data, error } = await this.db.from("requests").update(row).eq("id", id).select(REQUEST_COLUMNS).maybeSingle();
+    if (error) throw error;
+    return data ? (await this.withQuestions([data as unknown as RequestRow]))[0]! : null;
+  }
+
+  async addQuestion(requestId: string, question: RequestQuestion): Promise<RequestQuestion | null> {
+    const request = await this.requestRow(requestId);
+    if (!request) return null;
+    const row = {
+      id: question.id,
+      request_id: requestId,
+      project_id: request.project_id,
+      asked_at: question.askedAt,
+      kind: question.kind,
+      tool_name: question.toolName,
+      event_kind: question.eventKind ?? null,
+      description: question.description ?? null,
+      summary: question.summary,
+      paths: question.paths,
+      command: question.command ?? null,
+      choices: question.choices ?? null,
+      raw: question.raw ?? null,
+      answer: question.answer ?? null,
+    };
+    const { data, error } = await this.db.from("request_questions").upsert(row, { onConflict: "id", ignoreDuplicates: true }).select(QUESTION_COLUMNS).maybeSingle();
+    if (error) throw error;
+    if (data) return toQuestion(data as unknown as QuestionRow);
+    const { data: existing } = await this.db.from("request_questions").select(QUESTION_COLUMNS).eq("id", question.id).maybeSingle();
+    return existing ? toQuestion(existing as unknown as QuestionRow) : null;
+  }
+
+  /** The first answer stands: only an unanswered question takes one. */
+  async answerQuestion(requestId: string, questionId: string, answer: RequestAnswer): Promise<RequestQuestion | null> {
+    const { data } = await this.db.from("request_questions").update({ answer }).eq("id", questionId).eq("request_id", requestId).is("answer", null).select(QUESTION_COLUMNS).maybeSingle();
+    if (data) return toQuestion(data as unknown as QuestionRow);
+    const { data: existing } = await this.db.from("request_questions").select(QUESTION_COLUMNS).eq("id", questionId).eq("request_id", requestId).maybeSingle();
+    return existing ? toQuestion(existing as unknown as QuestionRow) : null;
+  }
+
+  async markListening(projectId: string, at: string) {
+    await this.db.from("projects").update({ listening_at: at }).eq("id", projectId);
+  }
+
+  private async listeningAt(projectId: string): Promise<string | undefined> {
+    const { data } = await this.db.from("projects").select("listening_at").eq("id", projectId).maybeSingle();
+    return ((data as { listening_at?: string | null } | null)?.listening_at as string | undefined) ?? undefined;
+  }
+
+  /** The week's requests, oldest first, with the sessions, tasks and actions they link to looked up in three queries. */
+  private async roomRequests(projectId: string, since: string, ctx: ReturnType<typeof translateContext>): Promise<RequestView[]> {
+    const records = (await this.listRequests(projectId, { since, limit: ROOM_REQUESTS })).reverse();
+    if (records.length === 0) return [];
+    const externalIds = [...new Set(records.filter((r) => r.externalSessionId && !r.continues && r.tool !== "glasshouse").map((r) => r.externalSessionId!))];
+    const sessionByKey = new Map<string, string>();
+    if (externalIds.length > 0) {
+      const { data } = await this.db.from("agent_sessions").select("id,tool,external_id").eq("project_id", projectId).in("external_id", externalIds);
+      for (const s of (data ?? []) as Array<{ id: string; tool: string; external_id: string }>) sessionByKey.set(`${s.tool}|${s.external_id}`, s.id);
+    }
+    const sessionIds = [...new Set([...sessionByKey.values(), ...records.filter((r) => r.continues).map((r) => r.continues!.sessionId)])];
+    const tasksBySession = new Map<string, Array<{ id: string; started_at: string }>>();
+    if (sessionIds.length > 0) {
+      const { data } = await this.db.from("tasks").select("id,session_id,started_at").in("session_id", sessionIds).order("started_at", { ascending: false }).limit(1000);
+      for (const t of (data ?? []) as Array<{ id: string; session_id: string; started_at: string }>) tasksBySession.set(t.session_id, [...(tasksBySession.get(t.session_id) ?? []), { id: t.id, started_at: t.started_at }]);
+    }
+    const eventIds = [...new Set(records.flatMap((r) => r.answer?.basedOn ?? []))];
+    const events = new Map<string, Omit<EventView, "plain" | "areaId" | "areaName">>();
+    if (eventIds.length > 0) {
+      const { data } = await this.db.from("events").select(EVENT_COLUMNS).eq("project_id", projectId).in("id", eventIds.slice(0, 200));
+      for (const e of (data ?? []) as EventRow[]) events.set(e.id, toEventRow(e));
+    }
+    const taskOfSession = (sessionId: string, at: string) => {
+      const tasks = tasksBySession.get(sessionId) ?? [];
+      const floor = new Date(new Date(at).getTime() - 60_000).toISOString();
+      return (tasks.find((t) => t.started_at >= floor) ?? tasks[0])?.id;
+    };
+    const lookups: RequestLookups = {
+      sessionFor: (tool, externalId, at) => {
+        const id = sessionByKey.get(`${tool}|${externalId}`);
+        return id ? { sessionId: id, taskId: taskOfSession(id, at) } : undefined;
+      },
+      taskOfSession,
+      eventById: (id) => events.get(id),
+      ctx,
+    };
+    return records.map((r) => viewRequest(r, lookups));
+  }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface RequestRow {
+  id: string;
+  project_id: string;
+  owner_id: string | null;
+  tool: RequestRecord["tool"];
+  text: string;
+  continues: RequestRecord["continues"] | null;
+  origin: RequestRecord["origin"] | null;
+  care: RequestRecord["care"] | null;
+  status: RequestRecord["status"];
+  status_at: string;
+  external_session_id: string | null;
+  result: RequestRecord["result"] | null;
+  answer: RequestRecord["answer"] | null;
+  created_at: string;
+}
+
+const REQUEST_COLUMNS = "id,project_id,owner_id,tool,text,continues,origin,care,status,status_at,external_session_id,result,answer,created_at";
+
+function toRequest(r: RequestRow, questions: RequestQuestion[]): RequestRecord {
+  return {
+    id: r.id,
+    projectId: r.project_id,
+    ownerId: r.owner_id,
+    createdAt: r.created_at,
+    tool: r.tool,
+    text: r.text,
+    continues: r.continues ?? undefined,
+    origin: r.origin ?? { kind: "typed" },
+    care: r.care ?? "ask",
+    status: r.status,
+    statusAt: r.status_at,
+    externalSessionId: r.external_session_id ?? undefined,
+    result: r.result ?? undefined,
+    questions,
+    answer: r.answer ?? undefined,
+  };
+}
+
+interface QuestionRow {
+  id: string;
+  request_id: string;
+  asked_at: string;
+  kind: RequestQuestion["kind"];
+  tool_name: string;
+  event_kind: RequestQuestion["eventKind"] | null;
+  description: string | null;
+  summary: string;
+  paths: string[] | null;
+  command: string | null;
+  choices: RequestQuestion["choices"] | null;
+  raw: unknown;
+  answer: RequestAnswer | null;
+}
+
+const QUESTION_COLUMNS = "id,request_id,asked_at,kind,tool_name,event_kind,description,summary,paths,command,choices,raw,answer";
+
+function toQuestion(r: QuestionRow): RequestQuestion {
+  return {
+    id: r.id,
+    askedAt: r.asked_at,
+    kind: r.kind,
+    toolName: r.tool_name,
+    eventKind: r.event_kind ?? undefined,
+    description: r.description ?? undefined,
+    summary: r.summary,
+    paths: r.paths ?? [],
+    command: r.command ?? undefined,
+    choices: r.choices ?? undefined,
+    raw: r.raw ?? undefined,
+    answer: r.answer ?? undefined,
+  };
 }
 
 function toReport(r: ReportRow): ReportRecord {

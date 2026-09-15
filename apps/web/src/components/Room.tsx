@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { askServer } from "@/lib/answer";
 import { UPGRADE_REASONS, type GatedRoom } from "@/lib/plan";
+import { targetForSession, type Target } from "@/lib/requests/compose";
+import { openQuestions } from "@/lib/requests/story";
 import type { RoomState, SessionView } from "@/lib/store/types";
-import { AgentCard } from "./AgentCard";
+import { AgentCard, type CardQuestion } from "./AgentCard";
 import { Conversation } from "./Conversation";
 import { ArrowLeft, Info, Mark, PanelLeft, PanelRight, Rows, Screen, Sprout } from "./icons";
 import { Progress } from "./Progress";
@@ -14,7 +17,8 @@ import { Walkthrough } from "./Walkthrough";
  * The Room (Phase 5): three columns, laid out the way the Claude app lays out a coding session.
  *   left    one card per agent: live ones in full, finished ones as a line, older ones behind a link.
  *           Folds to a narrow rail so the story can have the screen.
- *   middle  the running story of the project, and a box to ask about any task in it
+ *   middle  the running story of the project, and the box: a question to Glasshouse, or (Phase 8) an
+ *           instruction for an agent, started on the owner's own computer by their connector
  *   right   the week as counts and stages: activity, tools, parts of the app. Folds away entirely.
  * On a phone the columns become three tabs. "Waiting for you" is the one thing allowed to light up.
  */
@@ -97,6 +101,8 @@ export function Room({
   const [tab, setTab] = useState<Tab>("agents");
   const [openTask, setOpenTask] = useState<string | null>(null);
   const [showEarlier, setShowEarlier] = useState(false);
+  // Who the chat's box is for. A card's "Talk to it" sets it; "@" in the box changes it.
+  const [target, setTarget] = useState<Target | null>(null);
   // Wide screens show all three columns; the story is always visible there.
   const [wide, setWide] = useState(true);
   const [layout, setLayoutState] = useState<Layout>(DEFAULT_LAYOUT);
@@ -190,6 +196,40 @@ export function Room({
       setTimeout(() => document.getElementById(`task-${taskId}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
     },
     [setLayout],
+  );
+
+  const requests = useMemo(() => state.requests ?? [], [state.requests]);
+  /** Questions a run started from here is waiting on, by the agent's card. */
+  const questionsBySession = useMemo(() => {
+    const out = new Map<string, CardQuestion[]>();
+    for (const r of requests) {
+      if (!r.sessionId) continue;
+      const open = openQuestions(r).map((q) => ({ ...q, requestId: r.id }));
+      if (open.length > 0) out.set(r.sessionId, [...(out.get(r.sessionId) ?? []), ...open]);
+    }
+    return out;
+  }, [requests]);
+
+  const answerQuestion = useCallback(
+    async (requestId: string, questionId: string, allow: boolean, answers?: Record<string, string>): Promise<string | null> => {
+      const { problem } = await askServer<{ question?: unknown; error?: string }>(
+        () => fetch(`/api/requests/${requestId}/answer`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ questionId, allow, answers }) }),
+        "The answer could not be sent.",
+      );
+      void refresh();
+      return problem;
+    },
+    [refresh],
+  );
+
+  const talkTo = useCallback(
+    (session: SessionView) => {
+      const t = targetForSession(session, requests, Date.now());
+      if (!t) return;
+      setTarget(t);
+      setTab("chat");
+    },
+    [requests],
   );
 
   const live_ = state.sessions.filter((s) => isActive(s, now));
@@ -423,13 +463,13 @@ export function Room({
                 <div className="empty">
                   <Screen size={22} className="empty-icon" />
                   <h2>No agents running.</h2>
-                  <p>Start Claude Code, Codex or Cursor in this project and its card appears here within a second or two.</p>
+                  <p>Type @ in the chat and pick Claude Code, Codex or Cursor to start one from here. Or start one in this folder yourself; either way its card appears here within a second or two.</p>
                 </div>
               )}
 
               <div className="agents-list">
                 {live_.map((s) => (
-                  <AgentCard key={s.id} session={s} now={now} mode="live" compact={compact} open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} />
+                  <AgentCard key={s.id} session={s} now={now} mode="live" compact={compact} open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} onTalk={talkTo} questions={questionsBySession.get(s.id)} onAnswer={(a, b, c, d) => void answerQuestion(a, b, c, d)} />
                 ))}
               </div>
 
@@ -438,7 +478,7 @@ export function Room({
                   <h3 className="col-sub">Finished today</h3>
                   <div className="agents-list finished">
                     {finishedToday.map((s) => (
-                      <AgentCard key={s.id} session={s} now={now} mode="finished" open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} />
+                      <AgentCard key={s.id} session={s} now={now} mode="finished" open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} onTalk={talkTo} />
                     ))}
                   </div>
                 </>
@@ -452,7 +492,7 @@ export function Room({
                   {showEarlier && (
                     <div className="agents-list finished">
                       {earlier.map((s) => (
-                        <AgentCard key={s.id} session={s} now={now} mode="finished" open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} />
+                        <AgentCard key={s.id} session={s} now={now} mode="finished" open={openTask === (s.task?.id ?? s.id)} onToggle={setOpenTask} onTalk={talkTo} />
                       ))}
                     </div>
                   )}
@@ -467,6 +507,10 @@ export function Room({
               now={now}
               onOpenTask={openTaskCard}
               active={tab === "chat" || wide}
+              target={target}
+              onTarget={setTarget}
+              onRefresh={() => void refresh()}
+              onAnswer={answerQuestion}
               status={
                 <>
                   <span className="status-line">

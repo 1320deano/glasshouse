@@ -31,7 +31,8 @@ import { storyFrom } from "../story";
 import { helperStory, roomHelpersFrom } from "../shed/room";
 import { helperRunsFrom } from "../shed/runs";
 import { sameBrief, uniqueSlug } from "../shed/slug";
-import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, HelperRecord, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
+import { ROOM_REQUESTS, viewRequest, type RequestLookups } from "../requests/view";
+import type { AiCallLog, DigestCache, EventView, FeedbackRecord, FeedbackView, HelperRecord, IngestResult, Invite, LinkCode, MetricCounts, MetricEvent, Profile, ProjectSummary, ReportRecord, RequestAnswer, RequestQuestion, RequestRecord, RoomState, SessionView, Stats, Store, TaskDetail, TaskView, TesterNote } from "./types";
 
 type ProjectRow = ProjectSummary;
 interface SessionRow {
@@ -84,6 +85,9 @@ interface Db {
   metrics: Array<{ event: MetricEvent; visitorId: string; at: string }>;
   // Phase 6
   helpers: Record<string, HelperRecord>;
+  // Phase 8
+  requests: Record<string, RequestRecord>;
+  listening: Record<string, string>; // project id -> when the connector last asked for requests
 }
 
 const emptyDb = (): Db => ({
@@ -106,6 +110,8 @@ const emptyDb = (): Db => ({
   testerNotes: [],
   metrics: [],
   helpers: {},
+  requests: {},
+  listening: {},
 });
 
 /** In local mode there is one person: whoever owns the machine. */
@@ -404,6 +410,8 @@ export class MemoryStore implements Store {
     const week = recent.filter((t) => (t.lastEventAt ?? t.startedAt) >= weekAgo || (t.endedAt ?? "") >= weekAgo);
     const areas = map?.areas ?? [];
     const helpers = roomHelpersFrom(await this.listHelpers(projectId), await this.helperRuns(projectId, { since: weekAgo }), areas);
+    const lookups = this.requestLookups(projectId, ctx);
+    const requests = (await this.listRequests(projectId, { since: weekAgo, limit: ROOM_REQUESTS })).reverse().map((r) => viewRequest(r, lookups));
     return {
       project,
       sessions,
@@ -420,6 +428,8 @@ export class MemoryStore implements Store {
         weekAgo,
       ),
       helpers,
+      requests,
+      listeningAt: this.db.listening[projectId],
     };
   }
 
@@ -719,6 +729,132 @@ export class MemoryStore implements Store {
   async helperRuns(projectId: string, opts: { since: string }) {
     const rows = this.db.events.filter((e) => e.projectId === projectId && e.ts >= opts.since && (e.kind === "subagent_start" || e.kind === "subagent_stop" || e.kind === "edit"));
     return helperRunsFrom(rows, (taskId) => this.db.tasks[taskId]?.state.changedPaths ?? []);
+  }
+
+  // -- Phase 8: asking from the Room -------------------------------------------------------------
+
+  /** The task a session is on: the latest one started around or after `since`, else its latest. */
+  private taskOfSession(sessionId: string, since: string): string | undefined {
+    const tasks = Object.values(this.db.tasks)
+      .filter((t) => t.sessionId === sessionId)
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+    const floor = new Date(new Date(since).getTime() - 60_000).toISOString();
+    return (tasks.find((t) => t.startedAt >= floor) ?? tasks[0])?.id;
+  }
+
+  private requestLookups(projectId: string, ctx: ReturnType<MemoryStore["ctx"]>): RequestLookups {
+    return {
+      sessionFor: (tool, externalId, since) => {
+        const id = this.sessionIndex.get(sessionKey(projectId, tool, externalId));
+        return id ? { sessionId: id, taskId: this.taskOfSession(id, since) } : undefined;
+      },
+      taskOfSession: (sessionId, since) => this.taskOfSession(sessionId, since),
+      eventById: (id) => {
+        const row = this.db.events.find((e) => e.id === id && e.projectId === projectId);
+        return row ? stripRow(row) : undefined;
+      },
+      ctx,
+    };
+  }
+
+  async createRequest(input: Omit<RequestRecord, "id" | "createdAt" | "statusAt" | "questions"> & { id?: string; createdAt?: string }): Promise<RequestRecord> {
+    const now = input.createdAt ?? this.now();
+    const record: RequestRecord = { ...input, id: input.id ?? crypto.randomUUID(), createdAt: now, statusAt: now, questions: [] };
+    this.db.requests[record.id] = record;
+    // Keep the table small: the oldest requests go once there are many.
+    const all = Object.values(this.db.requests);
+    if (all.length > 2000) for (const r of all.sort((a, b) => a.createdAt.localeCompare(b.createdAt)).slice(0, 200)) delete this.db.requests[r.id];
+    this.scheduleSave();
+    return { ...record };
+  }
+
+  async getRequest(id: string) {
+    const r = this.db.requests[id];
+    return r ? { ...r, questions: [...r.questions] } : null;
+  }
+
+  async listRequests(projectId: string, opts: { since: string; limit?: number }) {
+    return Object.values(this.db.requests)
+      .filter((r) => r.projectId === projectId && r.createdAt >= opts.since)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, opts.limit ?? 200)
+      .map((r) => ({ ...r, questions: [...r.questions] }));
+  }
+
+  async nextRequest(projectId: string, now: string, maxAgeMs: number) {
+    const cutoff = new Date(new Date(now).getTime() - maxAgeMs).toISOString();
+    const queued = Object.values(this.db.requests)
+      .filter((r) => r.projectId === projectId && r.status === "queued")
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    let next: RequestRecord | undefined;
+    for (const r of queued) {
+      if (r.createdAt < cutoff) {
+        r.status = "expired";
+        r.statusAt = now;
+        r.result = { ok: false, reason: "Nobody was listening on your computer in time, so it was never started." };
+        this.scheduleSave();
+        continue;
+      }
+      next ??= r;
+    }
+    return next ? { ...next, questions: [...next.questions] } : null;
+  }
+
+  async takeRequest(id: string, at: string) {
+    const r = this.db.requests[id];
+    if (!r || r.status !== "queued") return null;
+    r.status = "taken";
+    r.statusAt = at;
+    this.scheduleSave();
+    return { ...r, questions: [...r.questions] };
+  }
+
+  async withdrawRequest(id: string, at: string) {
+    const r = this.db.requests[id];
+    if (!r || r.status !== "queued") return null;
+    r.status = "withdrawn";
+    r.statusAt = at;
+    this.scheduleSave();
+    return { ...r, questions: [...r.questions] };
+  }
+
+  async updateRequest(id: string, patch: Partial<Pick<RequestRecord, "status" | "externalSessionId" | "result" | "answer">> & { statusAt?: string }) {
+    const r = this.db.requests[id];
+    if (!r) return null;
+    if (patch.status !== undefined && patch.status !== r.status) {
+      r.status = patch.status;
+      r.statusAt = patch.statusAt ?? this.now();
+    }
+    if (patch.externalSessionId !== undefined) r.externalSessionId = patch.externalSessionId;
+    if (patch.result !== undefined) r.result = patch.result;
+    if (patch.answer !== undefined) r.answer = patch.answer;
+    this.scheduleSave();
+    return { ...r, questions: [...r.questions] };
+  }
+
+  async addQuestion(requestId: string, question: RequestQuestion) {
+    const r = this.db.requests[requestId];
+    if (!r) return null;
+    if (r.questions.some((q) => q.id === question.id)) return r.questions.find((q) => q.id === question.id)!;
+    r.questions.push(question);
+    this.scheduleSave();
+    return question;
+  }
+
+  /** The first answer stands: a second tap on the same question changes nothing. */
+  async answerQuestion(requestId: string, questionId: string, answer: RequestAnswer) {
+    const q = this.db.requests[requestId]?.questions.find((x) => x.id === questionId);
+    if (!q) return null;
+    if (!q.answer) {
+      q.answer = answer;
+      this.scheduleSave();
+    }
+    return q;
+  }
+
+  async markListening(projectId: string, at: string) {
+    this.db.listening[projectId] = at;
+    this.scheduleSave();
   }
 }
 

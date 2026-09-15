@@ -4,7 +4,8 @@
  *   glasshouse connect [--code XXXX-XXXX] [--server URL] [--name NAME] [--project] [--tools a,b]   link this folder and register hooks
  *   glasshouse hook <tool> <event>                                              called by the agent (stdin JSON)
  *   glasshouse map                                                              resend the file tree so the Room can refresh the area map
- *   glasshouse watch [--no-folders]                                             watch folders, commits and Codex logs (long-running)
+ *   glasshouse watch [--no-folders] [--no-requests]                             watch folders, commits and Codex logs, and take requests from the Room (long-running)
+ *   glasshouse mcp                                                              started by Claude Code: puts its questions to the owner in the Room
  *   glasshouse status                                                           what is linked, what is waiting
  *   glasshouse disconnect                                                       remove hooks and unlink this folder
  *   glasshouse record <tool> <event>                                            append raw payload to a recording file
@@ -19,7 +20,9 @@ import { fileURLToPath } from "node:url";
 import { CONNECTOR_VERSION, codexHome, cursorHome, findProject, homeDir, log, readProjects, spoolDir, writeProjects, type LinkedProject } from "./config.js";
 import { placeHelpers, pullHelpers, reportPlaced } from "./helpers.js";
 import { payloadCwd, readStdin, runHook } from "./hook.js";
+import { envFromProcess, serveMcp } from "./mcp.js";
 import { recordHook } from "./record.js";
+import { startRequestListener } from "./requests.js";
 import {
   hasClaudeCodeHooks,
   hasCodexHooks,
@@ -253,9 +256,18 @@ async function watch() {
     process.exitCode = 1;
     return;
   }
-  const handle = await startWatch({ projects, folders: !has("no-folders"), out: (line) => console.log(`${new Date().toLocaleTimeString()}  ${line}`) });
+  const out = (line: string) => console.log(`${new Date().toLocaleTimeString()}  ${line}`);
+  const handle = await startWatch({ projects, folders: !has("no-folders"), out });
   console.log(`Watching ${projects.length} folder${projects.length === 1 ? "" : "s"} for saves and commits, and Codex logs in ${codexHome()}. Press Ctrl+C to stop.`);
+  // The Room can now ask for things: this is the one process that listens for them (Phase 8).
+  const listener = has("no-requests") ? null : startRequestListener({ projects, cliPath: cliPath(), out });
+  if (listener) console.log(`Taking requests from the Room: what you ask for in Glasshouse's chat starts here, in the linked folder. Start with --no-requests to refuse them.`);
+  else console.log("Not taking requests from the Room (--no-requests).");
   const stop = async () => {
+    if (listener) {
+      if (listener.running() > 0) console.log(`Stopping ${listener.running()} run${listener.running() === 1 ? "" : "s"} started from the Room.`);
+      await listener.stop();
+    }
     await handle.stop();
     process.exit(0);
   };
@@ -274,6 +286,15 @@ async function main() {
       return map();
     case "watch":
       return watch();
+    case "mcp": {
+      const env = envFromProcess(process.env);
+      if (!env) {
+        console.error("glasshouse mcp is started by Claude Code for a run the Room asked for; it needs GLASSHOUSE_SERVER, GLASSHOUSE_TOKEN and GLASSHOUSE_REQUEST_ID.");
+        process.exitCode = 1;
+        return;
+      }
+      return serveMcp(env);
+    }
     case "status":
       return status();
     case "helpers":
@@ -289,7 +310,7 @@ async function main() {
       console.log(CONNECTOR_VERSION);
       return;
     default:
-      console.log("usage: glasshouse <connect [--code XXXX-XXXX] [--server URL] [--name NAME] [--project] [--tools claude-code,codex,cursor] | map | helpers | watch [--no-folders] | status | disconnect | hook <tool> <event> | record <tool> <event>>");
+      console.log("usage: glasshouse <connect [--code XXXX-XXXX] [--server URL] [--name NAME] [--project] [--tools claude-code,codex,cursor] | map | helpers | watch [--no-folders] [--no-requests] | status | disconnect | hook <tool> <event> | record <tool> <event> | mcp>");
   }
 }
 

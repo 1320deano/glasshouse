@@ -10,9 +10,42 @@ Everything runs on your own machine for now. Nothing leaves it unless you add an
    current code every time it starts, so after an update you are never shown yesterday's version of the product
    by mistake. If your browser opens before the Room is up, wait a moment and reload the page.
 2. Use Claude Code, Codex or Cursor as normal, in any folder you have connected.
-3. Optional: in a second terminal run `node .../packages/connector/dist/cli.js watch`. This one process notices
-   plain file saves, commits, and Codex's own logs (which is how Codex usage limits are seen). Ctrl+C stops it.
+3. Double-click `start-watch.cmd` too (or, in a second terminal, run `node .../packages/connector/dist/cli.js watch`).
+   This one process notices plain file saves, commits, and Codex's own logs (which is how Codex usage limits are
+   seen), and it is what lets you start and talk to agents from the Room's chat: it asks the Room every few seconds
+   whether you have asked for anything, and starts it here. Ctrl+C, or closing its window, stops it; the Room then
+   says "Your computer is not listening" next to the box, and anything you send waits (ten minutes at most) instead
+   of running.
 4. Closing the black window stops the Room. Everything it saw is kept and comes back next time.
+
+## Asking for things from the Room (the chat)
+
+The story in the middle of Glasshouse is also the project's group chat. The box at the bottom is yours.
+
+- **With no one named, it is a question to Glasshouse**, answered from the record on the spot. "Where are we?",
+  "What should we do next?" and "How is each agent getting on?" need no AI key. Anything else needs one, and the
+  answer says so if there is none.
+- **Type `@` to name someone.** The list shows Glasshouse, every agent in the Room today (working, or finished and
+  able to pick up where it left off), and "New Claude Code", "New Codex", "New Cursor". Pick one, say what you want,
+  press Enter. The line shows as yours with a pill that follows it: Sent, Starting, Started, Finished, or what went
+  wrong in plain words. The agent's card appears on the left as soon as it starts, exactly as if you had started it
+  in a terminal. "Talk to it" on any card names that agent in the box.
+- **The To box goes back to Glasshouse after each message to an agent**, so the next thing you type is a question,
+  not a new run. Name the agent again for a follow-up.
+- **An agent working in its own window cannot be reached from here.** The box says so, and Send copies your words
+  for you to paste into that window instead.
+- **Ready-made lines** sit under the box: "Unstick it", "Fix the failing checks", "Answer its question", "Pick it up
+  with Codex", "Check it over", "Carry on from here", "Write checks for it", "Run <helper>". Each is computed from
+  what the record shows for a task and says so when you hover. Tap one and it fills the box; change the words if you
+  like, then send.
+- **"Asks before commands" / "Runs commands freely"** is how freely the agent may act. With the first, Claude Code may
+  change files, and anything else (a command, an install) is put to you in the Room, on the card and in the story,
+  with Allow and Don't allow; it waits up to thirty minutes for your tap. Its own multiple-choice questions come the
+  same way, with the options as buttons. Codex and Cursor cannot ask you from a run: Codex works inside its sandbox
+  and Cursor only runs commands it is already allowed to. With the second setting, none of the three waits for you.
+- **When it finishes, its closing words appear in the chat as its own message**, under its maker's mark, and the report
+  card follows as usual. Tick "Technical detail" to see the real command that was run under any line.
+- To refuse requests on this computer altogether, start the watcher with `--no-requests`.
 
 ## Connecting a project (once per folder)
 

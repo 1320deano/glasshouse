@@ -15,7 +15,7 @@
  */
 export { classifyCommand } from "./classify.js";
 export { parseTestOutput, type TestCounts } from "./tests-output.js";
-export { normaliseClaudeCode, normaliseHook, relativePath, stripPayload, toSlashes, type NormaliseContext } from "./normalise/claude-code.js";
+export { commandEvent, mapToolUse, normaliseClaudeCode, normaliseHook, relativePath, stripPayload, toSlashes, type Mapped, type NormaliseContext } from "./normalise/claude-code.js";
 export { normaliseCodex } from "./normalise/codex.js";
 export { normaliseCodexRollout, createRolloutState, type RolloutState } from "./normalise/codex-rollout.js";
 export { normaliseCursor } from "./normalise/cursor.js";
