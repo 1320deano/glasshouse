@@ -56,7 +56,8 @@ Then explain what was done in plain, non-technical language, leaving nothing out
 ## Design rules for the Room
 
 - Readable from two metres. Glanced at, not leaned into. Light palette only (no dark mode), the Claude app's
-  warm ivory-and-white with one terracotta accent, set in Geist. Rules and tokens: `docs/design-system.md`.
+  warm ivory-and-white with one black accent (no orange anywhere), set in Geist. Rules and tokens:
+  `docs/design-system.md`.
 - Three columns (Phase 5): agents on the left, the running story in the middle, progress on the right.
   Below 960px the columns become three tabs: Agents, Story, Progress. On a wide screen either side column folds
   away to nothing, leaving only its own toggle on the pixel that toggle already occupied; each side column's

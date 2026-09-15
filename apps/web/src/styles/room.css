@@ -204,7 +204,7 @@
 }
 
 /* The status on a card: a word and a dot. Neutral while working (the dot carries the accent),
-   amber when the owner is the blocker, red when something has gone wrong, green when finished. */
+   black when the owner is the blocker, red when something has gone wrong, green when finished. */
 .status {
   display: inline-flex;
   align-items: center;
@@ -1595,9 +1595,9 @@
   font-weight: var(--weight-normal);
 }
 /* "Waiting for you" and "Looks stuck" are written in words here, so they are written in the
-   column's own deep blue and not in amber or red. The signals the owner is meant to catch from
-   across the room live on the agent card: its status word, its amber edge, its pill. This column
-   is the week in counts and stages, and it stays one cool family throughout. */
+   column's own deep blue and not in --warn or red. The signals the owner is meant to catch from
+   across the room live on the agent card: its status word, its darkened edge, its pill. This
+   column is the week in counts and stages, and it stays one cool family throughout. */
 .part[data-attention="waiting"] .part-stage,
 .part[data-attention="stuck"] .part-stage {
   color: var(--blue-ink);
@@ -1650,7 +1650,7 @@
 /* --- Your helpers (Phase 7): the Shed's helpers as the Room sees them ------------------------
    One row each: the tool marks, the name (a link back to the Shed), what it does, and the one line
    that matters, computed from the files its runs changed. Green only when verified, red only when
-   it strayed, amber when the tool did not say who made an edit. */
+   it strayed, black when the tool did not say who made an edit. */
 .helper-rows {
   list-style: none;
   margin: 0;

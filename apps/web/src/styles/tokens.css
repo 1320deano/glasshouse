@@ -7,9 +7,9 @@
 
    Shape of the system
      Colour   warm and neutral-heavy, the way the Claude app is: an ivory page, white surfaces,
-              warm greys for lines and quiet text, and one terracotta accent spent only on the
+              warm greys for lines and quiet text, and one black accent spent only on the
               primary action and the thing the eye must land on first. Claude's blue is the
-              colour of counts and stages in the progress column. Amber, green and red are
+              colour of counts and stages in the progress column. Black, green and red are
               *status*: they carry a fact ("waiting for you", "verified", "an error"), never
               decoration. Every text colour below passes WCAG AA (4.5:1) on its own surface.
      Type     Geist for everything (the open face closest to Anthropic Sans), one serif for the
@@ -64,25 +64,29 @@
   --line-strong: var(--grey-600);
 
   /* --- Colour: the one accent -----------------------------------------------------------
-     Terracotta. Used for: the primary button, the focused control, the single most important
-     link on a page, the "working" dot. Never for body links, never for decoration, never for a
-     whole nav. --accent-ink is the same hue a shade deeper, for text that sits on a tint. */
-  --accent: #b04f2c;
-  --accent-hover: #9c4426;
-  --accent-ink: #9e4627;
-  --accent-quiet: rgba(201, 100, 66, 0.12);
-  --accent-line: rgba(201, 100, 66, 0.4);
+     Black. Used for: the primary button, the focused control, the single most important link on
+     a page, the "working" dot. Never for body links, never for decoration, never for a whole
+     nav. It is the same near-black as the primary text (--grey-50), so the accent reads as ink
+     rather than as a colour, and a filled black button sits flat on the ivory page. Because
+     black cannot go darker, --accent-hover *lifts* to the secondary-text grey: that is the
+     hover, and it is the one place the accent is allowed to be lighter than itself.
+     --accent-ink is the same black, for text that sits on a tint. */
+  --accent: #141413;
+  --accent-hover: #3d3d3a;
+  --accent-ink: #141413;
+  --accent-quiet: rgba(20, 20, 19, 0.1);
+  --accent-line: rgba(20, 20, 19, 0.45);
 
   /* --- Colour: the progress blue --------------------------------------------------------
      Claude's blue (#6a9bcc, the secondary accent of the Claude and Claude Code apps). It is the
      colour of *counts and stages* on the right of the Room: the activity heatmap, the stage bar
      under each part, and Claude Code's share of the tool mix. Cooler and quieter than the
-     terracotta, so the progress column reads as information, not as a row of warnings.
+     black accent, so the progress column reads as information, not as a row of warnings.
      --blue-1 to --blue-4 climb from "one action" to "the busiest hour of the week"; --blue-deep
      is the top of the ramp and the "finished" segment of a stage bar. --blue-ink is the one of
      these dark enough to be *text* (6.2:1 on a white card, 5.6:1 on the page), and it is what the
      progress column writes a part's stage in - including "waiting for you" and "looks stuck",
-     which say it in words there. The amber and red those two used to borrow stay on the agent
+     which say it in words there. The black and red those two used to borrow stay on the agent
      card, where the eye is meant to land; the right-hand column keeps one cool family. */
   --blue: #6a9bcc;
   --blue-deep: #4a7fb2;
@@ -93,9 +97,9 @@
   --blue-4: var(--blue);
 
   /* --- Colour: status. A fact, never a mood. -------------------------------------------- */
-  --warn: #8a5200; /* waiting for you, medium risk, a decision to make: 5.3:1 on its tint */
-  --warn-quiet: rgba(214, 137, 16, 0.13);
-  --warn-line: rgba(214, 137, 16, 0.45);
+  --warn: #141413; /* waiting for you, medium risk, a decision to make: black, 16.7:1 on the page */
+  --warn-quiet: rgba(20, 20, 19, 0.1);
+  --warn-line: rgba(20, 20, 19, 0.55);
   --positive: #1b7a3e; /* verified: not touched, checks passed: 4.6:1 on its tint over white */
   --positive-ink: #186c3a; /* the same green a shade deeper, for text on the tint over the story's ground: 5.3:1 */
   --positive-quiet: rgba(27, 122, 62, 0.1);
@@ -105,10 +109,13 @@
 
   /* --- Colour: "needs you", as a block behind text --------------------------------------
      A decision, a question, a medium risk: the fact is in the words, so the block behind them
-     is the warm grey of your own messages, never a colour. The amber above stays for the
-     *signals* the eye is meant to catch from across the room and nowhere else: the waiting
-     status word, the edge of the card it belongs to, the stage bar. Ink is the darkest text we
-     have (14.8:1 on the grey) so a needs-you chip still reads as the loudest of the quiet ones. */
+     is the warm grey of your own messages, never a colour. --warn above stays for the *signals*
+     the eye is meant to catch from across the room and nowhere else: the waiting status word,
+     the edge of the card it belongs to, the stage bar. Since --warn is now black rather than
+     amber, those signals carry by weight, by the darkened edge and by the words themselves, and
+     green and red remain the only two hues that are allowed to mean anything. Ink is the
+     darkest text we have (14.8:1 on the grey) so a needs-you chip still reads as the loudest of
+     the quiet ones. */
   --attention-quiet: var(--grey-800);
   --attention-ink: var(--text-primary);
   --attention-line: var(--grey-600);

@@ -15,31 +15,37 @@ invents a value.
 `apps/web/src/app/globals.css` is six `@import` lines and nothing else.
 
 **Light only, and warm.** The palette is the Claude app's: an ivory page (`#f5f4ee`), white surfaces,
-warm greys for lines and quiet text, one terracotta accent. There is no dark mode. The grey ramp's
+warm greys for lines and quiet text, one black accent. There is no orange anywhere in the product:
+the terracotta the accent used to be, and the amber `--warn` used to be, are both black now, and
+green and red are the only two hues left that mean anything. There is no dark mode. The grey ramp's
 numbers name a role, not a lightness (`--grey-1000` is the page, `--grey-50` is the primary text), so
 every rule reads the same whichever way the palette leans. White is spent on things: cards, and the
 reply box, which is the one surface that floats.
 
 ## The rules
 
-**One accent.** `--accent` (terracotta, #b04f2c) is for a primary action, a focused control, the
-"working" dot, or the single most important link on a page. Never a whole navigation, never
-decoration. Text that sits on the accent's tint uses `--accent-ink`, a shade deeper, so it still
-passes AA. Links are neutral by default; `.link-accent` opts one in.
+**One accent.** `--accent` (black, #141413 — the same ink as the primary text) is for a primary
+action, a focused control, the "working" dot, or the single most important link on a page. Never a
+whole navigation, never decoration. Text that sits on the accent's tint uses `--accent-ink`, the
+same black, so it still passes AA. Links are neutral by default; `.link-accent` opts one in. Black
+cannot go darker, so `--accent-hover` (#3d3d3a) *lifts*: a filled black button lightens on hover,
+and that is the one place the accent may be lighter than itself.
 
 **Status colour carries a fact.** In the Shed, the green "In your project" pill and the green "kept to its patch" line
 are computed (from the connector's report and from the files a run changed); a red "went outside its patch" is the same
-computation the other way; amber "unclear" means the tool did not say which agent made an edit. The chips in the builder
+computation the other way; a black "unclear" means the tool did not say which agent made an edit. The chips in the builder
 use the same three: green works here, red must never change, neutral no rule. The dots beside a helper's lines are green
 because each line is a sentence that will be in the file, verbatim. A box the record has seen a reason for, and which is
 not ticked, has a dashed accent edge: the accent is the one colour allowed to say "look here". Text on the green tint
 uses `--positive-ink`, a shade deeper than `--positive`, so a "Kept to its patch" pill passes AA on the story's ground too.
 
- Amber (`--warn`) means the owner is the blocker: waiting for you,
-a decision needed, a part that counts as high risk. Green (`--positive`) means verified: "not
-touched", checks passed. Red (`--danger`) means an error, stuck, or high risk. Nothing is coloured
-because it looks nice. Per the Room's design rules, "waiting for you" is the one badge allowed to
-light up, and the card it belongs to is the one card allowed an amber border. Amber and red are spent
+ `--warn` (black) means the owner is the blocker: waiting for you,
+a decision needed, a part that counts as high risk. It used to be amber; it is black now, so it
+carries by being the darkest, heaviest thing on the card rather than by being a colour. Green
+(`--positive`) means verified: "not touched", checks passed. Red (`--danger`) means an error, stuck,
+or high risk. Nothing is coloured because it looks nice. Per the Room's design rules, "waiting for
+you" is the one badge allowed to light up, and the card it belongs to is the one card allowed a
+`--warn` border — a darkened edge rather than an amber one. `--warn` and red are spent
 on the *agent card* and in the report; the progress column states the same facts in words and in its
 own blue, so the owner's eye is pulled to one place and not to two. The activity heatmap
 climbs `--blue-1` to `--blue-4`: it is a count, so it may use the progress blue's ramp and nothing else.
@@ -54,8 +60,8 @@ it: the heatmap's four steps (`--blue-1` to `--blue-4`); the filled segments of 
 blue plus the watcher's slate, for the tool mix bar and its key.
 
 The signals the owner is meant to catch from across the room are on the agent card, not here: its
-amber status word, its amber edge, its red "looks stuck" block. So the stage bar is never tinted
-amber or red, and a failing check is stated in words in `--blue-ink` rather than in red — `--positive`
+black status word, its darkened edge, its red "looks stuck" block. So the stage bar is never tinted
+`--warn` or red, and a failing check is stated in words in `--blue-ink` rather than in red — `--positive`
 green for "checks passed" is the one status colour this column still spends, because it is a verified
 fact. `TOOL_COLOURS` is deliberately not the makers' brand colours; the real logos carry those
 (see **the tool marks** below).
@@ -121,9 +127,12 @@ one, replace its `d`, its `fill-rule` and its `fill` with the maker's current pu
 Only the watcher's folder is drawn here, because a folder watcher is not a product and has no mark
 to be right about.
 
-**A re-tinted logo is the wrong logo**, so each mark keeps its maker's own colour and none of them is
-pulled into the palette: Claude Code is Anthropic's coral (`#D97757`, the fill in `claude.ai/favicon.svg`),
-Cursor is the black cube from the logo in cursor.com's own header, and Codex is the black scalloped
+**A mark keeps its maker's own shape**, so each is the maker's own path at the maker's own viewBox and
+none is redrawn by hand — but all three are drawn in black, because the palette holds no orange and a
+single coral burst beside two black marks was the last orange on the screen. Giving a mark a
+*different hue* would make it the wrong logo; taking it down to the ink everything else is written in
+does not. Claude Code is the Claude burst from `claude.ai/favicon.svg` (Anthropic publishes it in
+`#D97757`; drawn here in black), Cursor is the black cube from the logo in cursor.com's own header, and Codex is the black scalloped
 disc around a `>_` prompt — its `fill-rule` is `evenodd` because the prompt is a hole cut out of the
 disc, and it is deliberately not the OpenAI blossom, which is the company's mark and not this
 product's. The watcher's folder is the Room's slate, having no brand colour to be right about.
