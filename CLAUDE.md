@@ -17,7 +17,8 @@ Brief: `control-room-product-report.md`. Phased plan: `glasshouse-phased-plan.md
 Phases 0 to 4 are built; findings per phase in `docs/phase-N-findings.md`. Phase 5 (the three-column Room) is in
 `docs/phase-5-findings.md`; Phase 6 (Deano and the Potting Shed) in `docs/phase-6-findings.md`; the Shed's
 rebuild around one tick-box card in `docs/phase-7-findings.md`; the landing page rebuilt around a chaptered demo of the
-real Room in `docs/landing-page-findings.md`. What only Christopher
+real Room in `docs/landing-page-findings.md`; Phase 8 (the Room can ask: the story as a group chat that starts and
+talks to agents on the owner's own computer) in `docs/phase-8-findings.md`. What only Christopher
 can do is listed in `docs/what-christopher-needs-to-do.md`.
 
 ## Reporting to Christopher (every finished task)
@@ -47,8 +48,13 @@ Then explain what was done in plain, non-technical language, leaving nothing out
    from the changed-files list. Never generated, never guessed.
 3. **Every plain-English line links to the real action underneath.** Keep `raw` and `sourceEvent`
    on every event. The technical-detail toggle must always be able to show the truth.
-4. **Watch-only.** No pause, approve, send, or control actions. Hooks and connectors never block or
-   alter the agent: always exit 0, never print to stdout in a hook, swallow your own errors.
+4. **Watch-only on the agents' side; asking is the owner's, and it is on the record.** Hooks and connectors never
+   block or alter a running agent: always exit 0, never print to stdout in a hook, swallow your own errors. No
+   pause, kill or approve-from-the-server actions exist. The one way words go the other way (Phase 8) is a
+   request the owner made in the Room's chat, stored as a row, taken by their own connector on their own
+   computer, run through the tool's own non-interactive mode, and shown in the story with who asked, what was
+   run and what came back. The Room never runs anything itself. A question a run asks (may it run this, which
+   way) reaches the owner through the same connector and waits for their tap; nothing answers on their behalf.
 5. **Owner language.** Every word in the UI, digest and report is for someone who will never open
    the code. No file paths, tool names or jargon in the default view. Say "Looking at how logged-in
    users are identified", not "Reading auth/session.py". Code and paths live behind the toggle.
@@ -78,6 +84,24 @@ Then explain what was done in plain, non-technical language, leaving nothing out
   each helper's runs judged from the files they changed; story lines when a helper starts and finishes, with the verdict
   as the badge; "Grow a helper from this" on stuck, stopped, decision and failing-check moments, which opens the Shed on
   the suggestion that task is part of; and "Copy a line that asks for it" (copied, never sent).
+- The story is the project's group chat (Phase 8, `lib/requests/*`). The box at its foot is for the owner: with no one
+  named it is a question to Glasshouse, answered from the record ("Where are we?", "What next?", "How is each agent
+  doing?" need no AI; anything else goes to the AI with the same facts, and says so plainly without a key). "@" opens
+  the address book: Glasshouse, each agent in the Room, or a new Claude Code, Codex or Cursor. Words for an agent are
+  stored as a request and started on the owner's computer by `glasshouse watch`; nothing is sent to an agent the owner
+  did not name, and the To box goes back to Glasshouse after every message to an agent. An agent working in its own
+  window is out of reach: the words are copied for the owner to paste, and the box says so.
+- Ready-made lines under the box (`lib/requests/suggest.ts`) are computed from the record, never generated: unstick it,
+  fix the failing checks, answer its question, pick it up with another tool after a usage limit, check it over, carry
+  on, write checks, run a placed helper. Each carries the fact it rests on and the task it came from, and lands in the
+  box for the owner to change before sending.
+- A run started from the Room shows its questions in the story and on its card, the one thing allowed to light up:
+  "Wants to run the checks" with Allow / Don't allow, or the agent's own multiple-choice question with its options. The
+  first answer stands. Its closing words come back as its own message under the maker's mark. Every request line
+  keeps the real command behind the Technical detail toggle (rule 3).
+- "How freely" is two settings, never a number: "Asks before commands" (files may change; anything else waits for the
+  owner in the Room) and "Runs commands freely". What each means per tool is stated on the control, as facts about
+  the tools.
 
 ## Design rules for the Potting Shed
 
@@ -126,8 +150,21 @@ Then explain what was done in plain, non-technical language, leaving nothing out
 - Store layer in `apps/web/src/lib/store`: `MemoryStore` (local file) or `SupabaseStore`, chosen by env. Same behaviour; task/stage derivation lives in `derive.ts` and is shared.
 - Helpers (Phase 6) are rows of words in `helpers`; their runs are read from `events` (sub-agent starts and the edits
   that carry the same agent id), never stored. Free grows two helpers per project; the gate is in `lib/plan.ts`.
+- Requests (Phase 8) are rows of words in `requests` (the owner's text, who it is for, how freely, the tool's own
+  session id, what the process reported) and `request_questions`; what a run became (its session, task, the plain
+  lines) is looked up from the record when read (`lib/requests/view.ts`). Claude Code is started under a session id
+  the Room chose, so its card is linked from its first action; Codex and Cursor report theirs. A request nobody took
+  within ten minutes expires and is never run. Both stores implement the same methods; the connector's calls are
+  bearer-token routes under `api/requests`.
 - The connector has no daemon for hooks: each hook spools one event file and flushes the spool. See `docs/phase-1-findings.md`.
-  `glasshouse watch` is the one long-running process, only for sources without hooks (folder saves, git, Codex logs).
+  `glasshouse watch` is the one long-running process: for sources without hooks (folder saves, git, Codex logs) and,
+  since Phase 8, for taking requests from the Room (`packages/connector/src/requests.ts`; `--no-requests` refuses them).
+  Claude Code runs as `claude -p` under `--permission-mode acceptEdits` with `--permission-prompt-tool` pointing at
+  `glasshouse mcp` (`mcp.ts`), a stdio MCP server the connector itself provides, so every permission and every
+  AskUserQuestion goes to the owner in the Room and waits for the tap (`MCP_TOOL_TIMEOUT` is raised to match). A
+  follow-up is `--resume` of the session, queued behind the same session's running process. Codex is `codex exec`
+  in its sandbox (`resume` for a follow-up); Cursor is `cursor-agent -p` (`--resume`). Codex and Cursor cannot ask
+  the owner from a run; the care control says so.
 - Nothing in the browser calls `res.json()` on a reply from our own server. It calls `readAnswer`/`askServer`
   (`lib/answer.ts`), which turns a reply that is not an answer — the not-found page after an update, a host's
   error page, an empty body from a route that stopped — into one plain-English line. A browser's own words
@@ -141,7 +178,8 @@ Then explain what was done in plain, non-technical language, leaving nothing out
   never lower it, and may not name a part the changed-files list does not. The digest is built the same way
   (`digest.ts`); the AI only adds an opening summary.
 - Claude API for the expensive calls only: headline on meaning change, area map, file descriptions, one report card
-  per finished task, one digest opening per window while the facts change, Ask, and the Shed's one tidy-up of the
+  per finished task, one digest opening per window while the facts change, Ask (about one task, and since Phase 8
+  about the whole project: `lib/ai/room-ask.ts`), and the Shed's one tidy-up of the
   owner's sentence into a first draft (`lib/ai/helper.ts`). All through
   `apps/web/src/lib/ai/client.ts`, which logs every call to `ai_calls`.
   Without `ANTHROPIC_API_KEY` everything must still work from templates and folder names.
@@ -170,7 +208,7 @@ pnpm connector:build                          # bundle the connector to packages
 node packages/connector/dist/cli.js connect   # link the current folder, register hooks (Claude Code, Codex, Cursor), send the file map
 node packages/connector/dist/cli.js map       # resend the file map
 node packages/connector/dist/cli.js helpers   # put the helpers grown in the Potting Shed into this folder
-node packages/connector/dist/cli.js watch     # follow saves, commits and Codex logs (long-running)
+node packages/connector/dist/cli.js watch     # follow saves, commits and Codex logs, and take requests from the Room (long-running; or double-click start-watch.cmd)
 node packages/connector/dist/cli.js status
 
 pnpm dev:account                           # the already-verified test account for signing in without an email (--free for the free tier)

@@ -199,12 +199,23 @@ the name, Stripe, npm, ten testers). The exit test runs once those exist.
 
 ---
 
+## Phase 8 — Asking from the Room (built, 14–15 September 2026)
+
+Christopher's call: a room that only watches, while the asking happens in another window, is half a product. So the
+story became the project's group chat. "@" names Glasshouse, an agent in the Room, or a new agent of any of the three
+tools; the words are stored as a request and started on the owner's own computer by `glasshouse watch`, through each
+tool's non-interactive mode. Claude Code's permissions and questions come back to the Room and wait for a tap. What
+makes it different from every "chat with your agent in a browser" product: the ready-made lines are computed from the
+record (stuck, checks failing, a question asked, a usage limit hit, a helper in place), the run lands in the same story
+with the same computed facts, and the agents run locally on the owner's own subscription. Rule 4 was rewritten, not
+dropped: the agents' side is still never blocked or altered. Findings in `docs/phase-8-findings.md`.
+
 ## Later versions (not planned in detail yet)
 
 | Version | Adds | Trigger to start |
 |---|---|---|
 | v2 | Visual area map with agents drawn inside areas; "explain this part of my app"; Studio tier with shareable read-only views and branded digests; desktop app | Paying users exist and ask for sharing, or the map demo is needed for marketing |
-| v3 | Parallel agents: overlap warnings, downstream impact; Team tier per seat; optional control actions if users ask | 40% of Pro users on 2+ tools and users running agents in parallel |
+| v3 | Parallel agents: overlap warnings, downstream impact; Team tier per seat; the chat's next steps: a follow-up that reaches a Claude Code run mid-turn (stream input), Codex and Cursor questions in the Room if their tools ever allow it | 40% of Pro users on 2+ tools and users running agents in parallel |
 | Seatbelt link | Seatbelt findings feed the risk badge | Both products live for a year |
 
 ---

@@ -9,7 +9,7 @@ invents a value.
 | base | `apps/web/src/styles/base.css` | reset, typographic defaults, links, the focus ring, the motion contract |
 | components | `apps/web/src/styles/components.css` | buttons, fields, badges, cards, notices, empty states, the loading wheel, tables, page shell |
 | screens | `apps/web/src/styles/screens.css` | the report card, the task panel, digest, inbox, areas, the landing page (its demo player, proofs and sections), admin |
-| room | `apps/web/src/styles/room.css` | the Room: header, three columns, agent cards, the story, progress, the helper rows |
+| room | `apps/web/src/styles/room.css` | the Room: header, three columns, agent cards, the story, progress, the helper rows, and (Phase 8) the chat's box with its To capsule, the address book that rises out of it, the ready-made lines under it, the question bubbles with their two buttons, an agent's own message under its maker's mark |
 | deano | `apps/web/src/styles/deano.css` | the front door (the product picker) and the Potting Shed: the way-out button, product cards, the one builder card (kind tiles, the helper as a document with its folding questions, boxes to tick with what the record says, the rehearsal card, the phone bar), helper and suggestion cards, chips |
 
 `apps/web/src/app/globals.css` is six `@import` lines and nothing else.

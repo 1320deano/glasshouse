@@ -276,6 +276,10 @@ export interface RoomState {
   activity: ActivityView;
   /** The helpers grown for this project and how they did this week. Absent from a server older than Phase 7. */
   helpers?: RoomHelper[];
+  /** What the owner asked for from the Room this week, oldest first (Phase 8). Absent from a server older than Phase 8. */
+  requests?: RequestView[];
+  /** When the owner's own connector last asked the Room for requests. Absent when it never has. */
+  listeningAt?: string;
 }
 
 /** The stored words of a report card. The facts are computed when read (derive.ts). */
@@ -426,6 +430,118 @@ export interface HelperRun {
   taskWide: boolean;
 }
 
+// -- Phase 8: asking from the Room -------------------------------------------------------------
+
+/** Who a message in the Room's chat is for: one of the three tools, or Glasshouse itself. */
+export type RequestTool = "claude-code" | "codex" | "cursor" | "glasshouse";
+
+/**
+ * Where a request is on its way from the owner's words to a running agent. Stages, never a
+ * percentage (rule 1).
+ *   queued     waiting for the owner's own connector to ask for it
+ *   taken      the connector has it and is starting the tool
+ *   running    the tool has started
+ *   finished   the tool's run ended and it said so
+ *   failed     the tool could not be started, or its run ended badly; `result.reason` says why
+ *   expired    nobody was listening within the time allowed, so it was never run
+ *   withdrawn  the owner took it back before anyone took it
+ *   answered   a question Glasshouse answered itself, from the record
+ */
+export type RequestStatus = "queued" | "taken" | "running" | "finished" | "failed" | "expired" | "withdrawn" | "answered";
+
+/**
+ * How freely the agent may act, in the owner's words. "ask": it may change files, and anything
+ * else (a command, an install) is put to the owner in the Room first. "free": it may do anything
+ * the tool allows without asking.
+ */
+export type RequestCare = "ask" | "free";
+
+/** Where the words came from (rule 3): typed by the owner, or a ready-made line computed from a task. */
+export interface RequestOrigin {
+  kind: "typed" | "suggested";
+  suggestionId?: string;
+  taskId?: string;
+}
+
+/** One question a running tool put to the owner through the Room: may it do something, or which way should it go. */
+export interface RequestQuestion {
+  id: string;
+  askedAt: string;
+  /** "permission": may it do this action. "choice": the agent's own multiple-choice question. */
+  kind: "permission" | "choice";
+  /** The tool's own name for the action, e.g. "Bash". Behind the toggle. */
+  toolName: string;
+  /** What kind of action it is, in the record's own vocabulary, so the same templates translate it. */
+  eventKind?: EventKind;
+  /** The tool's own one-line description of the action, when it gave one. */
+  description?: string;
+  /** The raw one-liner for the action, e.g. "Ran: pnpm test" (rule 3). */
+  summary: string;
+  paths: string[];
+  command?: string;
+  /** For "choice": the questions and their options exactly as the tool sent them. */
+  choices?: Array<{ question: string; header?: string; options: Array<{ label: string; description?: string }>; multiSelect?: boolean }>;
+  /** The stripped input the tool sent, for the technical-detail toggle. */
+  raw?: unknown;
+  answer?: RequestAnswer;
+}
+
+export interface RequestAnswer {
+  allow: boolean;
+  /** For a "choice": the chosen label per question, keyed by the question text. */
+  answers?: Record<string, string>;
+  at: string;
+  by?: string;
+}
+
+/** What happened when the connector ran the tool. Facts from the process, never a mood. */
+export interface RequestResult {
+  ok: boolean;
+  /** One plain line for the owner when it did not go well. */
+  reason?: string;
+  /** The tool's closing words, clipped. */
+  closing?: string;
+  exitCode?: number;
+  /** The command the connector ran, for the technical-detail toggle. */
+  command?: string;
+  /** The tail of what the tool wrote to its error stream, clipped. */
+  stderr?: string;
+  costUsd?: number;
+  durationMs?: number;
+  turns?: number;
+}
+
+export interface RequestRecord {
+  id: string;
+  projectId: string;
+  ownerId?: string | null;
+  createdAt: string;
+  tool: RequestTool;
+  /** The owner's words, exactly as sent. */
+  text: string;
+  /** A follow-up to an agent already in the Room: the Room's session id and the tool's own id for it. */
+  continues?: { sessionId: string; externalId: string };
+  origin: RequestOrigin;
+  care: RequestCare;
+  status: RequestStatus;
+  statusAt: string;
+  /** The tool's own session id for the run. Claude Code's is chosen before it starts; the others report theirs. */
+  externalSessionId?: string;
+  result?: RequestResult;
+  questions: RequestQuestion[];
+  /** Glasshouse's own answer, when the request was a question to it. `basedOn` holds event ids. */
+  answer?: { text: string; basedOn: string[]; unsure: boolean; source: "template" | "ai" };
+}
+
+/** A request as the Room shows it: the record plus what the record links it to, computed when read. */
+export interface RequestView extends Omit<RequestRecord, "questions" | "answer"> {
+  /** The Room session the run became (or continues), once its first action arrived. */
+  sessionId?: string;
+  taskId?: string;
+  questions: Array<RequestQuestion & { plain: string }>;
+  answer?: { text: string; basedOn: Array<Pick<EventView, "id" | "plain" | "summary" | "paths">>; unsure: boolean; source: "template" | "ai" };
+}
+
 export interface AiCallLog {
   projectId: string;
   taskId?: string;
@@ -509,4 +625,21 @@ export interface Store {
   markHelpersPlaced(projectId: string, at: string): Promise<void>;
   /** Every time a sub-agent started in this project, newest first, with what it changed. */
   helperRuns(projectId: string, opts: { since: string }): Promise<HelperRun[]>;
+
+  // -- Phase 8: asking from the Room -------------------------------------------------------------
+  createRequest(input: Omit<RequestRecord, "id" | "createdAt" | "statusAt" | "questions"> & { id?: string; createdAt?: string }): Promise<RequestRecord>;
+  getRequest(id: string): Promise<RequestRecord | null>;
+  /** Requests made at or after `since`, newest first. */
+  listRequests(projectId: string, opts: { since: string; limit?: number }): Promise<RequestRecord[]>;
+  /** The oldest queued request for the connector to take, or null. Anything queued longer than `maxAgeMs` is marked expired first. */
+  nextRequest(projectId: string, now: string, maxAgeMs: number): Promise<RequestRecord | null>;
+  /** queued -> taken, atomically. Null when it was not queued (someone else took it, or the owner withdrew it). */
+  takeRequest(id: string, at: string): Promise<RequestRecord | null>;
+  /** queued -> withdrawn, atomically: the owner took it back. Null when it was no longer queued. */
+  withdrawRequest(id: string, at: string): Promise<RequestRecord | null>;
+  updateRequest(id: string, patch: Partial<Pick<RequestRecord, "status" | "externalSessionId" | "result" | "answer">> & { statusAt?: string }): Promise<RequestRecord | null>;
+  addQuestion(requestId: string, question: RequestQuestion): Promise<RequestQuestion | null>;
+  answerQuestion(requestId: string, questionId: string, answer: RequestAnswer): Promise<RequestQuestion | null>;
+  /** The connector asked for requests: the Room can say the owner's computer is listening. */
+  markListening(projectId: string, at: string): Promise<void>;
 }
